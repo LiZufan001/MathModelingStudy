@@ -20,7 +20,19 @@ jobs:
           fetch-depth: 0
 
       - name: Install archive tools
+        shell: bash
         run: |
+          set -euo pipefail
+
+          # The hosted runner can contain unrelated third-party apt sources.
+          # If one of those is temporarily broken (for example Azure CLI), it
+          # must not prevent this job from installing ordinary Ubuntu packages.
+          for f in /etc/apt/sources.list.d/*; do
+            if [ -f "$f" ] && grep -q 'packages.microsoft.com' "$f"; then
+              sudo mv "$f" "$f.disabled"
+            fi
+          done
+
           sudo apt-get update -qq
           sudo apt-get install -y -qq p7zip-full unar
 
