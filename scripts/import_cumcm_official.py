@@ -36,7 +36,7 @@ SOURCES = {
 
 ARCHIVE_EXTS = {'.rar', '.zip', '.7z'}
 MEDIA_EXTS = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.webm', '.m4v'}
-KEEP_EXTS = {'.pdf', '.xlsx', '.xls', '.csv', '.txt', '.doc', '.docx', '.jpg', '.jpeg', '.png'}
+KEEP_EXTS = {'.pdf', '.xlsx', '.xls', '.csv', '.txt', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.gif'}
 MAX_STATEMENT = 25 * 1024 * 1024
 MAX_ATTACHMENT = 5 * 1024 * 1024
 MAX_ATTACHMENTS_PER_YEAR = 20 * 1024 * 1024
@@ -60,9 +60,18 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def seven_zip_extract(archive: Path, target: Path) -> None:
+def extract_archive(archive: Path, target: Path) -> None:
+    """Extract with 7-Zip first, then fall back to unar for troublesome legacy RARs."""
+    shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['7z', 'x', '-y', str(archive), f'-o{target}'], check=True)
+    try:
+        subprocess.run(['7z', 'x', '-y', str(archive), f'-o{target}'], check=True)
+        return
+    except subprocess.CalledProcessError:
+        shutil.rmtree(target, ignore_errors=True)
+        target.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run(['unar', '-f', '-o', str(target), str(archive)], check=True)
 
 
 def expand_nested_archives(root: Path) -> None:
@@ -76,21 +85,20 @@ def expand_nested_archives(root: Path) -> None:
                 continue
             seen.add(resolved)
             target = archive.with_name(archive.name + '__unpacked')
-            try:
-                seven_zip_extract(archive, target)
-                found_new = True
-            except subprocess.CalledProcessError:
-                # Keep going: the archive itself remains represented in ATTACHMENTS.md.
-                pass
+            extract_archive(archive, target)
+            found_new = True
         if not found_new:
             break
 
 
 def clean_rel(path: Path, root: Path) -> Path:
-    parts = []
+    parts: list[str] = []
     for part in path.relative_to(root).parts:
         if part.endswith('__unpacked'):
             part = part[:-len('__unpacked')]
+            p = Path(part)
+            if p.suffix.lower() in ARCHIVE_EXTS:
+                part = p.stem
         parts.append(part)
     return Path(*parts)
 
@@ -129,8 +137,8 @@ def describe(rel: Path) -> str:
         return '题目配套表格/数据文件'
     if ext == '.txt':
         return '题目配套文本数据或说明'
-    if ext in {'.jpg', '.jpeg', '.png'}:
-        return '题目配套图片资料'
+    if ext in {'.jpg', '.jpeg', '.png', '.gif'}:
+        return '题目配套图片/动态图资料'
     if ext == '.pdf':
         return 'PDF 附件或补充说明资料'
     if ext in {'.doc', '.docx'}:
@@ -147,7 +155,7 @@ def copy_file(src: Path, dst: Path) -> None:
 
 def write_manifests(year: str, source: dict[str, object], rows: list[dict[str, object]], year_dir: Path) -> None:
     archive = Path(source['archive'])
-    source_text = f'''# CUMCM {year} 官方题目来源\n\n- 来源：全国大学生数学建模竞赛组委会官网\n- 官方页面：{source['page']}\n- 官方题目压缩包：{source['url']}\n- 官方压缩包文件名：{archive.name}\n- 导入时 SHA256：`{sha256(archive)}`\n\n## 仓库存储策略\n\n本仓库优先保存题目正文，以及体积适合 GitHub/手机离线浏览的表格、文本、图片等附件。视频、压缩包、单个过大的附件，或会使单年附件总体积过大的文件不会提交到 GitHub；它们仍会记录在 `ATTACHMENTS.md` 中，并保留官方来源链接。\n\n因此，`official/` 是“适合直接放进 GitHub 的官方材料子集”，不是对官方压缩包的无条件完整镜像。需要遗漏附件时，请从上面的组委会官方下载地址获取。\n'''
+    source_text = f'''# CUMCM {year} 官方题目来源\n\n- 来源：全国大学生数学建模竞赛组委会官网\n- 官方页面：{source['page']}\n- 官方题目压缩包：{source['url']}\n- 官方压缩包文件名：{archive.name}\n- 导入时 SHA256：`{sha256(archive)}`\n\n## 仓库存储策略\n\n本仓库优先保存 A–E 题题目正文，以及体积适合 GitHub/手机离线浏览的表格、文本、图片等附件。视频、压缩包、单个过大的附件，或会使单年附件总体积过大的文件不会提交到 GitHub；它们仍会记录在 `ATTACHMENTS.md` 中，并保留官方来源链接。\n\n因此，`official/` 是“适合直接放进 GitHub 的官方材料子集”，不是对官方压缩包的无条件完整镜像。需要遗漏附件时，请从上面的组委会官方下载地址获取。\n'''
     (year_dir / 'SOURCE.md').write_text(source_text, encoding='utf-8')
 
     lines = [
@@ -173,7 +181,7 @@ def write_manifests(year: str, source: dict[str, object], rows: list[dict[str, o
             lines.append(f'  - 内容/用途：{r["description"]}')
             if not r['included']:
                 lines.append(f'  - 未入库原因：{r["reason"]}')
-                lines.append(f'  - 获取方式：从本年度组委会官方压缩包下载（见上方官方地址）')
+                lines.append('  - 获取方式：从本年度组委会官方压缩包下载（见上方官方地址）')
         lines.append('')
 
     (year_dir / 'ATTACHMENTS.md').write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
@@ -185,15 +193,13 @@ def import_year(year: str, source: dict[str, object]) -> None:
         raise RuntimeError(f'Official archive missing or unexpectedly small: {archive}')
 
     work = TMP / 'work' / year
-    if work.exists():
-        shutil.rmtree(work)
+    shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
-    seven_zip_extract(archive, work)
+    extract_archive(archive, work)
     expand_nested_archives(work)
 
     year_dir = OUT_ROOT / year
-    if year_dir.exists():
-        shutil.rmtree(year_dir)
+    shutil.rmtree(year_dir, ignore_errors=True)
     official = year_dir / 'official'
     official.mkdir(parents=True, exist_ok=True)
 
@@ -210,8 +216,6 @@ def import_year(year: str, source: dict[str, object]) -> None:
         included = False
         reason = ''
 
-        # Nested archive containers are only staging objects. Their extracted contents
-        # are considered separately, so do not duplicate them in the repository.
         if ext in ARCHIVE_EXTS:
             rows.append({
                 'question': question_for(rel), 'path': str(rel), 'size': size,
@@ -240,8 +244,6 @@ def import_year(year: str, source: dict[str, object]) -> None:
 
         if included:
             dst = official / rel
-            # Recursive expansion can expose the same logical file more than once.
-            # Keep only the first copy at a given normalized path.
             if dst in emitted_destinations:
                 included = False
                 reason = '递归解包后与已保存文件路径重复，避免重复入库。'
@@ -258,6 +260,11 @@ def import_year(year: str, source: dict[str, object]) -> None:
             'description': '题目正文 PDF' if statement else describe(rel),
             'reason': reason,
         })
+
+    statement_questions = {str(r['question']) for r in rows if r['statement'] and r['included']}
+    missing = sorted(set('ABCDE') - statement_questions)
+    if missing:
+        raise RuntimeError(f'{year}: missing official problem statement PDF(s): {", ".join(missing)}')
 
     write_manifests(year, source, rows, year_dir)
 
