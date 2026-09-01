@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/import-cumcm-2022-2025.yml'
+      - 'scripts/import_cumcm_official.py'
   workflow_dispatch:
 
 permissions:
@@ -53,8 +54,9 @@ jobs:
             'https://www.mcm.edu.cn/upload_cn/node/759/SvpohSGacdffe718bcaa3b6e835c03ae3461cab1.zip' \
             -o /tmp/cumcm/CUMCM2025Problems.zip
 
-          echo 'Downloaded files:'
+          echo 'Downloaded official archives to temporary runner storage:'
           ls -lh /tmp/cumcm
+
           for f in /tmp/cumcm/*; do
             bytes=$(stat -c%s "$f")
             if [ "$bytes" -lt 1024 ]; then
@@ -63,74 +65,34 @@ jobs:
             fi
           done
 
-      - name: Extract official archives
+      - name: Build GitHub-sized official study set
         shell: bash
         run: |
           set -euo pipefail
-          for year in 2022 2023 2024 2025; do
-            mkdir -p "problems/CUMCM/$year/official"
-          done
+          python3 scripts/import_cumcm_official.py
 
-          7z x -y /tmp/cumcm/CUMCM2022Problems.rar -o"problems/CUMCM/2022/official"
-          7z x -y /tmp/cumcm/CUMCM2023Problems.rar -o"problems/CUMCM/2023/official"
-          7z x -y /tmp/cumcm/CUMCM2024Problems.zip -o"problems/CUMCM/2024/official"
-          7z x -y /tmp/cumcm/CUMCM2025Problems.zip -o"problems/CUMCM/2025/official"
+          echo 'Repository payload after filtering:'
+          du -sh problems/CUMCM
+          find problems/CUMCM -type f -printf '%s %p\n' | sort -nr | head -30
 
-      - name: Record official provenance and checksums
-        shell: bash
-        run: |
-          set -euo pipefail
-          sha256sum /tmp/cumcm/CUMCM2022Problems.rar > /tmp/sha2022
-          sha256sum /tmp/cumcm/CUMCM2023Problems.rar > /tmp/sha2023
-          sha256sum /tmp/cumcm/CUMCM2024Problems.zip > /tmp/sha2024
-          sha256sum /tmp/cumcm/CUMCM2025Problems.zip > /tmp/sha2025
+          too_large=$(find problems/CUMCM -type f -size +25M -print -quit)
+          if [ -n "$too_large" ]; then
+            echo "Unexpected file over 25 MiB remained in repository payload: $too_large" >&2
+            exit 1
+          fi
 
-          for year in 2022 2023 2024 2025; do
-            case "$year" in
-              2022)
-                page='https://www.mcm.edu.cn/html_cn/node/388239ded4b057d37b7b8e51e33fe903.html'
-                archive='CUMCM2022Problems.rar'
-                sha=$(cut -d' ' -f1 /tmp/sha2022)
-                ;;
-              2023)
-                page='https://www.mcm.edu.cn/html_cn/node/c74d72127066f510a5723a94b5323a26.html'
-                archive='CUMCM2023Problems.rar'
-                sha=$(cut -d' ' -f1 /tmp/sha2023)
-                ;;
-              2024)
-                page='https://www.mcm.edu.cn/html_cn/node/a0c1fb5c31d43551f08cd8ad16870444.html'
-                archive='CUMCM2024Problems.zip'
-                sha=$(cut -d' ' -f1 /tmp/sha2024)
-                ;;
-              2025)
-                page='https://www.mcm.edu.cn/html_cn/node/03c91a444e62eee81a3740fa97a461a6.html'
-                archive='CUMCM2025Problems.zip'
-                sha=$(cut -d' ' -f1 /tmp/sha2025)
-                ;;
-            esac
-            cat > "problems/CUMCM/$year/SOURCE.md" <<EOF
-          # CUMCM $year official problem source
-
-          - Source: 全国大学生数学建模竞赛组委会官网
-          - Official page: $page
-          - Official archive: $archive
-          - SHA256 at import: \`$sha\`
-          - Imported automatically from the official attachment and extracted without content modification.
-
-          `official/` preserves the archive's extracted structure. Study notes and paper analyses should be stored separately and must not overwrite the official source files.
-          EOF
-          done
-
-      - name: Commit imported problems
+      - name: Commit imported problems and attachment manifests
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config http.postBuffer 157286400
+
           git add problems/CUMCM
           if git diff --cached --quiet; then
             echo 'No changes to commit.'
           else
-            git commit -m 'data: import official CUMCM 2022-2025 problems'
+            git commit -m 'data: import compact official CUMCM 2022-2025 set'
             git push
           fi
