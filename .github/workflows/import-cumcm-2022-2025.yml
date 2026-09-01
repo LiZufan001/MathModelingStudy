@@ -1,0 +1,136 @@
+name: Import official CUMCM 2022-2025 problems
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-cumcm-2022-2025.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-problems:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install archive tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full
+
+      - name: Download official problem archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cumcm
+
+          curl -fL --retry 3 --retry-delay 2 \
+            -A 'Mozilla/5.0' \
+            -e 'https://www.mcm.edu.cn/html_cn/node/388239ded4b057d37b7b8e51e33fe903.html' \
+            'https://www.mcm.edu.cn/upload_cn/node/670/5eWlbmTt28f88a0815a79d555da8b7072f971633.rar' \
+            -o /tmp/cumcm/CUMCM2022Problems.rar
+
+          curl -fL --retry 3 --retry-delay 2 \
+            -A 'Mozilla/5.0' \
+            -e 'https://www.mcm.edu.cn/html_cn/node/c74d72127066f510a5723a94b5323a26.html' \
+            'https://www.mcm.edu.cn/upload_cn/node/690/Y20WPner9fa62862794e6dc82731a5561ce1132f.rar' \
+            -o /tmp/cumcm/CUMCM2023Problems.rar
+
+          curl -fL --retry 3 --retry-delay 2 \
+            -A 'Mozilla/5.0' \
+            -e 'https://www.mcm.edu.cn/html_cn/node/a0c1fb5c31d43551f08cd8ad16870444.html' \
+            'https://www.mcm.edu.cn/upload_cn/node/725/pmkWxf8H9cfe9984c1a1a5b1263e5dd3b5596ed5.zip' \
+            -o /tmp/cumcm/CUMCM2024Problems.zip
+
+          curl -fL --retry 3 --retry-delay 2 \
+            -A 'Mozilla/5.0' \
+            -e 'https://www.mcm.edu.cn/html_cn/node/03c91a444e62eee81a3740fa97a461a6.html' \
+            'https://www.mcm.edu.cn/upload_cn/node/759/SvpohSGacdffe718bcaa3b6e835c03ae3461cab1.zip' \
+            -o /tmp/cumcm/CUMCM2025Problems.zip
+
+          echo 'Downloaded files:'
+          ls -lh /tmp/cumcm
+          for f in /tmp/cumcm/*; do
+            bytes=$(stat -c%s "$f")
+            if [ "$bytes" -lt 1024 ]; then
+              echo "Archive is unexpectedly small: $f ($bytes bytes)" >&2
+              exit 1
+            fi
+          done
+
+      - name: Extract official archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          for year in 2022 2023 2024 2025; do
+            mkdir -p "problems/CUMCM/$year/official"
+          done
+
+          7z x -y /tmp/cumcm/CUMCM2022Problems.rar -o"problems/CUMCM/2022/official"
+          7z x -y /tmp/cumcm/CUMCM2023Problems.rar -o"problems/CUMCM/2023/official"
+          7z x -y /tmp/cumcm/CUMCM2024Problems.zip -o"problems/CUMCM/2024/official"
+          7z x -y /tmp/cumcm/CUMCM2025Problems.zip -o"problems/CUMCM/2025/official"
+
+      - name: Record official provenance and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum /tmp/cumcm/CUMCM2022Problems.rar > /tmp/sha2022
+          sha256sum /tmp/cumcm/CUMCM2023Problems.rar > /tmp/sha2023
+          sha256sum /tmp/cumcm/CUMCM2024Problems.zip > /tmp/sha2024
+          sha256sum /tmp/cumcm/CUMCM2025Problems.zip > /tmp/sha2025
+
+          for year in 2022 2023 2024 2025; do
+            case "$year" in
+              2022)
+                page='https://www.mcm.edu.cn/html_cn/node/388239ded4b057d37b7b8e51e33fe903.html'
+                archive='CUMCM2022Problems.rar'
+                sha=$(cut -d' ' -f1 /tmp/sha2022)
+                ;;
+              2023)
+                page='https://www.mcm.edu.cn/html_cn/node/c74d72127066f510a5723a94b5323a26.html'
+                archive='CUMCM2023Problems.rar'
+                sha=$(cut -d' ' -f1 /tmp/sha2023)
+                ;;
+              2024)
+                page='https://www.mcm.edu.cn/html_cn/node/a0c1fb5c31d43551f08cd8ad16870444.html'
+                archive='CUMCM2024Problems.zip'
+                sha=$(cut -d' ' -f1 /tmp/sha2024)
+                ;;
+              2025)
+                page='https://www.mcm.edu.cn/html_cn/node/03c91a444e62eee81a3740fa97a461a6.html'
+                archive='CUMCM2025Problems.zip'
+                sha=$(cut -d' ' -f1 /tmp/sha2025)
+                ;;
+            esac
+            cat > "problems/CUMCM/$year/SOURCE.md" <<EOF
+          # CUMCM $year official problem source
+
+          - Source: 全国大学生数学建模竞赛组委会官网
+          - Official page: $page
+          - Official archive: $archive
+          - SHA256 at import: \`$sha\`
+          - Imported automatically from the official attachment and extracted without content modification.
+
+          `official/` preserves the archive's extracted structure. Study notes and paper analyses should be stored separately and must not overwrite the official source files.
+          EOF
+          done
+
+      - name: Commit imported problems
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add problems/CUMCM
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'data: import official CUMCM 2022-2025 problems'
+            git push
+          fi
