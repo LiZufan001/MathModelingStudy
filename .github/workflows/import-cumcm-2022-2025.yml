@@ -22,7 +22,7 @@ jobs:
       - name: Install archive tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq p7zip-full
+          sudo apt-get install -y -qq p7zip-full unar
 
       - name: Download official problem archives
         shell: bash
