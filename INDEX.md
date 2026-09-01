@@ -21,9 +21,18 @@
 - [中山大学国一论文《定日镜场优化设计模型》](problems/CUMCM/2023/papers/national_first/2023-A-中山大学-定日镜场优化设计模型-国一.pdf)
 - [2023 A题官方题目与附件](problems/CUMCM/2023/official/A题/)
 
-#### 2024–2025
+#### 2024 A题｜“板凳龙”闹元宵
 
-官方赛题已导入仓库；后续按学习进度继续补充国一论文分析与迁移笔记。
+- [2024 A题学习入口](problems/CUMCM/2024/analysis/README.md)
+- [01｜从零建模：曲线约束链、碰撞、调头与安全速度](problems/CUMCM/2024/analysis/01-problem-from-scratch.md)
+- [02｜国一/数模之星论文深度拆解](problems/CUMCM/2024/analysis/02-national-first-paper-deep-dive.md)
+- [03｜迁移手册：链式运动、碰撞与路径设计](problems/CUMCM/2024/analysis/03-transferable-playbook.md)
+- [上海交通大学国一、北太天元数模之星论文](problems/CUMCM/2024/papers/national_first/2024-A-上海交通大学-板凳龙-国一.pdf)
+- [2024 A题官方题目与附件](problems/CUMCM/2024/official/CUMCM2024Problems/A题/)
+
+#### 2025
+
+官方赛题已导入仓库；后续按学习进度继续补充已核验国一论文分析与迁移笔记。
 
 ## 知识库
 
