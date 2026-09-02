@@ -1,0 +1,59 @@
+name: Extract CUMCM 2023 C sources to text
+
+on:
+  push:
+    paths:
+      - '.github/workflows/extract-cumcm-2023-c-text.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils python3-openpyxl
+      - name: Extract PDF and workbook sources
+        run: |
+          set -euo pipefail
+          mkdir -p problems/CUMCM/2023/analysis/source_text
+          pdftotext -layout 'problems/CUMCM/2023/official/C题/C题.pdf' 'problems/CUMCM/2023/analysis/source_text/problem_C_official.txt'
+          pdftotext -layout 'problems/CUMCM/2023/papers/national_first/2023-C-复旦大学-基于历史数据的蔬菜类商品定价与补货决策模型-高教社杯-赛后发表版.pdf' 'problems/CUMCM/2023/analysis/source_text/paper_FDU_highest_award_C_published.txt'
+          python3 - <<'PY'
+          from openpyxl import load_workbook
+          from pathlib import Path
+          base = Path('problems/CUMCM/2023/official/C题')
+          out = Path('problems/CUMCM/2023/analysis/source_text/problem_C_small_attachments.txt')
+          files = [base/'附件1.xlsx', base/'附件3.xlsx', base/'附件4.xlsx']
+          with out.open('w', encoding='utf-8') as f:
+              f.write('NOTE: 官方附件2.xlsx约37.3 MiB，按仓库附件策略未入库；见 problems/CUMCM/2023/ATTACHMENTS.md。\n\n')
+              for src in files:
+                  wb = load_workbook(src, data_only=True, read_only=True)
+                  f.write(f'Workbook: {src}\n')
+                  f.write('Sheets: ' + ', '.join(wb.sheetnames) + '\n')
+                  for ws in wb.worksheets:
+                      f.write(f'=== SHEET {ws.title} rows={ws.max_row} cols={ws.max_column} ===\n')
+                      for row in ws.iter_rows(values_only=True):
+                          vals = ['' if v is None else str(v) for v in row]
+                          f.write('\t'.join(vals).rstrip() + '\n')
+                      f.write('\n')
+                  f.write('\n')
+          PY
+      - name: Commit extracted sources
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add problems/CUMCM/2023/analysis/source_text/problem_C_official.txt \
+                  problems/CUMCM/2023/analysis/source_text/paper_FDU_highest_award_C_published.txt \
+                  problems/CUMCM/2023/analysis/source_text/problem_C_small_attachments.txt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'data: extract CUMCM 2023 C sources to text'
+            git push
+          fi
