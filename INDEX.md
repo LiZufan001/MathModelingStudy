@@ -41,8 +41,12 @@
 
 #### 2023 C题｜蔬菜类商品的自动定价与补货决策
 
+- [2023 C题学习入口](problems/CUMCM/2023/analysis/2023-C/README.md)
+- [01｜从题目到模型：需求、价格、补货与商品组合](problems/CUMCM/2023/analysis/2023-C/01-problem-from-scratch.md)
+- [02｜高教社杯论文深度拆解：哪些地方真正强，哪些地方不能照抄](problems/CUMCM/2023/analysis/2023-C/02-highest-award-paper-deep-dive.md)
+- [03｜迁移手册：从“预测题”升级成“预测—决策一体化”](problems/CUMCM/2023/analysis/2023-C/03-transferable-playbook.md)
 - [复旦大学高教社杯论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-C-复旦大学-基于历史数据的蔬菜类商品定价与补货决策模型-高教社杯-赛后发表版.pdf)
-- 状态：高教社杯队伍与论文已核验；当前保存的是赛后正式发表版，教学式分析待补。
+- [2023 C题官方题目与已入库附件](problems/CUMCM/2023/official/C题/)
 
 #### 2024 A题｜“板凳龙”闹元宵
 
