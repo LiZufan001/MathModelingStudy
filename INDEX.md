@@ -50,7 +50,7 @@
 
 #### 2024 A题｜“板凳龙”闹元宵
 
-- [2024 A题学习入口](problems/CUMCM/2024/analysis/README.md)
+- [2024 年学习入口](problems/CUMCM/2024/analysis/README.md)
 - [01｜从零建模：曲线约束链、碰撞、调头与安全速度](problems/CUMCM/2024/analysis/01-problem-from-scratch.md)
 - [02｜国一/数模之星论文深度拆解](problems/CUMCM/2024/analysis/02-national-first-paper-deep-dive.md)
 - [03｜迁移手册：链式运动、碰撞与路径设计](problems/CUMCM/2024/analysis/03-transferable-playbook.md)
@@ -59,8 +59,12 @@
 
 #### 2024 B题｜生产过程中的决策问题
 
-- [华南理工大学国一论文（赛后发表版）](problems/CUMCM/2024/papers/national_first/2024-B-华南理工大学-生产决策优化-国一-赛后发表版.pdf)
-- 状态：国一队伍与 B题优秀论文身份已核验；当前保存的是赛后正式发表版，教学式分析待补。
+- [2024 B题学习入口](problems/CUMCM/2024/analysis/2024-B/README.md)
+- [01｜从题目到模型：抽样、生产反馈与策略优化](problems/CUMCM/2024/analysis/2024-B/01-problem-from-scratch.md)
+- [02｜国一 / B题优秀论文深度拆解](problems/CUMCM/2024/analysis/2024-B/02-national-first-paper-deep-dive.md)
+- [03｜迁移手册：抽检、返工循环、随机策略评价与鲁棒决策](problems/CUMCM/2024/analysis/2024-B/03-transferable-playbook.md)
+- [华南理工大学国一 / B题优秀论文（赛后发表版）](problems/CUMCM/2024/papers/national_first/2024-B-华南理工大学-生产决策优化-国一-赛后发表版.pdf)
+- [2024 B题官方题目](problems/CUMCM/2024/official/CUMCM2024Problems/B题/B题.pdf)
 
 #### 2025
 
