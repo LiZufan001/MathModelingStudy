@@ -14,8 +14,12 @@
 
 #### 2022 D题｜气象报文信息卫星通信传输
 
+- [2022 D题学习入口](problems/CUMCM/2022/analysis/2022-D/README.md)
+- [01｜从题目到模型：不看国一，自己重新做一遍](problems/CUMCM/2022/analysis/2022-D/01-problem-from-scratch.md)
+- [02｜国一论文深度拆解：哪些地方真正强，哪些地方需要更严谨](problems/CUMCM/2022/analysis/2022-D/02-national-first-paper-deep-dive.md)
+- [03｜迁移手册：信息传播、可靠性与时隙调度](problems/CUMCM/2022/analysis/2022-D/03-transferable-playbook.md)
 - [南京工业职业技术大学国一论文《共享气象报文的信息传输模型》](problems/CUMCM/2022/papers/national_first/2022-D-南京工业职业技术大学-共享气象报文的信息传输模型-国一.pdf)
-- 状态：国一身份与公开原文均已核验；教学式分析待补。
+- [2022 D题官方题目](problems/CUMCM/2022/official/D题.pdf)
 
 #### 2023 A题｜定日镜场的优化设计
 
