@@ -26,6 +26,16 @@
 - [中山大学国一论文《定日镜场优化设计模型》](problems/CUMCM/2023/papers/national_first/2023-A-中山大学-定日镜场优化设计模型-国一.pdf)
 - [2023 A题官方题目与附件](problems/CUMCM/2023/official/A题/)
 
+#### 2023 B题｜多波束测线问题
+
+- [南京邮电大学国一 / 北太天元数模之星论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-B-南京邮电大学-基于区域划分的多波束测线布设-国一-赛后发表版.pdf)
+- 状态：获奖队伍与论文已核验；当前保存的是赛后正式发表版，教学式分析待补。
+
+#### 2023 C题｜蔬菜类商品的自动定价与补货决策
+
+- [复旦大学高教社杯论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-C-复旦大学-基于历史数据的蔬菜类商品定价与补货决策模型-高教社杯-赛后发表版.pdf)
+- 状态：高教社杯队伍与论文已核验；当前保存的是赛后正式发表版，教学式分析待补。
+
 #### 2024 A题｜“板凳龙”闹元宵
 
 - [2024 A题学习入口](problems/CUMCM/2024/analysis/README.md)
@@ -35,11 +45,16 @@
 - [上海交通大学国一、北太天元数模之星论文](problems/CUMCM/2024/papers/national_first/2024-A-上海交通大学-板凳龙-国一.pdf)
 - [2024 A题官方题目与附件](problems/CUMCM/2024/official/CUMCM2024Problems/A题/)
 
+#### 2024 B题｜生产过程中的决策问题
+
+- [华南理工大学国一论文（赛后发表版）](problems/CUMCM/2024/papers/national_first/2024-B-华南理工大学-生产决策优化-国一-赛后发表版.pdf)
+- 状态：国一队伍与 B题优秀论文身份已核验；当前保存的是赛后正式发表版，教学式分析待补。
+
 #### 2025
 
 官方赛题已导入仓库；后续按学习进度继续补充已核验国一论文分析与迁移笔记。
 
-## 国一论文搜集
+## 国一 / 最高奖论文搜集
 
 - [搜集进度与核验状态](problems/CUMCM/NATIONAL_FIRST_SEARCH_TRACKER.md)
 - [公开原文抓取报告](problems/CUMCM/ORIGINAL_FETCH_REPORT.md)
