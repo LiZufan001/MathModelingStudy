@@ -12,6 +12,11 @@
 - [浙江大学国一论文](problems/CUMCM/2022/papers/national_first/2022-A-浙江大学-国一.pdf)
 - [2022 官方资料目录](problems/CUMCM/2022/official/)
 
+#### 2022 D题｜气象报文信息卫星通信传输
+
+- [南京工业职业技术大学国一论文《共享气象报文的信息传输模型》](problems/CUMCM/2022/papers/national_first/2022-D-南京工业职业技术大学-共享气象报文的信息传输模型-国一.pdf)
+- 状态：国一身份与公开原文均已核验；教学式分析待补。
+
 #### 2023 A题｜定日镜场的优化设计
 
 - [2023 A题学习入口](problems/CUMCM/2023/analysis/README.md)
@@ -33,6 +38,11 @@
 #### 2025
 
 官方赛题已导入仓库；后续按学习进度继续补充已核验国一论文分析与迁移笔记。
+
+## 国一论文搜集
+
+- [搜集进度与核验状态](problems/CUMCM/NATIONAL_FIRST_SEARCH_TRACKER.md)
+- [公开原文抓取报告](problems/CUMCM/ORIGINAL_FETCH_REPORT.md)
 
 ## 知识库
 
