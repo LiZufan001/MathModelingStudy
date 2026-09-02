@@ -23,7 +23,7 @@
 
 #### 2023 A题｜定日镜场的优化设计
 
-- [2023 A题学习入口](problems/CUMCM/2023/analysis/README.md)
+- [2023 年学习入口](problems/CUMCM/2023/analysis/README.md)
 - [01｜从题目到模型：假装没看国一，自己重新做一遍](problems/CUMCM/2023/analysis/01-problem-from-scratch.md)
 - [02｜国一论文深度拆解：为什么这样做、哪些地方不要照抄](problems/CUMCM/2023/analysis/02-national-first-paper-deep-dive.md)
 - [03｜迁移手册：以后遇到什么题应该想到这些方法](problems/CUMCM/2023/analysis/03-transferable-playbook.md)
@@ -32,8 +32,12 @@
 
 #### 2023 B题｜多波束测线问题
 
+- [2023 B题学习入口](problems/CUMCM/2023/analysis/2023-B/README.md)
+- [01｜从题目到模型：斜坡几何、区间覆盖与复杂地形规划](problems/CUMCM/2023/analysis/2023-B/01-problem-from-scratch.md)
+- [02｜国一 / 北太天元数模之星论文深度拆解](problems/CUMCM/2023/analysis/2023-B/02-national-first-paper-deep-dive.md)
+- [03｜迁移手册：覆盖规划、局部线性化与自适应分区](problems/CUMCM/2023/analysis/2023-B/03-transferable-playbook.md)
 - [南京邮电大学国一 / 北太天元数模之星论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-B-南京邮电大学-基于区域划分的多波束测线布设-国一-赛后发表版.pdf)
-- 状态：获奖队伍与论文已核验；当前保存的是赛后正式发表版，教学式分析待补。
+- [2023 B题官方题目与附件](problems/CUMCM/2023/official/B题/)
 
 #### 2023 C题｜蔬菜类商品的自动定价与补货决策
 
