@@ -1,105 +1,24 @@
-# 数学建模学习总索引
+# MathModelingStudy 总索引
 
-> 手机 Obsidian 建议从本页开始阅读。
+## CPMCM 2020–2025
 
-## 历年题目
+| 年份 | 届次 | A题 | B题 | C题 | D题 | E题 | F题 | 赛题页 | 国一索引 |
+|---|---:|---|---|---|---|---|---|---|---|
+| 2020 | 17 | 芯片相噪算法设计 | 汽油辛烷值建模 | 面向康复工程的脑电信号分析和判别模型 | 无人机集群协同对抗 | 能见度估计与预测 | 飞行器质心平衡供油策略优化 | [进入](problems/CPMCM/2020/README.md) | [进入](papers/CPMCM/2020/VERIFIED_FIRST_PRIZE.md) |
+| 2021 | 18 | 相关矩阵组的低复杂度计算和存储建模 | 空气质量预报二次建模 | 帕金森病的脑深部电刺激治疗建模研究 | 抗胰腺癌候选药物的优化建模 | 信号干扰下的超宽带（UWB）精确定位问题 | 航空公司机组优化排班问题 | [进入](problems/CPMCM/2021/README.md) | [进入](papers/CPMCM/2021/VERIFIED_FIRST_PRIZE.md) |
+| 2022 | 19 | 移动场景超分辨定位问题 | 方形件组批优化问题 | 汽车制造公司涂装-总装缓存区调序调度优化问题 | PISA架构芯片资源排布问题 | 草原放牧策略研究 | COVID-19疫情期间生活物资的科学管理问题 | [进入](problems/CPMCM/2022/README.md) | [进入](papers/CPMCM/2022/VERIFIED_FIRST_PRIZE.md) |
+| 2023 | 20 | WLAN网络信道接入机制建模 | DFT类矩阵的整数分解逼近 | 大规模创新类竞赛评审方案研究 | 区域双碳目标与路径规划研究 | 出血性脑卒中临床智能诊疗建模 | 强对流降水临近预报 | [进入](problems/CPMCM/2023/README.md) | [进入](papers/CPMCM/2023/VERIFIED_FIRST_PRIZE.md) |
+| 2024 | 21 | 风电场有功功率优化分配 | WLAN组网中网络吞吐量建模 | 数据驱动下磁性元件的磁芯损耗建模 | 大数据驱动的地理综合问题 | 高速公路应急车道紧急启用模型 | X射线脉冲星光子到达时间建模 | [进入](problems/CPMCM/2024/README.md) | [进入](papers/CPMCM/2024/VERIFIED_FIRST_PRIZE.md) |
+| 2025 | 22 | 通用神经网络处理器下的核内调度问题 | 无线通信系统链路速率建模 | 围岩裂隙精准识别与三维模型重构 | 低空湍流监测及最优航路规划 | 高速列车轴承智能故障诊断问题 | 江南古典园林的美学特征建模 | [进入](problems/CPMCM/2025/README.md) | [进入](papers/CPMCM/2025/VERIFIED_FIRST_PRIZE.md) |
 
-### CUMCM 全国大学生数学建模竞赛
+## 阅读建议
 
-#### 2022 A题｜波浪能最大输出功率设计
+1. 先看某年的 `problems/CPMCM/<year>/README.md`，确认题目与数据来源。
+2. 再看同年的 `papers/CPMCM/<year>/VERIFIED_FIRST_PRIZE.md`，选择有官方证据的一等奖作品作为拆解对象。
+3. 找全文时优先走研创网“优秀作品”官方入口，不使用无法证明奖项身份的网盘文件替代。
 
-- [学习导读：从题意到动力学、功率与优化](problems/CUMCM/2022/analysis/2022-A-learning-guide.md)
-- [浙江大学国一论文](problems/CUMCM/2022/papers/national_first/2022-A-浙江大学-国一.pdf)
-- [2022 官方资料目录](problems/CUMCM/2022/official/)
+## 当前资料完整度
 
-#### 2022 D题｜气象报文信息卫星通信传输
-
-- [2022 D题学习入口](problems/CUMCM/2022/analysis/2022-D/README.md)
-- [01｜从题目到模型：不看国一，自己重新做一遍](problems/CUMCM/2022/analysis/2022-D/01-problem-from-scratch.md)
-- [02｜国一论文深度拆解：哪些地方真正强，哪些地方需要更严谨](problems/CUMCM/2022/analysis/2022-D/02-national-first-paper-deep-dive.md)
-- [03｜迁移手册：信息传播、可靠性与时隙调度](problems/CUMCM/2022/analysis/2022-D/03-transferable-playbook.md)
-- [南京工业职业技术大学国一论文《共享气象报文的信息传输模型》](problems/CUMCM/2022/papers/national_first/2022-D-南京工业职业技术大学-共享气象报文的信息传输模型-国一.pdf)
-- [2022 D题官方题目](problems/CUMCM/2022/official/D题.pdf)
-
-#### 2023 A题｜定日镜场的优化设计
-
-- [2023 年学习入口](problems/CUMCM/2023/analysis/README.md)
-- [01｜从题目到模型：假装没看国一，自己重新做一遍](problems/CUMCM/2023/analysis/01-problem-from-scratch.md)
-- [02｜国一论文深度拆解：为什么这样做、哪些地方不要照抄](problems/CUMCM/2023/analysis/02-national-first-paper-deep-dive.md)
-- [03｜迁移手册：以后遇到什么题应该想到这些方法](problems/CUMCM/2023/analysis/03-transferable-playbook.md)
-- [中山大学国一论文《定日镜场优化设计模型》](problems/CUMCM/2023/papers/national_first/2023-A-中山大学-定日镜场优化设计模型-国一.pdf)
-- [2023 A题官方题目与附件](problems/CUMCM/2023/official/A题/)
-
-#### 2023 B题｜多波束测线问题
-
-- [2023 B题学习入口](problems/CUMCM/2023/analysis/2023-B/README.md)
-- [01｜从题目到模型：斜坡几何、区间覆盖与复杂地形规划](problems/CUMCM/2023/analysis/2023-B/01-problem-from-scratch.md)
-- [02｜国一 / 北太天元数模之星论文深度拆解](problems/CUMCM/2023/analysis/2023-B/02-national-first-paper-deep-dive.md)
-- [03｜迁移手册：覆盖规划、局部线性化与自适应分区](problems/CUMCM/2023/analysis/2023-B/03-transferable-playbook.md)
-- [南京邮电大学国一 / 北太天元数模之星论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-B-南京邮电大学-基于区域划分的多波束测线布设-国一-赛后发表版.pdf)
-- [2023 B题官方题目与附件](problems/CUMCM/2023/official/B题/)
-
-#### 2023 C题｜蔬菜类商品的自动定价与补货决策
-
-- [2023 C题学习入口](problems/CUMCM/2023/analysis/2023-C/README.md)
-- [01｜从题目到模型：需求、价格、补货与商品组合](problems/CUMCM/2023/analysis/2023-C/01-problem-from-scratch.md)
-- [02｜高教社杯论文深度拆解：哪些地方真正强，哪些地方不能照抄](problems/CUMCM/2023/analysis/2023-C/02-highest-award-paper-deep-dive.md)
-- [03｜迁移手册：从“预测题”升级成“预测—决策一体化”](problems/CUMCM/2023/analysis/2023-C/03-transferable-playbook.md)
-- [复旦大学高教社杯论文（赛后发表版）](problems/CUMCM/2023/papers/national_first/2023-C-复旦大学-基于历史数据的蔬菜类商品定价与补货决策模型-高教社杯-赛后发表版.pdf)
-- [2023 C题官方题目与已入库附件](problems/CUMCM/2023/official/C题/)
-
-#### 2024 A题｜“板凳龙”闹元宵
-
-- [2024 年学习入口](problems/CUMCM/2024/analysis/README.md)
-- [01｜从零建模：曲线约束链、碰撞、调头与安全速度](problems/CUMCM/2024/analysis/01-problem-from-scratch.md)
-- [02｜国一/数模之星论文深度拆解](problems/CUMCM/2024/analysis/02-national-first-paper-deep-dive.md)
-- [03｜迁移手册：链式运动、碰撞与路径设计](problems/CUMCM/2024/analysis/03-transferable-playbook.md)
-- [上海交通大学国一、北太天元数模之星论文](problems/CUMCM/2024/papers/national_first/2024-A-上海交通大学-板凳龙-国一.pdf)
-- [2024 A题官方题目与附件](problems/CUMCM/2024/official/CUMCM2024Problems/A题/)
-
-#### 2024 B题｜生产过程中的决策问题
-
-- [2024 B题学习入口](problems/CUMCM/2024/analysis/2024-B/README.md)
-- [01｜从题目到模型：抽样、生产反馈与策略优化](problems/CUMCM/2024/analysis/2024-B/01-problem-from-scratch.md)
-- [02｜国一 / B题优秀论文深度拆解](problems/CUMCM/2024/analysis/2024-B/02-national-first-paper-deep-dive.md)
-- [03｜迁移手册：抽检、返工循环、随机策略评价与鲁棒决策](problems/CUMCM/2024/analysis/2024-B/03-transferable-playbook.md)
-- [华南理工大学国一 / B题优秀论文（赛后发表版）](problems/CUMCM/2024/papers/national_first/2024-B-华南理工大学-生产决策优化-国一-赛后发表版.pdf)
-- [2024 B题官方题目](problems/CUMCM/2024/official/CUMCM2024Problems/B题/B题.pdf)
-
-#### 2025
-
-官方赛题已导入仓库；后续按学习进度继续补充已核验国一论文分析与迁移笔记。
-
-## 国一 / 最高奖论文搜集
-
-- [搜集进度与核验状态](problems/CUMCM/NATIONAL_FIRST_SEARCH_TRACKER.md)
-- [公开原文抓取报告](problems/CUMCM/ORIGINAL_FETCH_REPORT.md)
-
-## 知识库
-
-- [模型](knowledge/models/README.md)
-- [算法](knowledge/algorithms/README.md)
-- [数据处理](knowledge/data_processing/README.md)
-- [评价方法](knowledge/evaluation/README.md)
-- [优化方法](knowledge/optimization/README.md)
-- [论文写作](knowledge/writing/README.md)
-
-## 模板
-
-- [题目分析模板](templates/problem_analysis.md)
-- [论文分析模板](templates/paper_analysis.md)
-- [多论文对比模板](templates/comparison.md)
-- [模型笔记模板](templates/model_note.md)
-
-## 资料
-
-- [资料区说明](resources/README.md)
-- [外部参考索引](resources/references.md)
-
-## 待整理
-
-- [Inbox](inbox/README.md)
-
----
-
-随着题目和论文加入，本页只保留最常用的学习入口，不机械罗列仓库中的每一个文件。
+- **赛题题名：2020–2025 A–F 已全部建立索引。**
+- **国一验证：2024、2025 已做到 A–F 各题至少找到一条一等奖/顶级获奖作品的可靠验证线索；2020–2023 目前为已核验样本集，仍有部分题型待从官方优秀作品库继续补齐。**
+- **论文 PDF：本次重建不批量镜像来源不明或无再分发授权的论文 PDF。** 官方可公开下载的全文将在后续逐份核验后再落库。
