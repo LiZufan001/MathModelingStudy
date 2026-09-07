@@ -27,7 +27,10 @@ jobs:
           import pandas as pd
           from pypdf import PdfReader
           R='/tmp/MathModel'; O=Path('papers/CPMCM/_research'); O.mkdir(parents=True,exist_ok=True)
-          YEARS=range(2020,2025); CR=re.compile(r'([A-F][0-9]{8,14})',re.I)
+          YEARS=range(2020,2025)
+          FULL=re.compile(r'([A-F][0-9]{8,14})',re.I)
+          NUM=re.compile(r'(?<!\d)(\d{9,14})(?!\d)')
+          PROB=re.compile(r'([A-F])题',re.I)
           def gb(p): return subprocess.check_output(['git','-C',R,'show',f'HEAD:{p}'])
           def cv(v):
             if pd.isna(v): return ''
@@ -36,49 +39,52 @@ jobs:
           def rows(p):
             b=gb(p); out=[]
             try: book=pd.ExcelFile(BytesIO(b))
-            except Exception: return out
+            except Exception:return out
             for sh in book.sheet_names:
-              try: df=pd.read_excel(BytesIO(b),sheet_name=sh,header=None,dtype=object)
-              except Exception: continue
+              try:df=pd.read_excel(BytesIO(b),sheet_name=sh,header=None,dtype=object)
+              except Exception:continue
               for i,r in df.iterrows():
-                vals=[cv(x) for x in r.tolist()]; joined=' | '.join(x for x in vals if x)
-                out.append((sh,int(i),vals,joined))
+                vals=[cv(x) for x in r.tolist()]; out.append((sh,int(i),vals,' | '.join(x for x in vals if x)))
             return out
           def title(p):
             try:
               rr=PdfReader(BytesIO(gb(p))); txt='\n'.join((x.extract_text() or '') for x in rr.pages[:2])
-              lines=[re.sub(r'\s+',' ',x).strip() for x in txt.splitlines() if x.strip()]
+              ls=[re.sub(r'\s+',' ',x).strip() for x in txt.splitlines() if x.strip()]
               bad=('中国研究生数学建模竞赛','参赛队号','编号','题目','题 目','摘要','关键词')
-              for x in lines[:60]:
-                if 8<=len(x)<=120 and not any(x.startswith(y) for y in bad) and not CR.fullmatch(x):
+              for x in ls[:60]:
+                if 8<=len(x)<=120 and not any(x.startswith(y) for y in bad) and not FULL.fullmatch(x):
                   if sum(ch.isalpha() or '\u4e00'<=ch<='\u9fff' for ch in x)>=6:return x
-            except Exception: pass
+            except Exception:pass
             return ''
           raw=subprocess.check_output(['git','-C',R,'ls-tree','-r','-z','--name-only','HEAD'])
-          paths=[x.decode('utf-8') for x in raw.split(b'\0') if x]
+          paths=[x.decode() for x in raw.split(b'\0') if x]
           M=[]; U=[]; D=[]
           for y in YEARS:
             af=[p for p in paths if str(y) in p and '获奖' in p and p.lower().endswith(('.xls','.xlsx'))]
             pf=[p for p in paths if p.startswith(f'国赛论文/{y}年优秀论文/') and p.lower().endswith('.pdf')]
             fr=[]
             for ap in af:
+              pm=PROB.search(Path(ap).name); prob=pm.group(1).upper() if pm else ''
               for sh,i,vals,j in rows(ap):
-                if '一等奖' not in j: continue
+                if '一等奖' not in j:continue
                 codes=[]
-                for v in vals: codes += [z.upper() for z in CR.findall(v.replace(' ',''))]
-                fr.append({'award_file':ap,'sheet':sh,'row_index':i,'codes':sorted(set(codes)),'row':j})
+                for v in vals:
+                  codes += [z.upper() for z in FULL.findall(v.replace(' ',''))]
+                  if prob:
+                    codes += [prob+n for n in NUM.findall(v.replace(' ',''))]
+                fr.append({'award_file':ap,'problem':prob,'sheet':sh,'row_index':i,'codes':sorted(set(codes)),'row':j})
             mp={}
             for r in fr:
-              for c in r['codes']: mp.setdefault(c,[]).append(r)
+              for c in r['codes']:mp.setdefault(c,[]).append(r)
             n=0
             for p in sorted(pf):
               c=Path(p).stem.upper(); recs=mp.get(c,[])
               it={'year':y,'problem':Path(p).parent.name,'code':c,'source_path':p,'source_url':'https://github.com/zhanwen/MathModel/blob/master/'+p,'award_rows':recs}
-              if recs: it['title']=title(p); M.append(it); n+=1
-              else: U.append(it)
+              if recs:it['title']=title(p);M.append(it);n+=1
+              else:U.append(it)
             D.append({'year':y,'award_files':len(af),'first_prize_rows':len(fr),'award_codes':len(mp),'excellent_pdfs':len(pf),'exact_matches':n})
           with (O/'MATCHES.csv').open('w',newline='',encoding='utf-8-sig') as f:
-            w=csv.writer(f); w.writerow(['year','problem','code','title','award_evidence','source_url'])
+            w=csv.writer(f);w.writerow(['year','problem','code','title','award_evidence','source_url'])
             for m in M:w.writerow([m['year'],m['problem'],m['code'],m.get('title',''),' || '.join(r['row'] for r in m['award_rows']),m['source_url']])
           (O/'diagnostics.json').write_text(json.dumps({'diagnostics':D,'matches':M,'unmatched':U},ensure_ascii=False,indent=2),encoding='utf-8')
           by={y:[] for y in YEARS}
@@ -92,7 +98,7 @@ jobs:
             for m in sorted(by[y],key=lambda x:(x['problem'],x['code'])):
               L += [f"### {m['problem']}题 · `{m['code']}`",'']
               if m.get('title'):L.append(f"- PDF 首部提取标题：**{m['title']}**")
-              L += ['- 奖项：**一等奖（获奖表编号精确匹配）**',f"- 获奖表证据：{m['award_rows'][0]['row'][:600]}",f"- 公开全文来源：[{m['source_path']}]({m['source_url']})",'- 文件策略：第三方 PDF 未确认再分发许可前只保存来源链接。','']
+              L += ['- 奖项：**全国一等奖（获奖表编号精确匹配）**',f"- 获奖表证据：{m['award_rows'][0]['row'][:600]}",f"- 公开全文来源：[{m['source_path']}]({m['source_url']})",'- 文件策略：第三方 PDF 未确认再分发许可前只保存来源链接。','']
           L += ['## 复核说明','', '- `MATCHES.csv` 用于筛选；`diagnostics.json` 保留机器审计。','- 精确匹配后仍优先用学校/赛事官方报道做二次交叉核验。','']
           (O/'INDEX.md').write_text('\n'.join(L),encoding='utf-8')
           print(json.dumps(D,ensure_ascii=False,indent=2));print('TOTAL_MATCHES',len(M))
