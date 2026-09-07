@@ -1,0 +1,193 @@
+name: Research CPMCM first-prize papers
+
+on:
+  push:
+    paths:
+      - '.github/workflows/research-cpmcm-papers.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  research:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout study repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install analysis dependencies
+        run: |
+          python -m pip install --quiet pandas xlrd openpyxl pypdf
+
+      - name: Clone public MathModel corpus
+        run: |
+          git clone --depth 1 https://github.com/zhanwen/MathModel.git /tmp/MathModel
+
+      - name: Match excellent papers against first-prize award rows
+        shell: bash
+        run: |
+          cat > /tmp/research.py <<'PY'
+          from pathlib import Path
+          import re, json, csv, os, sys
+          import pandas as pd
+          from pypdf import PdfReader
+
+          SRC = Path('/tmp/MathModel')
+          OUT = Path('papers/CPMCM/_research')
+          OUT.mkdir(parents=True, exist_ok=True)
+
+          years = range(2020, 2025)
+          code_re = re.compile(r'([A-F][0-9]{8,14})', re.I)
+
+          def s(v):
+              if pd.isna(v):
+                  return ''
+              if isinstance(v, float) and v.is_integer():
+                  return str(int(v))
+              return str(v).strip()
+
+          def read_book(path):
+              out=[]
+              try:
+                  xls = pd.ExcelFile(path)
+                  for sheet in xls.sheet_names:
+                      try:
+                          df = pd.read_excel(path, sheet_name=sheet, header=None, dtype=object)
+                          out.append((sheet, df))
+                      except Exception as e:
+                          out.append((sheet, None))
+              except Exception:
+                  return []
+              return out
+
+          def extract_pdf_title(path):
+              try:
+                  r=PdfReader(str(path))
+                  texts=[]
+                  for p in r.pages[:2]:
+                      t=p.extract_text() or ''
+                      if t: texts.append(t)
+                  text='\n'.join(texts)
+                  lines=[re.sub(r'\s+',' ',x).strip() for x in text.splitlines()]
+                  lines=[x for x in lines if x]
+                  # Skip boilerplate/contest identifiers; prefer a substantial early line.
+                  bad=('中国研究生数学建模竞赛','参赛队号','题 目','题目','摘要','关键词','编号')
+                  for line in lines[:50]:
+                      if len(line) < 8 or len(line) > 120: continue
+                      if any(line.startswith(b) for b in bad): continue
+                      if re.fullmatch(r'[A-F][0-9]{8,14}', line): continue
+                      if sum(ch.isalpha() or '\u4e00' <= ch <= '\u9fff' for ch in line) < 6: continue
+                      return line
+                  return ''
+              except Exception:
+                  return ''
+
+          all_rows=[]
+          matches=[]
+          unmatched=[]
+          diagnostics=[]
+
+          for year in years:
+              award_dirs=[p for p in SRC.iterdir() if p.is_dir() and str(year) in p.name and '获奖' in p.name]
+              award_rows=[]
+              for d in award_dirs:
+                  for f in d.rglob('*'):
+                      if f.suffix.lower() not in ('.xls','.xlsx'): continue
+                      for sheet, df in read_book(f):
+                          if df is None: continue
+                          for idx,row in df.iterrows():
+                              vals=[s(x) for x in row.tolist()]
+                              joined=' | '.join(v for v in vals if v)
+                              if '一等奖' not in joined: continue
+                              codes=[]
+                              for v in vals:
+                                  codes += [m.upper() for m in code_re.findall(v.replace(' ',''))]
+                              rec={
+                                  'year':year,'award_file':str(f.relative_to(SRC)),'sheet':sheet,
+                                  'row_index':int(idx),'codes':sorted(set(codes)),'row':joined
+                              }
+                              award_rows.append(rec); all_rows.append(rec)
+              code_map={}
+              for rec in award_rows:
+                  for c in rec['codes']:
+                      code_map.setdefault(c,[]).append(rec)
+
+              paper_root=SRC/'国赛论文'/f'{year}年优秀论文'
+              pdfs=list(paper_root.rglob('*.pdf')) if paper_root.exists() else []
+              diagnostics.append({'year':year,'award_dirs':[x.name for x in award_dirs], 'first_prize_rows':len(award_rows),'excellent_pdfs':len(pdfs),'award_codes':len(code_map)})
+              for pdf in sorted(pdfs):
+                  stem=pdf.stem.upper()
+                  problem = pdf.parent.name if pdf.parent.name in list('ABCDEF') else (stem[:1] if stem[:1] in list('ABCDEF') else '?')
+                  title=extract_pdf_title(pdf)
+                  url='https://github.com/zhanwen/MathModel/blob/master/' + '/'.join(str(pdf.relative_to(SRC)).split('/'))
+                  recs=code_map.get(stem,[])
+                  item={'year':year,'problem':problem,'code':stem,'title':title,'source_path':str(pdf.relative_to(SRC)),'source_url':url,'award_rows':recs}
+                  if recs: matches.append(item)
+                  else: unmatched.append(item)
+
+          # CSV of exact code matches
+          with (OUT/'MATCHES.csv').open('w',newline='',encoding='utf-8-sig') as fh:
+              w=csv.writer(fh)
+              w.writerow(['year','problem','code','title','award_evidence','source_url'])
+              for m in matches:
+                  evidence=' || '.join(r['row'] for r in m['award_rows'])
+                  w.writerow([m['year'],m['problem'],m['code'],m['title'],evidence,m['source_url']])
+
+          # JSON diagnostics for auditability
+          (OUT/'diagnostics.json').write_text(json.dumps({'diagnostics':diagnostics,'matches':matches,'unmatched':unmatched},ensure_ascii=False,indent=2),encoding='utf-8')
+
+          byyear={y:[] for y in years}
+          for m in matches: byyear[m['year']].append(m)
+
+          lines=[]
+          lines += ['# CPMCM 一等奖 × 优秀论文公开全文匹配（自动研究）','']
+          lines += ['> 生成方式：将 `zhanwen/MathModel` 中公开的“优秀论文”PDF 文件编号，与同仓库保存的对应年份获奖名单 Excel 中包含“\u4e00\u7b49\u5956”的参赛编号做**精确编号匹配**。本页用于发现与筛选；学校官网/竞赛官方来源仍是最终奖项核验的优先证据。','']
+          lines += ['## 汇总','']
+          for d in diagnostics:
+              lines.append(f"- {d['year']}：获奖表一等奖行 {d['first_prize_rows']}；优秀论文 PDF {d['excellent_pdfs']}；精确编号匹配 {len(byyear[d['year']])}")
+          lines.append('')
+
+          for year in years:
+              lines += [f'## {year}','']
+              if not byyear[year]:
+                  lines += ['- 本轮未形成“优秀论文文件编号 = 一等奖参赛编号”的精确匹配。','']
+                  continue
+              for m in sorted(byyear[year], key=lambda x:(x['problem'],x['code'])):
+                  lines.append(f"### {m['problem']}题 · `{m['code']}`")
+                  lines.append('')
+                  if m['title']: lines.append(f"- PDF 首部提取题名/首个主要标题：**{m['title']}**")
+                  lines.append(f"- 奖项：**一等奖**（获奖名单编号精确匹配）")
+                  # avoid dumping entire award row if excessively long
+                  ev=m['award_rows'][0]['row'] if m['award_rows'] else ''
+                  if len(ev)>500: ev=ev[:500]+'…'
+                  lines.append(f"- 获奖表行：{ev}")
+                  lines.append(f"- 公开全文发现源：[{m['source_path']}]({m['source_url']})")
+                  lines.append('- 仓库策略：当前仅保存验证信息与来源链接，不镜像第三方论文 PDF。')
+                  lines.append('')
+
+          lines += ['## 使用说明','',
+                    '- `MATCHES.csv`：方便按年份/题号/编号继续筛选。',
+                    '- `diagnostics.json`：保留自动匹配与未匹配明细，便于复核。',
+                    '- 这里只把“编号能与一等奖获奖表精确对应”的公开优秀论文列为命中；不把“优秀论文”三个字自动等同于一等奖。',
+                    '- 后续人工优先挑选：方法链完整、题型有训练价值、官方学校报道可再次交叉验证的样本。','']
+          (OUT/'INDEX.md').write_text('\n'.join(lines),encoding='utf-8')
+
+          print(json.dumps(diagnostics,ensure_ascii=False,indent=2))
+          print('exact matches:',len(matches))
+          PY
+          python /tmp/research.py
+
+      - name: Commit generated research index
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add papers/CPMCM/_research
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'research: map CPMCM first-prize papers to public fulltext sources [skip ci]'
+            git push origin HEAD:main
+          fi
