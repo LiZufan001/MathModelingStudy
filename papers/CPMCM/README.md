@@ -26,6 +26,8 @@
 
 ## 当前研究成果
 
+- [覆盖矩阵：COVERAGE_MATRIX.md](COVERAGE_MATRIX.md)  
+  按 2020–2025 × A–F 汇总 `M` 数量；`M` 表示已通过“公开优秀论文参赛编号 ↔ 对应年份研究生华为杯全国一等奖名单参赛编号”精确匹配的唯一论文/参赛队数量。
 - [训练精选：SELECTED_FOR_STUDY.md](SELECTED_FOR_STUDY.md)  
   按训练价值、题型互补、奖项层级筛出的主精读集与对照组。
 - [2020–2023 一等奖 × 公开优秀论文全文精确匹配](./_research/INDEX.md)  
