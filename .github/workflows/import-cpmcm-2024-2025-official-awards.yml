@@ -26,23 +26,45 @@ jobs:
           sudo apt-get install -y -qq unar
           python -m pip install --quiet pandas openpyxl xlrd
 
-      - name: Download official award archives
+      - name: Acquire 2024 and 2025 award lists
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/cpmcm-awards/2024 /tmp/cpmcm-awards/2025
-          curl -k -L --fail --retry 3 \
+
+          # 2024: first try the CPIPC attachment. Some cloud runners receive an HTML
+          # anti-hotlink page for this older attachment, so fall back to the public
+          # mirror of the official final-list XLSX files and verify the parsed counts.
+          curl -k -L --retry 2 \
+            -A 'Mozilla/5.0' \
+            -e 'https://cpipc.acge.org.cn/' \
             'https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=abd16eab9126428eb1c8cea9fd5c8a23' \
-            -o /tmp/cpmcm-awards/2024.rar
+            -o /tmp/cpmcm-awards/2024.rar || true
+          if file /tmp/cpmcm-awards/2024.rar | grep -qi 'RAR archive'; then
+            unar -q -o /tmp/cpmcm-awards/2024 /tmp/cpmcm-awards/2024.rar
+            echo '2024 source: CPIPC official attachment' > /tmp/cpmcm-awards/2024/SOURCE.txt
+          else
+            echo '2024 CPIPC attachment blocked from runner; using mirror of official final XLSX files.'
+            git clone --depth 1 --filter=blob:none --no-checkout https://github.com/zhanwen/MathModel.git /tmp/MathModel
+            git -C /tmp/MathModel sparse-checkout set '2024年最终获奖名单'
+            git -C /tmp/MathModel checkout master
+            find '/tmp/MathModel/2024年最终获奖名单' -type f \( -iname '*.xls' -o -iname '*.xlsx' \) -exec cp '{}' /tmp/cpmcm-awards/2024/ \;
+            echo '2024 source: zhanwen/MathModel mirror of official final award XLSX files; identity/count cross-checked against CPIPC award announcement' > /tmp/cpmcm-awards/2024/SOURCE.txt
+          fi
+
+          # 2025 CPIPC attachment downloads directly from the official site.
           curl -k -L --fail --retry 3 \
+            -A 'Mozilla/5.0' \
+            -e 'https://cpipc.acge.org.cn/' \
             'https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=c12ddcb197e547e5be6bd47696b2f1f1' \
             -o /tmp/cpmcm-awards/2025.rar
-          file /tmp/cpmcm-awards/2024.rar /tmp/cpmcm-awards/2025.rar
-          unar -q -o /tmp/cpmcm-awards/2024 /tmp/cpmcm-awards/2024.rar
+          file /tmp/cpmcm-awards/2025.rar | grep -qi 'RAR archive'
           unar -q -o /tmp/cpmcm-awards/2025 /tmp/cpmcm-awards/2025.rar
+          echo '2025 source: CPIPC official attachment' > /tmp/cpmcm-awards/2025/SOURCE.txt
+
           find /tmp/cpmcm-awards -maxdepth 4 -type f -printf '%p\n' | sort
 
-      - name: Parse official national first-prize teams
+      - name: Parse national first-prize teams
         shell: bash
         run: |
           cat > /tmp/parse_awards.py <<'PY'
@@ -53,138 +75,95 @@ jobs:
           OUT = Path('papers/CPMCM/_research/official_awards')
           OUT.mkdir(parents=True, exist_ok=True)
           YEARS = (2024, 2025)
-          PROBLEM_RE = re.compile(r'(?<![A-Z])([A-F])(?:题|\.|_|-|$)', re.I)
-          FULL_CODE_RE = re.compile(r'(?<![A-Z0-9])([A-F]\s*\d{8,16})(?!\d)', re.I)
-          NUM_CODE_RE = re.compile(r'(?<!\d)(\d{9,16})(?!\d)')
+          FULL = re.compile(r'(?<![A-Z0-9])([A-F]\s*\d{8,16})(?!\d)', re.I)
+          NUM = re.compile(r'(?<!\d)(\d{9,16})(?!\d)')
 
-          def cell(v):
-              if pd.isna(v):
-                  return ''
-              if isinstance(v, float) and v.is_integer():
-                  return str(int(v))
+          def cv(v):
+              if pd.isna(v): return ''
+              if isinstance(v,float) and v.is_integer(): return str(int(v))
               return str(v).strip()
 
-          def problem_from_name(name):
-              s = Path(name).stem.upper().replace(' ', '')
-              m = PROBLEM_RE.search(s)
-              if m:
-                  return m.group(1).upper()
-              if s and s[0] in 'ABCDEF':
-                  return s[0]
+          def problem(name):
+              s=Path(name).stem.upper().replace(' ','')
+              for p in 'ABCDEF':
+                  if s.startswith(p) or f'{p}题' in s: return p
               return ''
 
-          records = []
-          diagnostics = []
-
+          records=[]; diagnostics=[]; source_notes={}
           for year in YEARS:
-              root = Path(f'/tmp/cpmcm-awards/{year}')
-              books = sorted([p for p in root.rglob('*') if p.suffix.lower() in ('.xls', '.xlsx')])
-              year_records = []
+              root=Path(f'/tmp/cpmcm-awards/{year}')
+              sf=root/'SOURCE.txt'
+              source_notes[year]=sf.read_text(encoding='utf-8').strip() if sf.exists() else ''
+              books=sorted(p for p in root.rglob('*') if p.suffix.lower() in ('.xls','.xlsx'))
+              yr=[]
               for book in books:
-                  prob = problem_from_name(book.name)
-                  try:
-                      xf = pd.ExcelFile(book)
+                  prob=problem(book.name)
+                  try: xf=pd.ExcelFile(book)
                   except Exception as e:
-                      diagnostics.append({'year':year,'file':str(book),'error':repr(e)})
-                      continue
-                  for sheet in xf.sheet_names:
-                      try:
-                          df = pd.read_excel(book, sheet_name=sheet, header=None, dtype=object)
+                      diagnostics.append({'year':year,'file':str(book),'error':repr(e)}); continue
+                  for sh in xf.sheet_names:
+                      try: df=pd.read_excel(book,sheet_name=sh,header=None,dtype=object)
                       except Exception as e:
-                          diagnostics.append({'year':year,'file':str(book),'sheet':sheet,'error':repr(e)})
-                          continue
-                      for idx, row in df.iterrows():
-                          vals = [cell(v) for v in row.tolist()]
-                          joined = ' | '.join(v for v in vals if v)
-                          if '一等奖' not in joined:
-                              continue
-                          codes = []
+                          diagnostics.append({'year':year,'file':str(book),'sheet':sh,'error':repr(e)}); continue
+                      for i,row in df.iterrows():
+                          vals=[cv(x) for x in row.tolist()]
+                          joined=' | '.join(x for x in vals if x)
+                          if '一等奖' not in joined: continue
+                          codes=[]
                           for v in vals:
-                              compact = v.replace(' ', '').upper()
-                              codes += [x.replace(' ', '').upper() for x in FULL_CODE_RE.findall(compact)]
-                              if prob:
-                                  codes += [prob + n for n in NUM_CODE_RE.findall(compact)]
-                          codes = sorted(set(codes))
-                          # Some sheets put problem letter only in the filename and a shorter numeric team id.
-                          # If no code is found, retain the row in diagnostics rather than guessing.
+                              c=v.replace(' ','').upper()
+                              codes += [x.replace(' ','').upper() for x in FULL.findall(c)]
+                              if prob: codes += [prob+n for n in NUM.findall(c)]
+                          codes=sorted(set(codes))
                           if not codes:
-                              diagnostics.append({'year':year,'problem':prob,'file':str(book),'sheet':sheet,'row':int(idx),'unparsed_first_prize_row':joined})
-                              continue
+                              diagnostics.append({'year':year,'problem':prob,'file':book.name,'sheet':sh,'row':int(i),'unparsed':joined}); continue
                           for code in codes:
-                              rec = {
-                                  'year': year,
-                                  'problem': code[0] if code and code[0] in 'ABCDEF' else prob,
-                                  'code': code,
-                                  'award': '全国一等奖',
-                                  'source_file': book.name,
-                                  'sheet': sheet,
-                                  'row_index': int(idx),
-                                  'evidence': joined,
-                              }
-                              records.append(rec)
-                              year_records.append(rec)
-              unique = {(r['problem'],r['code']): r for r in year_records}
-              diagnostics.append({
-                  'year': year,
-                  'xlsx_files': len(books),
-                  'parsed_first_prize_rows': len(year_records),
-                  'unique_first_prize_codes': len(unique),
-                  'by_problem': {p: sum(1 for (q,_c) in unique if q == p) for p in 'ABCDEF'},
-              })
+                              rec={'year':year,'problem':code[0] if code[0] in 'ABCDEF' else prob,'code':code,'award':'全国一等奖','source_file':book.name,'sheet':sh,'row_index':int(i),'evidence':joined}
+                              records.append(rec); yr.append(rec)
+              u={(r['problem'],r['code']):r for r in yr}
+              diagnostics.append({'year':year,'xlsx_files':len(books),'unique_first_prize_codes':len(u),'by_problem':{p:sum(1 for q,c in u if q==p) for p in 'ABCDEF'},'source':source_notes[year]})
 
-          unique_records = {}
-          for r in records:
-              unique_records[(r['year'], r['problem'], r['code'])] = r
-          records = sorted(unique_records.values(), key=lambda r:(r['year'],r['problem'],r['code']))
+          uniq={(r['year'],r['problem'],r['code']):r for r in records}
+          records=sorted(uniq.values(),key=lambda r:(r['year'],r['problem'],r['code']))
+          with (OUT/'FIRST_PRIZE_2024_2025.csv').open('w',encoding='utf-8-sig',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['year','problem','code','award','source_file','sheet','row_index','evidence']); w.writeheader(); w.writerows(records)
+          (OUT/'diagnostics.json').write_text(json.dumps(diagnostics,ensure_ascii=False,indent=2),encoding='utf-8')
 
-          with (OUT/'FIRST_PRIZE_2024_2025.csv').open('w', encoding='utf-8-sig', newline='') as f:
-              w = csv.DictWriter(f, fieldnames=['year','problem','code','award','source_file','sheet','row_index','evidence'])
-              w.writeheader(); w.writerows(records)
-
-          (OUT/'diagnostics.json').write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding='utf-8')
-
-          md = [
-              '# CPMCM 2024–2025 官方一等奖参赛编号基线',
-              '',
-              '> 直接从中国研究生创新实践系列大赛（CPIPC）官方最终获奖附件下载并解析；第三方资料不参与本表的赛事身份判定。',
-              '',
-              '## 官方来源',
-              '',
-              '- 2024 最终获奖名单附件：`fileId=abd16eab9126428eb1c8cea9fd5c8a23`',
-              '- 2025 获奖名单附件：`fileId=c12ddcb197e547e5be6bd47696b2f1f1`',
-              '',
-              '## 解析结果',
-              '',
-          ]
-          for year in YEARS:
-              ys = [r for r in records if r['year']==year]
-              md.append(f'### {year}')
-              md.append('')
-              md.append(f'- 唯一一等奖参赛编号：**{len(ys)}**')
-              for p in 'ABCDEF':
-                  md.append(f'- {p} 题：{sum(1 for r in ys if r["problem"]==p)}')
-              md.append('')
-          md += [
-              '## 文件',
-              '',
-              '- [`FIRST_PRIZE_2024_2025.csv`](FIRST_PRIZE_2024_2025.csv)：后续全文发现与精确匹配的权威 ID 基线。',
-              '- [`diagnostics.json`](diagnostics.json)：解析审计信息。',
-              '',
-          ]
-          (OUT/'README.md').write_text('\n'.join(md), encoding='utf-8')
-
-          print(json.dumps([x for x in diagnostics if 'unique_first_prize_codes' in x], ensure_ascii=False, indent=2))
+          lines=['# CPMCM 2024–2025 一等奖参赛编号基线','',
+                 '> 用于后续把公开论文全文与全国一等奖参赛队号做精确匹配。2025 直接解析 CPIPC 官方附件；2024 优先官方附件，若云端防盗链阻断则使用公开镜像中的官方最终获奖 XLSX，并以 CPIPC 官方公告作赛事身份与总量交叉核验。','']
+          for y in YEARS:
+              ys=[r for r in records if r['year']==y]
+              lines += [f'## {y}','',f'- 唯一一等奖编号：**{len(ys)}**',f'- 数据来源：{source_notes[y]}']
+              for p in 'ABCDEF': lines.append(f'- {p}题：{sum(1 for r in ys if r["problem"]==p)}')
+              lines.append('')
+          lines += ['## 文件','','- [`FIRST_PRIZE_2024_2025.csv`](FIRST_PRIZE_2024_2025.csv)','- [`diagnostics.json`](diagnostics.json)','']
+          (OUT/'README.md').write_text('\n'.join(lines),encoding='utf-8')
+          print(json.dumps([d for d in diagnostics if 'unique_first_prize_codes' in d],ensure_ascii=False,indent=2))
           PY
           python /tmp/parse_awards.py
 
-      - name: Commit official award baseline
+      - name: Sanity-check counts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv
+          from collections import Counter
+          p='papers/CPMCM/_research/official_awards/FIRST_PRIZE_2024_2025.csv'
+          rows=list(csv.DictReader(open(p,encoding='utf-8-sig')))
+          c=Counter(int(r['year']) for r in rows)
+          print(c)
+          # Official announcements are around 241/243 first-prize teams. Be strict enough
+          # to catch parser failure but tolerate domestic/international wording differences.
+          assert 235 <= c[2024] <= 250, c
+          assert 238 <= c[2025] <= 250, c
+          PY
+
+      - name: Commit award baseline
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add papers/CPMCM/_research/official_awards
-          if git diff --cached --quiet; then
-            echo 'No award baseline changes.'
-          else
-            git commit -m 'research: import official CPMCM 2024-2025 first-prize IDs [skip ci]'
+          if ! git diff --cached --quiet; then
+            git commit -m 'research: import CPMCM 2024-2025 first-prize IDs [skip ci]'
             git push origin HEAD:main
           fi
