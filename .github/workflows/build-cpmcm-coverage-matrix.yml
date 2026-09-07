@@ -1,0 +1,104 @@
+name: Build CPMCM coverage matrix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-cpmcm-coverage-matrix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            papers/CPMCM
+            .github/workflows/build-cpmcm-coverage-matrix.yml
+
+      - name: Build matrix from unique verified paper IDs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          from collections import defaultdict
+
+          root = Path('papers/CPMCM')
+          src = root / '_research' / 'MATCHES.csv'
+          out = root / 'COVERAGE_MATRIX.md'
+
+          years = list(range(2020, 2026))
+          problems = list('ABCDEF')
+          ids = defaultdict(set)
+
+          with src.open('r', encoding='utf-8-sig', newline='') as f:
+              for row in csv.DictReader(f):
+                  try:
+                      y = int(row['year'])
+                  except Exception:
+                      continue
+                  p = (row.get('problem') or '').strip().upper()
+                  code = (row.get('code') or '').strip().upper()
+                  if y in years and p in problems and code:
+                      ids[(y, p)].add(code)
+
+          year_totals = {y: sum(len(ids[(y,p)]) for p in problems) for y in years}
+          problem_totals = {p: sum(len(ids[(y,p)]) for y in years) for p in problems}
+          grand = sum(year_totals.values())
+
+          lines = [
+              '# CPMCM 2020–2025 全国一等奖论文覆盖矩阵',
+              '',
+              '> `M` = 当前 `_research/MATCHES.csv` 中，已通过“公开优秀论文参赛编号 ↔ 对应年份中国研究生数学建模竞赛全国一等奖名单参赛编号”精确匹配的**唯一论文/参赛队数量**。同一参赛编号只计 1 次。',
+              '',
+              '> 这张表只统计已经进入机器精确匹配池的 `M`。2024–2025 当前主要通过学校/赛事官方报道人工核验，因此即使已有 S/A/V 样本，这里仍可能显示 `M0`；不能把 `M0` 理解为该题没有国一论文。',
+              '',
+              '## M 数量矩阵',
+              '',
+              '| 年份 \\ 题号 | A | B | C | D | E | F | 年合计 |',
+              '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+          ]
+
+          for y in years:
+              cells = [f'M{len(ids[(y,p)])}' for p in problems]
+              lines.append(f"| **{y}** | " + ' | '.join(cells) + f" | **{year_totals[y]}** |")
+
+          lines += [
+              '| **题号合计** | ' + ' | '.join(f'**{problem_totals[p]}**' for p in problems) + f' | **{grand}** |',
+              '',
+              '## 当前结论',
+              '',
+              f'- 机器精确匹配池当前共有 **{grand} 篇/队**（按唯一参赛编号去重）。',
+              '- 2020–2023 的格子用于观察各题公开国一全文池的厚度；2024–2025 仍需继续建立同口径全文匹配池。',
+              '- 下一步可把 `S` / `A` / `V` 精选标记叠加到本矩阵，但不要用精选等级替代 `M` 数量。',
+              '',
+              '## 机器可读来源',
+              '',
+              '- [`_research/MATCHES.csv`](./_research/MATCHES.csv)',
+              '- [`_research/INDEX.md`](./_research/INDEX.md)',
+              '',
+          ]
+
+          out.write_text('\n'.join(lines), encoding='utf-8')
+
+          print('grand_total =', grand)
+          for y in years:
+              print(y, {p: len(ids[(y,p)]) for p in problems}, 'total=', year_totals[y])
+          PY
+
+      - name: Commit coverage matrix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add papers/CPMCM/COVERAGE_MATRIX.md
+          if git diff --cached --quiet; then
+            echo 'No matrix changes.'
+          else
+            git commit -m 'docs: add CPMCM first-prize coverage matrix [skip ci]'
+            git push origin HEAD:main
+          fi
