@@ -1,0 +1,143 @@
+name: Inventory CPMCM 2024 excellent-paper share
+
+on:
+  push:
+    paths:
+      - '.github/workflows/research-cpmcm-2024-baidu-share.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            papers/CPMCM
+            .github/workflows/research-cpmcm-2024-baidu-share.yml
+
+      - name: Inventory anonymous public share and match official first-prize IDs
+        shell: bash
+        run: |
+          python -m pip install --quiet requests
+          cat > /tmp/inventory.py <<'PY'
+          from pathlib import Path
+          import csv, json, re, time, urllib.parse
+          import requests
+
+          SHARE_FULL='1uxhi5n47ZsLm9fU1xqpS3g'
+          PWD='opr4'
+          SHARE_URL=f'https://pan.baidu.com/s/{SHARE_FULL}?pwd={PWD}'
+          SURL=SHARE_FULL[1:]
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+          OUT=Path('papers/CPMCM/_research/2024_public_share')
+          OUT.mkdir(parents=True,exist_ok=True)
+
+          s=requests.Session(); s.headers.update({'User-Agent':UA})
+          def get(url, **kw):
+              kw.setdefault('timeout',30); kw.setdefault('verify',False)
+              return s.get(url,**kw)
+          def post(url, **kw):
+              kw.setdefault('timeout',30); kw.setdefault('verify',False)
+              return s.post(url,**kw)
+
+          # Establish session and verify extraction code. No Baidu account/login is used.
+          get('https://pan.baidu.com/')
+          init=f'https://pan.baidu.com/share/init?surl={SURL}'
+          get(init,headers={'Referer':'https://pan.baidu.com/'})
+          vr=post(f'https://pan.baidu.com/share/verify?surl={SURL}&t={int(time.time()*1000)}&channel=chunlei&web=1&clienttype=0',
+                  data={'pwd':PWD,'vcode':'','vcode_str':''},headers={'Referer':init})
+          print('verify',vr.status_code,vr.text[:500])
+          v=vr.json()
+          if v.get('errno')!=0: raise RuntimeError(f'verify failed: {v}')
+
+          page=get(f'https://pan.baidu.com/s/{SHARE_FULL}',headers={'Referer':init}).text
+          m1=re.search(r'"shareid":(\d+)',page)
+          m2=re.search(r'"share_uk":"?(\d+)',page)
+          if not (m1 and m2):
+              # newer page variants may expose shareid/share_uk unquoted differently
+              m1=re.search(r'"shareid"\s*:\s*"?(\d+)',page)
+              m2=re.search(r'"share_uk"\s*:\s*"?(\d+)',page)
+          if not (m1 and m2):
+              raise RuntimeError('could not parse shareid/share_uk from verified share page')
+          shareid,uk=m1.group(1),m2.group(1)
+          print('shareid',shareid,'uk',uk)
+
+          def list_api(root=False,dirpath=None,page_num=1):
+              q={'uk':uk,'shareid':shareid,'order':'name','desc':0,'showempty':0,'web':1,
+                 'page':page_num,'num':500,'channel':'chunlei','clienttype':0}
+              if root:q['root']=1
+              else:q['dir']=dirpath
+              r=get('https://pan.baidu.com/share/list?'+urllib.parse.urlencode(q),headers={'Referer':f'https://pan.baidu.com/s/{SHARE_FULL}'})
+              d=r.json()
+              if d.get('errno')!=0: raise RuntimeError(f'list failed {dirpath}: {d}')
+              return d.get('list',[])
+
+          seen=[]
+          def walk(items,depth=0):
+              for it in items:
+                  rec={k:it.get(k) for k in ('server_filename','path','size','isdir','fs_id','server_mtime')}
+                  rec['depth']=depth; seen.append(rec)
+                  if it.get('isdir') and depth<10:
+                      # paginate just in case a directory contains >500 entries
+                      pg=1
+                      while True:
+                          kids=list_api(dirpath=it['path'],page_num=pg)
+                          if not kids: break
+                          walk(kids,depth+1)
+                          if len(kids)<500: break
+                          pg+=1
+          walk(list_api(root=True),0)
+          print('entries',len(seen),'files',sum(not x['isdir'] for x in seen))
+
+          with (OUT/'MANIFEST.csv').open('w',encoding='utf-8-sig',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['server_filename','path','size','isdir','fs_id','server_mtime','depth']);w.writeheader();w.writerows(seen)
+
+          awards=list(csv.DictReader(open('papers/CPMCM/_research/official_awards/FIRST_PRIZE_2024_2025.csv',encoding='utf-8-sig')))
+          official={r['code'].upper():r for r in awards if r['year']=='2024'}
+          CODE=re.compile(r'([A-F]\d{9,16})',re.I)
+          matches=[]
+          for it in seen:
+              if it['isdir']:continue
+              text=(it.get('server_filename') or '')+' '+(it.get('path') or '')
+              for code in {x.upper() for x in CODE.findall(text)}:
+                  if code not in official:continue
+                  a=official[code]
+                  matches.append({'year':'2024','problem':code[0],'code':code,
+                                  'filename':it['server_filename'],'share_path':it['path'],'size':it['size'],
+                                  'award_evidence':a['evidence'],'source_url':SHARE_URL})
+          # Deduplicate by official code + path
+          uniq={(m['code'],m['share_path']):m for m in matches}
+          matches=sorted(uniq.values(),key=lambda x:(x['problem'],x['code'],x['share_path']))
+          with (OUT/'EXACT_FIRST_PRIZE_MATCHES.csv').open('w',encoding='utf-8-sig',newline='') as f:
+              fields=['year','problem','code','filename','share_path','size','award_evidence','source_url']
+              w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(matches)
+
+          # Count unique matching team IDs by problem; multiple formats of same paper count once.
+          unique_codes=sorted(set(m['code'] for m in matches))
+          byp={p:sum(c.startswith(p) for c in unique_codes) for p in 'ABCDEF'}
+          lines=['# 2024 CPMCM 公开优秀论文网盘清单与国一精确匹配','',
+                 '> 来源为公开发布的“2024年优秀论文”百度网盘分享。工作流匿名访问公开分享，仅列目录；不使用个人百度账号，也不把第三方 PDF 镜像进本仓库。','',
+                 f'- 分享入口：{SHARE_URL}',f'- 清单条目：**{len(seen)}**（文件 {sum(not x["isdir"] for x in seen)}）',
+                 f'- 与官方/最终获奖名单参赛编号精确匹配的唯一国一队号：**{len(unique_codes)}**','']
+          for p in 'ABCDEF':lines.append(f'- {p}题：{byp[p]}')
+          lines += ['','## 文件','','- [`MANIFEST.csv`](MANIFEST.csv)：公开分享目录清单。','- [`EXACT_FIRST_PRIZE_MATCHES.csv`](EXACT_FIRST_PRIZE_MATCHES.csv)：文件名/路径中的参赛编号与一等奖 ID 基线精确匹配结果。','',
+                    '## 口径','','- 只有文件名/路径出现参赛编号且该编号在 2024 全国一等奖基线中时，才计入精确匹配。','- 如果分享中的论文不以参赛编号命名，本轮不会猜测归属，需后续通过 PDF 首页或题目/队员信息二次核验。','']
+          (OUT/'README.md').write_text('\n'.join(lines),encoding='utf-8')
+          print('unique exact first-prize codes',len(unique_codes),byp)
+          PY
+          PYTHONWARNINGS=ignore python /tmp/inventory.py
+
+      - name: Commit public-share research inventory
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add papers/CPMCM/_research/2024_public_share
+          if ! git diff --cached --quiet; then
+            git commit -m 'research: inventory 2024 CPMCM public excellent-paper share [skip ci]'
+            git push origin HEAD:main
+          fi
