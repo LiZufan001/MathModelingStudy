@@ -21,3 +21,15 @@ https://www.newsdata.uestc.edu.cn/?Id=98642&n=UestcNews.Front.DocumentV2.Article
 
 - 年份/赛事：官方公告已核验
 - A–F 题名：高校官方新闻交叉核验
+
+<!-- LOCAL-MATERIALS-2025-START -->
+## 本仓库已收录材料
+
+本批 2025 赛题资料已实际入库：
+
+- A–F 六题均收录题面
+- 每题同时保留 `DOCX` 与 `PDF` 两种格式
+- 本次 `2025.zip` 中未发现独立的数据附件文件，因此当前仅收录题面；后续若找到官方独立附件，再按题号补入对应目录
+
+目录结构为 `A/` ～ `F/`。
+<!-- LOCAL-MATERIALS-2025-END -->
