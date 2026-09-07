@@ -1,0 +1,38 @@
+[
+  {
+    "year": 2024,
+    "xlsx_files": 7,
+    "unique_first_prize_codes": 241,
+    "by_problem": {
+      "A": 25,
+      "B": 22,
+      "C": 78,
+      "D": 42,
+      "E": 51,
+      "F": 23
+    },
+    "source": "2024 source: zhanwen/MathModel mirror of official final award XLSX files; identity/count cross-checked against CPIPC award announcement"
+  },
+  {
+    "year": 2025,
+    "problem": "",
+    "file": "G.xlsx",
+    "sheet": "Sheet1",
+    "row": 1,
+    "unparsed": "1 | G | 25102990147 | 一等奖 | 高舒畅 | 江苏大学 | 李莹 | 江苏大学 | Ntaye Emmanuel | 江苏大学"
+  },
+  {
+    "year": 2025,
+    "xlsx_files": 8,
+    "unique_first_prize_codes": 243,
+    "by_problem": {
+      "A": 23,
+      "B": 26,
+      "C": 36,
+      "D": 32,
+      "E": 98,
+      "F": 28
+    },
+    "source": "2025 source: CPIPC official attachment"
+  }
+]
