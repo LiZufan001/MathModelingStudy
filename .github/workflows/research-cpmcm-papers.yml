@@ -90,8 +90,9 @@ jobs:
           by={y:[] for y in YEARS}
           for m in M:by[m['year']].append(m)
           L=['# CPMCM 一等奖 × 公开优秀论文全文精确匹配','', '> 公开优秀论文 PDF 的参赛编号，与同年度获奖名单中标记“**一等奖**”的参赛编号做精确匹配；不把“优秀论文”自动等同于一等奖。','','## 汇总','']
-          for d in D:L.append(f"- {d['year']}：一等奖记录 {d['first_prize_rows']}；优秀论文 PDF {d['excellent_pdfs']}；**精确匹配 {d['exact_matches']} 篇**")
+          for d in D:L.append(f"- {d['year']}：一等奖唯一队号 {d['award_codes']}（原始一等奖记录 {d['first_prize_rows']}）；优秀论文 PDF {d['excellent_pdfs']}；**精确匹配 {d['exact_matches']} 篇**")
           L.append('')
+          L += ['> 注：若同一年同时保存“拟获奖名单”和“最终获奖名单”，原始记录会重复；因此统计以**唯一参赛队号**为准。','']
           for y in YEARS:
             L += [f'## {y}','']
             if not by[y]:L += ['- 暂无编号精确匹配。',''];continue
@@ -99,7 +100,7 @@ jobs:
               L += [f"### {m['problem']}题 · `{m['code']}`",'']
               if m.get('title'):L.append(f"- PDF 首部提取标题：**{m['title']}**")
               L += ['- 奖项：**全国一等奖（获奖表编号精确匹配）**',f"- 获奖表证据：{m['award_rows'][0]['row'][:600]}",f"- 公开全文来源：[{m['source_path']}]({m['source_url']})",'- 文件策略：第三方 PDF 未确认再分发许可前只保存来源链接。','']
-          L += ['## 复核说明','', '- `MATCHES.csv` 用于筛选；`diagnostics.json` 保留机器审计。','- 精确匹配后仍优先用学校/赛事官方报道做二次交叉核验。','']
+          L += ['## 复核说明','', '- `MATCHES.csv` 用于筛选；`diagnostics.json` 保留机器审计。','- 精确匹配后仍必须用赛事官方与学校官方信息做独立交叉核验。','']
           (O/'INDEX.md').write_text('\n'.join(L),encoding='utf-8')
           print(json.dumps(D,ensure_ascii=False,indent=2));print('TOTAL_MATCHES',len(M))
           PY
