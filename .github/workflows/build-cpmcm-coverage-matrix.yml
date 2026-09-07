@@ -42,9 +42,13 @@ jobs:
                       y = int(row['year'])
                   except Exception:
                       continue
-                  p = (row.get('problem') or '').strip().upper()
                   code = (row.get('code') or '').strip().upper()
-                  if y in years and p in problems and code:
+                  if not code or code[0] not in problems:
+                      continue
+                  # 题号以参赛编号首字母为准。部分年份把“数模之星提名奖”论文
+                  # 单独放在一个文件夹里，CSV 的 problem 字段会因此不是 A-F。
+                  p = code[0]
+                  if y in years:
                       ids[(y, p)].add(code)
 
           year_totals = {y: sum(len(ids[(y,p)]) for p in problems) for y in years}
@@ -55,6 +59,8 @@ jobs:
               '# CPMCM 2020–2025 全国一等奖论文覆盖矩阵',
               '',
               '> `M` = 当前 `_research/MATCHES.csv` 中，已通过“公开优秀论文参赛编号 ↔ 对应年份中国研究生数学建模竞赛全国一等奖名单参赛编号”精确匹配的**唯一论文/参赛队数量**。同一参赛编号只计 1 次。',
+              '',
+              '> 题号以参赛编号首字母（A–F）为准，而不是来源文件夹名；这样可以正确统计被单独放进“数模之星提名奖”等专题文件夹的论文。',
               '',
               '> 这张表只统计已经进入机器精确匹配池的 `M`。2024–2025 当前主要通过学校/赛事官方报道人工核验，因此即使已有 S/A/V 样本，这里仍可能显示 `M0`；不能把 `M0` 理解为该题没有国一论文。',
               '',
@@ -99,6 +105,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No matrix changes.'
           else
-            git commit -m 'docs: add CPMCM first-prize coverage matrix [skip ci]'
+            git commit -m 'docs: update CPMCM first-prize coverage matrix [skip ci]'
             git push origin HEAD:main
           fi
