@@ -1,0 +1,190 @@
+name: Import CPMCM 2024-2025 official awards
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-cpmcm-2024-2025-official-awards.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-awards:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            papers/CPMCM
+            .github/workflows/import-cpmcm-2024-2025-official-awards.yml
+
+      - name: Install extractors and parsers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unar
+          python -m pip install --quiet pandas openpyxl xlrd
+
+      - name: Download official award archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cpmcm-awards/2024 /tmp/cpmcm-awards/2025
+          curl -k -L --fail --retry 3 \
+            'https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=abd16eab9126428eb1c8cea9fd5c8a23' \
+            -o /tmp/cpmcm-awards/2024.rar
+          curl -k -L --fail --retry 3 \
+            'https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=c12ddcb197e547e5be6bd47696b2f1f1' \
+            -o /tmp/cpmcm-awards/2025.rar
+          file /tmp/cpmcm-awards/2024.rar /tmp/cpmcm-awards/2025.rar
+          unar -q -o /tmp/cpmcm-awards/2024 /tmp/cpmcm-awards/2024.rar
+          unar -q -o /tmp/cpmcm-awards/2025 /tmp/cpmcm-awards/2025.rar
+          find /tmp/cpmcm-awards -maxdepth 4 -type f -printf '%p\n' | sort
+
+      - name: Parse official national first-prize teams
+        shell: bash
+        run: |
+          cat > /tmp/parse_awards.py <<'PY'
+          from pathlib import Path
+          import csv, json, re
+          import pandas as pd
+
+          OUT = Path('papers/CPMCM/_research/official_awards')
+          OUT.mkdir(parents=True, exist_ok=True)
+          YEARS = (2024, 2025)
+          PROBLEM_RE = re.compile(r'(?<![A-Z])([A-F])(?:题|\.|_|-|$)', re.I)
+          FULL_CODE_RE = re.compile(r'(?<![A-Z0-9])([A-F]\s*\d{8,16})(?!\d)', re.I)
+          NUM_CODE_RE = re.compile(r'(?<!\d)(\d{9,16})(?!\d)')
+
+          def cell(v):
+              if pd.isna(v):
+                  return ''
+              if isinstance(v, float) and v.is_integer():
+                  return str(int(v))
+              return str(v).strip()
+
+          def problem_from_name(name):
+              s = Path(name).stem.upper().replace(' ', '')
+              m = PROBLEM_RE.search(s)
+              if m:
+                  return m.group(1).upper()
+              if s and s[0] in 'ABCDEF':
+                  return s[0]
+              return ''
+
+          records = []
+          diagnostics = []
+
+          for year in YEARS:
+              root = Path(f'/tmp/cpmcm-awards/{year}')
+              books = sorted([p for p in root.rglob('*') if p.suffix.lower() in ('.xls', '.xlsx')])
+              year_records = []
+              for book in books:
+                  prob = problem_from_name(book.name)
+                  try:
+                      xf = pd.ExcelFile(book)
+                  except Exception as e:
+                      diagnostics.append({'year':year,'file':str(book),'error':repr(e)})
+                      continue
+                  for sheet in xf.sheet_names:
+                      try:
+                          df = pd.read_excel(book, sheet_name=sheet, header=None, dtype=object)
+                      except Exception as e:
+                          diagnostics.append({'year':year,'file':str(book),'sheet':sheet,'error':repr(e)})
+                          continue
+                      for idx, row in df.iterrows():
+                          vals = [cell(v) for v in row.tolist()]
+                          joined = ' | '.join(v for v in vals if v)
+                          if '一等奖' not in joined:
+                              continue
+                          codes = []
+                          for v in vals:
+                              compact = v.replace(' ', '').upper()
+                              codes += [x.replace(' ', '').upper() for x in FULL_CODE_RE.findall(compact)]
+                              if prob:
+                                  codes += [prob + n for n in NUM_CODE_RE.findall(compact)]
+                          codes = sorted(set(codes))
+                          # Some sheets put problem letter only in the filename and a shorter numeric team id.
+                          # If no code is found, retain the row in diagnostics rather than guessing.
+                          if not codes:
+                              diagnostics.append({'year':year,'problem':prob,'file':str(book),'sheet':sheet,'row':int(idx),'unparsed_first_prize_row':joined})
+                              continue
+                          for code in codes:
+                              rec = {
+                                  'year': year,
+                                  'problem': code[0] if code and code[0] in 'ABCDEF' else prob,
+                                  'code': code,
+                                  'award': '全国一等奖',
+                                  'source_file': book.name,
+                                  'sheet': sheet,
+                                  'row_index': int(idx),
+                                  'evidence': joined,
+                              }
+                              records.append(rec)
+                              year_records.append(rec)
+              unique = {(r['problem'],r['code']): r for r in year_records}
+              diagnostics.append({
+                  'year': year,
+                  'xlsx_files': len(books),
+                  'parsed_first_prize_rows': len(year_records),
+                  'unique_first_prize_codes': len(unique),
+                  'by_problem': {p: sum(1 for (q,_c) in unique if q == p) for p in 'ABCDEF'},
+              })
+
+          unique_records = {}
+          for r in records:
+              unique_records[(r['year'], r['problem'], r['code'])] = r
+          records = sorted(unique_records.values(), key=lambda r:(r['year'],r['problem'],r['code']))
+
+          with (OUT/'FIRST_PRIZE_2024_2025.csv').open('w', encoding='utf-8-sig', newline='') as f:
+              w = csv.DictWriter(f, fieldnames=['year','problem','code','award','source_file','sheet','row_index','evidence'])
+              w.writeheader(); w.writerows(records)
+
+          (OUT/'diagnostics.json').write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = [
+              '# CPMCM 2024–2025 官方一等奖参赛编号基线',
+              '',
+              '> 直接从中国研究生创新实践系列大赛（CPIPC）官方最终获奖附件下载并解析；第三方资料不参与本表的赛事身份判定。',
+              '',
+              '## 官方来源',
+              '',
+              '- 2024 最终获奖名单附件：`fileId=abd16eab9126428eb1c8cea9fd5c8a23`',
+              '- 2025 获奖名单附件：`fileId=c12ddcb197e547e5be6bd47696b2f1f1`',
+              '',
+              '## 解析结果',
+              '',
+          ]
+          for year in YEARS:
+              ys = [r for r in records if r['year']==year]
+              md.append(f'### {year}')
+              md.append('')
+              md.append(f'- 唯一一等奖参赛编号：**{len(ys)}**')
+              for p in 'ABCDEF':
+                  md.append(f'- {p} 题：{sum(1 for r in ys if r["problem"]==p)}')
+              md.append('')
+          md += [
+              '## 文件',
+              '',
+              '- [`FIRST_PRIZE_2024_2025.csv`](FIRST_PRIZE_2024_2025.csv)：后续全文发现与精确匹配的权威 ID 基线。',
+              '- [`diagnostics.json`](diagnostics.json)：解析审计信息。',
+              '',
+          ]
+          (OUT/'README.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print(json.dumps([x for x in diagnostics if 'unique_first_prize_codes' in x], ensure_ascii=False, indent=2))
+          PY
+          python /tmp/parse_awards.py
+
+      - name: Commit official award baseline
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add papers/CPMCM/_research/official_awards
+          if git diff --cached --quiet; then
+            echo 'No award baseline changes.'
+          else
+            git commit -m 'research: import official CPMCM 2024-2025 first-prize IDs [skip ci]'
+            git push origin HEAD:main
+          fi
