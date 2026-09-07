@@ -2,45 +2,1518 @@
   "diagnostics": [
     {
       "year": 2020,
-      "award_files": 0,
-      "first_prize_rows": 0,
+      "award_files": 6,
+      "first_prize_rows": 188,
       "award_codes": 0,
-      "excellent_pdfs": 0,
+      "excellent_pdfs": 40,
       "exact_matches": 0
     },
     {
       "year": 2021,
-      "award_files": 0,
-      "first_prize_rows": 0,
+      "award_files": 6,
+      "first_prize_rows": 206,
       "award_codes": 0,
-      "excellent_pdfs": 0,
+      "excellent_pdfs": 44,
       "exact_matches": 0
     },
     {
       "year": 2022,
-      "award_files": 0,
-      "first_prize_rows": 0,
+      "award_files": 6,
+      "first_prize_rows": 197,
       "award_codes": 0,
-      "excellent_pdfs": 0,
+      "excellent_pdfs": 42,
       "exact_matches": 0
     },
     {
       "year": 2023,
-      "award_files": 0,
-      "first_prize_rows": 0,
+      "award_files": 12,
+      "first_prize_rows": 400,
       "award_codes": 0,
-      "excellent_pdfs": 0,
+      "excellent_pdfs": 58,
       "exact_matches": 0
     },
     {
       "year": 2024,
-      "award_files": 0,
-      "first_prize_rows": 0,
+      "award_files": 7,
+      "first_prize_rows": 241,
       "award_codes": 0,
       "excellent_pdfs": 0,
       "exact_matches": 0
     }
   ],
   "matches": [],
-  "unmatched": []
+  "unmatched": [
+    {
+      "year": 2020,
+      "problem": "A",
+      "code": "A20102460127",
+      "source_path": "国赛论文/2020年优秀论文/A/A20102460127.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/A/A20102460127.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "A",
+      "code": "A20102480161",
+      "source_path": "国赛论文/2020年优秀论文/A/A20102480161.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/A/A20102480161.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "A",
+      "code": "A20104870015",
+      "source_path": "国赛论文/2020年优秀论文/A/A20104870015.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/A/A20104870015.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "A",
+      "code": "A20106110086",
+      "source_path": "国赛论文/2020年优秀论文/A/A20106110086.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/A/A20106110086.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "A",
+      "code": "A20910040037",
+      "source_path": "国赛论文/2020年优秀论文/A/A20910040037.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/A/A20910040037.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20100040057",
+      "source_path": "国赛论文/2020年优秀论文/B/B20100040057.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20100040057.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20100050019",
+      "source_path": "国赛论文/2020年优秀论文/B/B20100050019.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20100050019.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20102470089",
+      "source_path": "国赛论文/2020年优秀论文/B/B20102470089.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20102470089.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20102940042",
+      "source_path": "国赛论文/2020年优秀论文/B/B20102940042.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20102940042.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20102980116",
+      "source_path": "国赛论文/2020年优秀论文/B/B20102980116.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20102980116.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20103350031",
+      "source_path": "国赛论文/2020年优秀论文/B/B20103350031.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20103350031.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20103380015",
+      "source_path": "国赛论文/2020年优秀论文/B/B20103380015.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20103380015.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20103580004",
+      "source_path": "国赛论文/2020年优秀论文/B/B20103580004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20103580004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20104870036",
+      "source_path": "国赛论文/2020年优秀论文/B/B20104870036.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20104870036.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20105340008",
+      "source_path": "国赛论文/2020年优秀论文/B/B20105340008.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20105340008.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "B",
+      "code": "B20106570027",
+      "source_path": "国赛论文/2020年优秀论文/B/B20106570027.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/B/B20106570027.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20102470319",
+      "source_path": "国赛论文/2020年优秀论文/C/C20102470319.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20102470319.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20102480095",
+      "source_path": "国赛论文/2020年优秀论文/C/C20102480095.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20102480095.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20102520034",
+      "source_path": "国赛论文/2020年优秀论文/C/C20102520034.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20102520034.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20102840089",
+      "source_path": "国赛论文/2020年优秀论文/C/C20102840089.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20102840089.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20102860127",
+      "source_path": "国赛论文/2020年优秀论文/C/C20102860127.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20102860127.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "C",
+      "code": "C20106980009",
+      "source_path": "国赛论文/2020年优秀论文/C/C20106980009.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/C/C20106980009.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20102470005",
+      "source_path": "国赛论文/2020年优秀论文/D/D20102470005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20102470005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20102690110",
+      "source_path": "国赛论文/2020年优秀论文/D/D20102690110.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20102690110.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20102860223",
+      "source_path": "国赛论文/2020年优秀论文/D/D20102860223.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20102860223.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20107010019",
+      "source_path": "国赛论文/2020年优秀论文/D/D20107010019.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20107010019.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20910240043",
+      "source_path": "国赛论文/2020年优秀论文/D/D20910240043.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20910240043.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "D",
+      "code": "D20910240065",
+      "source_path": "国赛论文/2020年优秀论文/D/D20910240065.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/D/D20910240065.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20102690219",
+      "source_path": "国赛论文/2020年优秀论文/E/E20102690219.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20102690219.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20104250114",
+      "source_path": "国赛论文/2020年优秀论文/E/E20104250114.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20104250114.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20104590039",
+      "source_path": "国赛论文/2020年优秀论文/E/E20104590039.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20104590039.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20104590100",
+      "source_path": "国赛论文/2020年优秀论文/E/E20104590100.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20104590100.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20112870005",
+      "source_path": "国赛论文/2020年优秀论文/E/E20112870005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20112870005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "E",
+      "code": "E20114820008",
+      "source_path": "国赛论文/2020年优秀论文/E/E20114820008.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/E/E20114820008.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20100070005",
+      "source_path": "国赛论文/2020年优秀论文/F/F20100070005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20100070005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20102480125",
+      "source_path": "国赛论文/2020年优秀论文/F/F20102480125.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20102480125.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20102690221",
+      "source_path": "国赛论文/2020年优秀论文/F/F20102690221.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20102690221.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20102840100",
+      "source_path": "国赛论文/2020年优秀论文/F/F20102840100.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20102840100.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20102920009",
+      "source_path": "国赛论文/2020年优秀论文/F/F20102920009.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20102920009.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2020,
+      "problem": "F",
+      "code": "F20105320023",
+      "source_path": "国赛论文/2020年优秀论文/F/F20105320023.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2020年优秀论文/F/F20105320023.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "A",
+      "code": "A21102170024",
+      "source_path": "国赛论文/2021年优秀论文/A/A21102170024.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/A/A21102170024.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "A",
+      "code": "A21102480004",
+      "source_path": "国赛论文/2021年优秀论文/A/A21102480004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/A/A21102480004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "A",
+      "code": "A21102860059",
+      "source_path": "国赛论文/2021年优秀论文/A/A21102860059.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/A/A21102860059.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "A",
+      "code": "A21103580003",
+      "source_path": "国赛论文/2021年优秀论文/A/A21103580003.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/A/A21103580003.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "A",
+      "code": "A21106140105",
+      "source_path": "国赛论文/2021年优秀论文/A/A21106140105.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/A/A21106140105.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21100130067",
+      "source_path": "国赛论文/2021年优秀论文/B/B21100130067.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21100130067.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21100790043",
+      "source_path": "国赛论文/2021年优秀论文/B/B21100790043.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21100790043.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21102510017",
+      "source_path": "国赛论文/2021年优秀论文/B/B21102510017.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21102510017.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21102690002",
+      "source_path": "国赛论文/2021年优秀论文/B/B21102690002.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21102690002.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21103530001",
+      "source_path": "国赛论文/2021年优秀论文/B/B21103530001.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21103530001.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21107040042",
+      "source_path": "国赛论文/2021年优秀论文/B/B21107040042.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21107040042.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "B",
+      "code": "B21116640067",
+      "source_path": "国赛论文/2021年优秀论文/B/B21116640067.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/B/B21116640067.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "C",
+      "code": "C21100560011",
+      "source_path": "国赛论文/2021年优秀论文/C/C21100560011.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/C/C21100560011.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "C",
+      "code": "C21102470060",
+      "source_path": "国赛论文/2021年优秀论文/C/C21102470060.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/C/C21102470060.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "C",
+      "code": "C21102920013",
+      "source_path": "国赛论文/2021年优秀论文/C/C21102920013.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/C/C21102920013.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "C",
+      "code": "C21102920019",
+      "source_path": "国赛论文/2021年优秀论文/C/C21102920019.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/C/C21102920019.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "C",
+      "code": "C21106980211",
+      "source_path": "国赛论文/2021年优秀论文/C/C21106980211.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/C/C21106980211.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "D",
+      "code": "D21101080006",
+      "source_path": "国赛论文/2021年优秀论文/D/D21101080006.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/D/D21101080006.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "D",
+      "code": "D21102700119",
+      "source_path": "国赛论文/2021年优秀论文/D/D21102700119.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/D/D21102700119.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "D",
+      "code": "D21102980066",
+      "source_path": "国赛论文/2021年优秀论文/D/D21102980066.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/D/D21102980066.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "D",
+      "code": "D21104860088",
+      "source_path": "国赛论文/2021年优秀论文/D/D21104860088.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/D/D21104860088.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "D",
+      "code": "D21116460003",
+      "source_path": "国赛论文/2021年优秀论文/D/D21116460003.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/D/D21116460003.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "E",
+      "code": "E21100030005",
+      "source_path": "国赛论文/2021年优秀论文/E/E21100030005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/E/E21100030005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "E",
+      "code": "E21103860006",
+      "source_path": "国赛论文/2021年优秀论文/E/E21103860006.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/E/E21103860006.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "E",
+      "code": "E21104080004",
+      "source_path": "国赛论文/2021年优秀论文/E/E21104080004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/E/E21104080004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "E",
+      "code": "E21105330243",
+      "source_path": "国赛论文/2021年优秀论文/E/E21105330243.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/E/E21105330243.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "E",
+      "code": "E21832010024",
+      "source_path": "国赛论文/2021年优秀论文/E/E21832010024.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/E/E21832010024.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "F",
+      "code": "F21102540382",
+      "source_path": "国赛论文/2021年优秀论文/F/F21102540382.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/F/F21102540382.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "F",
+      "code": "F21102870035",
+      "source_path": "国赛论文/2021年优秀论文/F/F21102870035.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/F/F21102870035.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "F",
+      "code": "F21102920005",
+      "source_path": "国赛论文/2021年优秀论文/F/F21102920005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/F/F21102920005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "F",
+      "code": "F21103360050",
+      "source_path": "国赛论文/2021年优秀论文/F/F21103360050.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/F/F21103360050.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "F",
+      "code": "F21104870099",
+      "source_path": "国赛论文/2021年优秀论文/F/F21104870099.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/F/F21104870099.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "A21102860073",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/A21102860073.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/A21102860073.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "A21102910019",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/A21102910019.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/A21102910019.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "B21105610069",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/B21105610069.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/B21105610069.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "B21106990088",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/B21106990088.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/B21106990088.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "C21102860153",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/C21102860153.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/C21102860153.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "C21104240047",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/C21104240047.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/C21104240047.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "D21102800176",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/D21102800176.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/D21102800176.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "D21103000002",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/D21103000002.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/D21103000002.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "E21103860005",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/E21103860005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/E21103860005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "E21104870136",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/E21104870136.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/E21104870136.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "F21102480018",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/F21102480018.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/F21102480018.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2021,
+      "problem": "获数模之星提名奖（12篇）",
+      "code": "F21103560049",
+      "source_path": "国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/F21103560049.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2021年优秀论文/获数模之星提名奖（12篇）/F21103560049.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22100070190",
+      "source_path": "国赛论文/2022年优秀论文/A/A22100070190.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22100070190.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22100130054",
+      "source_path": "国赛论文/2022年优秀论文/A/A22100130054.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22100130054.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22102460007",
+      "source_path": "国赛论文/2022年优秀论文/A/A22102460007.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22102460007.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22103040090",
+      "source_path": "国赛论文/2022年优秀论文/A/A22103040090.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22103040090.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22104860055",
+      "source_path": "国赛论文/2022年优秀论文/A/A22104860055.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22104860055.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22107010047",
+      "source_path": "国赛论文/2022年优秀论文/A/A22107010047.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22107010047.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "A",
+      "code": "A22116460175",
+      "source_path": "国赛论文/2022年优秀论文/A/A22116460175.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/A/A22116460175.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22100070171",
+      "source_path": "国赛论文/2022年优秀论文/B/B22100070171.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22100070171.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22102860210",
+      "source_path": "国赛论文/2022年优秀论文/B/B22102860210.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22102860210.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22103360018",
+      "source_path": "国赛论文/2022年优秀论文/B/B22103360018.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22103360018.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22104870143",
+      "source_path": "国赛论文/2022年优秀论文/B/B22104870143.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22104870143.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22105300030",
+      "source_path": "国赛论文/2022年优秀论文/B/B22105300030.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22105300030.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22106140009",
+      "source_path": "国赛论文/2022年优秀论文/B/B22106140009.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22106140009.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "B",
+      "code": "B22110490001",
+      "source_path": "国赛论文/2022年优秀论文/B/B22110490001.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/B/B22110490001.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22103190082",
+      "source_path": "国赛论文/2022年优秀论文/C/C22103190082.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22103190082.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22103360057",
+      "source_path": "国赛论文/2022年优秀论文/C/C22103360057.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22103360057.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22103560098",
+      "source_path": "国赛论文/2022年优秀论文/C/C22103560098.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22103560098.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22105330245",
+      "source_path": "国赛论文/2022年优秀论文/C/C22105330245.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22105330245.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22105930028",
+      "source_path": "国赛论文/2022年优秀论文/C/C22105930028.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22105930028.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22106130232",
+      "source_path": "国赛论文/2022年优秀论文/C/C22106130232.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22106130232.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "C",
+      "code": "C22106140003",
+      "source_path": "国赛论文/2022年优秀论文/C/C22106140003.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/C/C22106140003.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22102920026",
+      "source_path": "国赛论文/2022年优秀论文/D/D22102920026.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22102920026.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22102930009",
+      "source_path": "国赛论文/2022年优秀论文/D/D22102930009.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22102930009.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22103360092",
+      "source_path": "国赛论文/2022年优秀论文/D/D22103360092.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22103360092.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22104760020",
+      "source_path": "国赛论文/2022年优秀论文/D/D22104760020.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22104760020.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22106990096",
+      "source_path": "国赛论文/2022年优秀论文/D/D22106990096.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22106990096.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22900310001",
+      "source_path": "国赛论文/2022年优秀论文/D/D22900310001.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22900310001.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "D",
+      "code": "D22910040028",
+      "source_path": "国赛论文/2022年优秀论文/D/D22910040028.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/D/D22910040028.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22100160013",
+      "source_path": "国赛论文/2022年优秀论文/E/E22100160013.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22100160013.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22103040108",
+      "source_path": "国赛论文/2022年优秀论文/E/E22103040108.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22103040108.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22103350038",
+      "source_path": "国赛论文/2022年优秀论文/E/E22103350038.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22103350038.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22104860014",
+      "source_path": "国赛论文/2022年优秀论文/E/E22104860014.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22104860014.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22104870114",
+      "source_path": "国赛论文/2022年优秀论文/E/E22104870114.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22104870114.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22106110005",
+      "source_path": "国赛论文/2022年优秀论文/E/E22106110005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22106110005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "E",
+      "code": "E22107100039",
+      "source_path": "国赛论文/2022年优秀论文/E/E22107100039.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/E/E22107100039.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22100090053",
+      "source_path": "国赛论文/2022年优秀论文/F/F22100090053.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22100090053.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22101470006",
+      "source_path": "国赛论文/2022年优秀论文/F/F22101470006.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22101470006.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22102540295",
+      "source_path": "国赛论文/2022年优秀论文/F/F22102540295.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22102540295.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22102980006",
+      "source_path": "国赛论文/2022年优秀论文/F/F22102980006.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22102980006.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22103570053",
+      "source_path": "国赛论文/2022年优秀论文/F/F22103570053.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22103570053.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22105330345",
+      "source_path": "国赛论文/2022年优秀论文/F/F22105330345.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22105330345.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2022,
+      "problem": "F",
+      "code": "F22106150018",
+      "source_path": "国赛论文/2022年优秀论文/F/F22106150018.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2022年优秀论文/F/F22106150018.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23100070049",
+      "source_path": "国赛论文/2023年优秀论文/A/A23100070049.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23100070049.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23102470073",
+      "source_path": "国赛论文/2023年优秀论文/A/A23102470073.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23102470073.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23102480015",
+      "source_path": "国赛论文/2023年优秀论文/A/A23102480015.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23102480015.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23102860239",
+      "source_path": "国赛论文/2023年优秀论文/A/A23102860239.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23102860239.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23102890028",
+      "source_path": "国赛论文/2023年优秀论文/A/A23102890028.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23102890028.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23103360079",
+      "source_path": "国赛论文/2023年优秀论文/A/A23103360079.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23103360079.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23103840031",
+      "source_path": "国赛论文/2023年优秀论文/A/A23103840031.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23103840031.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23104220005",
+      "source_path": "国赛论文/2023年优秀论文/A/A23104220005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23104220005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23104860166",
+      "source_path": "国赛论文/2023年优秀论文/A/A23104860166.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23104860166.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "A",
+      "code": "A23105330383",
+      "source_path": "国赛论文/2023年优秀论文/A/A23105330383.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/A/A23105330383.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23100070010",
+      "source_path": "国赛论文/2023年优秀论文/B/B23100070010.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23100070010.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23100070173",
+      "source_path": "国赛论文/2023年优秀论文/B/B23100070173.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23100070173.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23102870003",
+      "source_path": "国赛论文/2023年优秀论文/B/B23102870003.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23102870003.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23102870182",
+      "source_path": "国赛论文/2023年优秀论文/B/B23102870182.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23102870182.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23103360062",
+      "source_path": "国赛论文/2023年优秀论文/B/B23103360062.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23103360062.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23104860044",
+      "source_path": "国赛论文/2023年优秀论文/B/B23104860044.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23104860044.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23105580005",
+      "source_path": "国赛论文/2023年优秀论文/B/B23105580005.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23105580005.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23106140164",
+      "source_path": "国赛论文/2023年优秀论文/B/B23106140164.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23106140164.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "B",
+      "code": "B23111170006",
+      "source_path": "国赛论文/2023年优秀论文/B/B23111170006.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/B/B23111170006.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23102540029",
+      "source_path": "国赛论文/2023年优秀论文/C/C23102540029.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23102540029.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23102890004",
+      "source_path": "国赛论文/2023年优秀论文/C/C23102890004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23102890004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23102980125",
+      "source_path": "国赛论文/2023年优秀论文/C/C23102980125.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23102980125.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23103360083",
+      "source_path": "国赛论文/2023年优秀论文/C/C23103360083.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23103360083.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23103510013",
+      "source_path": "国赛论文/2023年优秀论文/C/C23103510013.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23103510013.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23104080013",
+      "source_path": "国赛论文/2023年优秀论文/C/C23104080013.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23104080013.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23106130016",
+      "source_path": "国赛论文/2023年优秀论文/C/C23106130016.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23106130016.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23106570312",
+      "source_path": "国赛论文/2023年优秀论文/C/C23106570312.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23106570312.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23107120024",
+      "source_path": "国赛论文/2023年优秀论文/C/C23107120024.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23107120024.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "C",
+      "code": "C23910020010",
+      "source_path": "国赛论文/2023年优秀论文/C/C23910020010.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/C/C23910020010.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23100060041",
+      "source_path": "国赛论文/2023年优秀论文/D/D23100060041.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23100060041.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23102690008",
+      "source_path": "国赛论文/2023年优秀论文/D/D23102690008.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23102690008.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23102860126",
+      "source_path": "国赛论文/2023年优秀论文/D/D23102860126.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23102860126.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23103560099",
+      "source_path": "国赛论文/2023年优秀论文/D/D23103560099.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23103560099.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23104860011",
+      "source_path": "国赛论文/2023年优秀论文/D/D23104860011.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23104860011.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23105330094",
+      "source_path": "国赛论文/2023年优秀论文/D/D23105330094.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23105330094.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23106350004",
+      "source_path": "国赛论文/2023年优秀论文/D/D23106350004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23106350004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23106740070",
+      "source_path": "国赛论文/2023年优秀论文/D/D23106740070.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23106740070.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "D",
+      "code": "D23116460172",
+      "source_path": "国赛论文/2023年优秀论文/D/D23116460172.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/D/D23116460172.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23100650012",
+      "source_path": "国赛论文/2023年优秀论文/E/E23100650012.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23100650012.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23102550019",
+      "source_path": "国赛论文/2023年优秀论文/E/E23102550019.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23102550019.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23103530067",
+      "source_path": "国赛论文/2023年优秀论文/E/E23103530067.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23103530067.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23103570015",
+      "source_path": "国赛论文/2023年优秀论文/E/E23103570015.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23103570015.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23104030073",
+      "source_path": "国赛论文/2023年优秀论文/E/E23104030073.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23104030073.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23105330424",
+      "source_path": "国赛论文/2023年优秀论文/E/E23105330424.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23105330424.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23106730076",
+      "source_path": "国赛论文/2023年优秀论文/E/E23106730076.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23106730076.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23106980022",
+      "source_path": "国赛论文/2023年优秀论文/E/E23106980022.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23106980022.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23107030070",
+      "source_path": "国赛论文/2023年优秀论文/E/E23107030070.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23107030070.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "E",
+      "code": "E23900310014",
+      "source_path": "国赛论文/2023年优秀论文/E/E23900310014.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/E/E23900310014.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23102520378",
+      "source_path": "国赛论文/2023年优秀论文/F/F23102520378.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23102520378.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23102690048",
+      "source_path": "国赛论文/2023年优秀论文/F/F23102690048.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23102690048.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23102860072",
+      "source_path": "国赛论文/2023年优秀论文/F/F23102860072.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23102860072.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23103560002",
+      "source_path": "国赛论文/2023年优秀论文/F/F23103560002.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23103560002.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23104040152",
+      "source_path": "国赛论文/2023年优秀论文/F/F23104040152.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23104040152.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23105550004",
+      "source_path": "国赛论文/2023年优秀论文/F/F23105550004.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23105550004.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23107010086",
+      "source_path": "国赛论文/2023年优秀论文/F/F23107010086.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23107010086.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23107300013",
+      "source_path": "国赛论文/2023年优秀论文/F/F23107300013.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23107300013.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23910020015",
+      "source_path": "国赛论文/2023年优秀论文/F/F23910020015.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23910020015.pdf",
+      "award_rows": []
+    },
+    {
+      "year": 2023,
+      "problem": "F",
+      "code": "F23910020096",
+      "source_path": "国赛论文/2023年优秀论文/F/F23910020096.pdf",
+      "source_url": "https://github.com/zhanwen/MathModel/blob/master/国赛论文/2023年优秀论文/F/F23910020096.pdf",
+      "award_rows": []
+    }
+  ]
 }
