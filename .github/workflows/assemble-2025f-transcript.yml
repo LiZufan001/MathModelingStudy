@@ -1,0 +1,41 @@
+name: Assemble 2025 F transcript
+
+on:
+  push:
+    paths:
+      - 'problems/CPMCM/2025/F/study/.transcript_parts/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble transcript
+        shell: bash
+        run: |
+          set -euo pipefail
+          out='problems/CPMCM/2025/F/study/2025F_数模课讲解_完整字幕_large-v3_clean.srt'
+          cat problems/CPMCM/2025/F/study/.transcript_parts/part*.srtpart > "$out"
+          test -s "$out"
+          grep -q '^1$' "$out"
+          grep -q '^1908$' "$out"
+          grep -q '01:32:02,524' "$out"
+
+      - name: Commit assembled transcript
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'problems/CPMCM/2025/F/study/2025F_数模课讲解_完整字幕_large-v3_clean.srt'
+          if git diff --cached --quiet; then
+            echo 'No transcript changes.'
+            exit 0
+          fi
+          git commit -m 'docs: add complete 2025 F lecture transcript'
+          git push
