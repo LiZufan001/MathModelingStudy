@@ -1,4 +1,4 @@
-name: Render public CPMCM 2025 defense replay
+name: Probe public CPMCM 2025 Baidu share
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  browser-probe:
+  baidu-share-probe:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Open replay in Chromium and capture public playback state
+      - name: Inspect public Baidu share directory
         shell: bash
         run: |
           set -euo pipefail
@@ -24,75 +24,119 @@ jobs:
           import asyncio, json, re
           from playwright.async_api import async_playwright
 
-          URL='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
-          interesting=re.compile(r'(topic_config|video_config|ppt|doc/|history|playback|m3u8|\.mp4|playurl|record|replay)',re.I)
+          URL='https://pan.baidu.com/s/1NpT9h6UwwcB6SLFh2RAXzQ?pwd=2kui'
+          PWD='2kui'
+          interesting=re.compile(r'(share|list|verify|fs_id|fid|pan\.baidu|nd-api|api/)', re.I)
 
-          def scrub(obj, depth=0):
-              if depth>6: return '<depth>'
-              if isinstance(obj, dict):
-                  out={}
-                  for k,v in obj.items():
-                      lk=str(k).lower()
-                      if any(x in lk for x in ['token','cookie','session','openid','userid','mobile','phone','password','secret','signature','usersig']):
-                          continue
-                      if any(x in lk for x in ['play','video','history','host','ppt','doc','live','title','status','source','url','tpid','zbid','config','scene']):
-                          out[k]=scrub(v,depth+1)
-                  return out
-              if isinstance(obj,list): return [scrub(x,depth+1) for x in obj[:30]]
-              if isinstance(obj,(str,int,float,bool)) or obj is None: return obj
-              return str(obj)[:500]
+          def clean_url(u):
+              # Keep public request path/query but redact common auth-ish values if present.
+              u=re.sub(r'(?i)(bdstoken|access_token|token|sign|timestamp|logid|sekey)=([^&]+)', r'\1=<redacted>', u)
+              return u
 
           async def main():
               async with async_playwright() as p:
                   browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
                   context=await browser.new_context(
-                      viewport={'width':1440,'height':900},
+                      viewport={'width':1440,'height':1000},
                       user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
                   )
                   page=await context.new_page()
-                  reqs=[]
+                  responses=[]
                   async def on_response(resp):
-                      u=resp.url
-                      if interesting.search(u):
-                          rec={'status':resp.status,'url':u}
-                          try:
-                              ct=(await resp.header_value('content-type')) or ''
-                              if 'json' in ct or 'text' in ct:
-                                  txt=await resp.text()
-                                  if len(txt)<25000: rec['body']=txt[:25000]
-                          except Exception: pass
-                          reqs.append(rec)
-                  page.on('response',on_response)
+                      if not interesting.search(resp.url):
+                          return
+                      rec={'status':resp.status,'url':clean_url(resp.url)}
+                      try:
+                          ct=(await resp.header_value('content-type')) or ''
+                          if ('json' in ct or 'text' in ct or 'javascript' in ct) and resp.status < 500:
+                              txt=await resp.text()
+                              if len(txt) <= 120000:
+                                  # Redact obvious token-bearing JSON fields but keep filenames/IDs.
+                                  txt=re.sub(r'(?i)("(?:bdstoken|access_token|token|sign|sekey)"\s*:\s*")[^"]+(\")', r'\1<redacted>\2', txt)
+                                  rec['body']=txt[:120000]
+                      except Exception:
+                          pass
+                      responses.append(rec)
+                  page.on('response', on_response)
+
                   try:
                       r=await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
                       print('NAV_STATUS',r.status if r else None)
-                      await page.wait_for_timeout(20000)
                   except Exception as e:
                       print('NAV_ERROR',repr(e))
-                  print('TITLE',await page.title())
-                  print('FINAL_URL',page.url)
-                  for name in ['zbvd','educationData','historySignalList']:
-                      try:
-                          val=await page.evaluate(f'() => window.{name} || null')
-                          print('WINDOW_'+name.upper(),json.dumps(scrub(val),ensure_ascii=False)[:50000])
-                      except Exception as e: print('WINDOW_ERROR',name,repr(e))
+                  await page.wait_for_timeout(8000)
+
+                  # If Baidu still shows an extraction-code form, submit the known public code.
                   try:
-                      vids=await page.evaluate('''() => Array.from(document.querySelectorAll('video')).map(v=>({src:v.src,currentSrc:v.currentSrc,poster:v.poster,duration:v.duration,readyState:v.readyState}))''')
-                      print('VIDEOS',json.dumps(vids,ensure_ascii=False)[:20000])
-                  except Exception as e: print('VIDEO_ERROR',repr(e))
+                      text=(await page.locator('body').inner_text())[:12000]
+                      print('BODY_INITIAL',text)
+                      if ('提取码' in text or '请输入提取码' in text or '请输入' in text and '提取' in text):
+                          candidates=[
+                              'input[placeholder*="提取码"]','input[placeholder*="请输入"]','input[type="password"]','input[type="text"]'
+                          ]
+                          filled=False
+                          for sel in candidates:
+                              loc=page.locator(sel).first
+                              if await loc.count():
+                                  try:
+                                      await loc.fill(PWD)
+                                      filled=True
+                                      print('PWD_FILLED',sel)
+                                      break
+                                  except Exception:
+                                      pass
+                          if filled:
+                              for sel in ['button:has-text("提取文件")','button:has-text("确定")','button:has-text("提取")','a:has-text("提取")']:
+                                  loc=page.locator(sel).first
+                                  if await loc.count():
+                                      try:
+                                          await loc.click()
+                                          print('PWD_SUBMIT',sel)
+                                          break
+                                      except Exception:
+                                          pass
+                              await page.wait_for_timeout(10000)
+                  except Exception as e:
+                      print('FORM_ERROR',repr(e))
+
+                  print('TITLE',await page.title())
+                  print('FINAL_URL',clean_url(page.url))
+                  try:
+                      body=(await page.locator('body').inner_text())[:50000]
+                      print('BODY_FINAL',body)
+                  except Exception as e:
+                      print('BODY_ERROR',repr(e))
+
+                  # Print visible links/text and likely filename-like strings from DOM/state.
+                  try:
+                      items=await page.evaluate('''() => {
+                        const out=[];
+                        for (const el of document.querySelectorAll('a,button,div,span')) {
+                          const t=(el.innerText||'').trim();
+                          if(t && t.length<300) out.push(t);
+                        }
+                        return Array.from(new Set(out)).slice(0,2000);
+                      }''')
+                      for t in items:
+                          if re.search(r'(华为|2025|优秀论文|A题|B题|C题|D题|E题|F题|\.pdf|\.zip|\.rar|\.7z|论文|代码)',t,re.I):
+                              print('DOM_ITEM',t)
+                  except Exception as e:
+                      print('DOM_ERROR',repr(e))
+
                   print('NETWORK_BEGIN')
                   seen=set()
-                  for x in reqs:
-                      key=(x.get('status'),x.get('url'))
+                  for rec in responses:
+                      key=(rec.get('status'),rec.get('url'))
                       if key in seen: continue
                       seen.add(key)
-                      print('NET',json.dumps(x,ensure_ascii=False)[:30000])
+                      body=rec.get('body','')
+                      # Prefer list/verify responses and anything containing filenames.
+                      if ('list' in rec['url'].lower() or 'verify' in rec['url'].lower() or
+                          re.search(r'(server_filename|filename|path|fs_id|优秀论文|\.pdf|\.zip|\.rar|\.7z)', body, re.I)):
+                          print('NET',json.dumps(rec,ensure_ascii=False)[:140000])
                   print('NETWORK_END')
-                  try:
-                      await page.screenshot(path='/tmp/replay.png',full_page=False)
-                      print('SCREENSHOT_OK')
-                  except Exception as e: print('SCREENSHOT_ERROR',repr(e))
                   await browser.close()
+
           asyncio.run(main())
           PY
           python /tmp/probe.py
