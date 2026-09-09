@@ -14,59 +14,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Read verified public share metadata
+      - name: Verify share and test public list variants
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, re, time, urllib.parse, urllib.request, http.cookiejar
+          surl='NpT9h6UwwcB6SLFh2RAXzQ'; pwd='2kui'
+          jar=http.cookiejar.CookieJar(); opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152 Safari/537.36'
+          share_url='https://pan.baidu.com/s/1'+surl
+          init_url='https://pan.baidu.com/share/init?'+urllib.parse.urlencode({'surl':surl,'pwd':pwd})
+          opener.open(urllib.request.Request(init_url,headers={'User-Agent':ua}),timeout=30).read()
+          verify_url='https://pan.baidu.com/share/verify?'+urllib.parse.urlencode({'surl':surl,'t':str(int(time.time()*1000)),'channel':'chunlei','web':'1','app_id':'250528','bdstoken':'null','clienttype':'0'})
+          req=urllib.request.Request(verify_url,data=urllib.parse.urlencode({'pwd':pwd,'vcode':'','vcode_str':''}).encode(),headers={'User-Agent':'netdisk','Referer':share_url,'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'})
+          verify=json.loads(opener.open(req,timeout=30).read().decode()); print('VERIFY_ERRNO',verify.get('errno'))
+          if verify.get('errno')!=0: raise SystemExit(1)
 
-          surl = 'NpT9h6UwwcB6SLFh2RAXzQ'
-          pwd = '2kui'
-          jar = http.cookiejar.CookieJar()
-          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-          ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152 Safari/537.36'
-          share_url = 'https://pan.baidu.com/s/1' + surl
-          init_url = 'https://pan.baidu.com/share/init?' + urllib.parse.urlencode({'surl': surl, 'pwd': pwd})
+          html=opener.open(urllib.request.Request(share_url,headers={'User-Agent':ua,'Referer':init_url}),timeout=30).read().decode('utf-8',errors='replace')
+          print('SHAREID',re.findall(r'["\']shareid["\']\s*:\s*["\']?(\d+)',html)[:5])
+          for needle in ['shareid','share_uk','shareUk','uk','file_list','server_filename']:
+              p=html.find(needle)
+              if p>=0: print('HTML_HINT',needle,html[max(0,p-180):p+500].replace('\n',' ')[:700])
 
-          opener.open(urllib.request.Request(init_url, headers={'User-Agent': ua}), timeout=30).read()
-          verify_url = 'https://pan.baidu.com/share/verify?' + urllib.parse.urlencode({
-              'surl': surl, 't': str(int(time.time()*1000)), 'channel': 'chunlei',
-              'web': '1', 'app_id': '250528', 'bdstoken': 'null', 'clienttype': '0'})
-          body = urllib.parse.urlencode({'pwd': pwd, 'vcode': '', 'vcode_str': ''}).encode()
-          req = urllib.request.Request(verify_url, data=body, headers={
-              'User-Agent': 'netdisk', 'Referer': share_url,
-              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'})
-          verify = json.loads(opener.open(req, timeout=30).read().decode())
-          print('VERIFY_ERRNO', verify.get('errno'))
-          if verify.get('errno') != 0:
-              raise SystemExit(1)
-
-          req = urllib.request.Request(share_url, headers={'User-Agent': ua, 'Referer': init_url})
-          with opener.open(req, timeout=30) as r:
-              html = r.read().decode('utf-8', errors='replace')
-              print('SHARE_PAGE', r.geturl(), len(html))
-
-          print('HAS_YUNDATA', 'yunData.setData' in html)
-          print('HAS_CONTEXT', '_context' in html)
-          for name in ['shareid', 'share_id', 'uk']:
-              vals = re.findall(r'["\']'+re.escape(name)+r'["\']\s*:\s*["\']?(\d+)', html)
-              print('SCALAR', name, vals[:5])
-
-          m = re.search(r'yunData\.setData\((\{.*?\})\);', html, re.S)
-          if not m:
-              m = re.search(r'(?:window\.)?_context\s*=\s*(\{.*?\})\s*;', html, re.S)
-          if m:
-              try:
-                  data = json.loads(m.group(1))
-                  print('CONTEXT_KEYS', sorted(data.keys()))
-                  print('CONTEXT_META', data.get('shareid'), data.get('uk'))
-                  fl = data.get('file_list') or {}
-                  items = fl.get('list') if isinstance(fl, dict) else fl
-                  items = items or []
-                  print('ROOT_COUNT', len(items))
-                  for x in items:
-                      print('ROOT_ITEM', json.dumps({k:x.get(k) for k in ['fs_id','server_filename','path','isdir','size','md5']}, ensure_ascii=False))
-              except Exception as e:
-                  print('CONTEXT_PARSE_ERROR', type(e).__name__, repr(e))
+          endpoint='https://pan.baidu.com/share/wxlist?channel=weixin&version=2.2.2&clienttype=25&web=1'
+          for shorturl in [surl,'1'+surl]:
+              for root in ['1','0']:
+                  form={'shorturl':shorturl,'dir':'','root':root,'pwd':pwd}
+                  req=urllib.request.Request(endpoint,data=urllib.parse.urlencode(form).encode(),headers={'User-Agent':'netdisk','Referer':share_url,'Content-Type':'application/x-www-form-urlencoded'})
+                  raw=opener.open(req,timeout=30).read().decode('utf-8',errors='replace')
+                  data=json.loads(raw)
+                  payload=data.get('data') if isinstance(data.get('data'),dict) else data
+                  print('WXLIST',shorturl,root,'errno',data.get('errno'),'keys',sorted(payload.keys()) if isinstance(payload,dict) else [])
+                  if data.get('errno')==0:
+                      print('META',json.dumps({k:payload.get(k) for k in ['shareid','share_id','uk','seckey','sekey'] if k in payload},ensure_ascii=False))
+                      for x in payload.get('list') or []:
+                          print('ROOT_ITEM',json.dumps({k:x.get(k) for k in ['fs_id','server_filename','path','isdir','size','md5']},ensure_ascii=False))
           PY
