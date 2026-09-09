@@ -1,0 +1,48 @@
+name: Read C22106140003 for study
+on:
+  push:
+    paths:
+      - '.github/workflows/read-c22106140003.yml'
+permissions:
+  contents: read
+jobs:
+  read-paper:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            papers/CPMCM/2022/fulltext/C/C22106140003.pdf
+            .github/workflows/read-c22106140003.yml
+      - name: Install PDF readers
+        run: python -m pip install --quiet pypdf pymupdf
+      - name: Inspect, extract text, and render every page
+        shell: bash
+        run: |
+          mkdir -p /tmp/c22106140003-pages
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          import fitz
+          p = Path('papers/CPMCM/2022/fulltext/C/C22106140003.pdf')
+          r = PdfReader(str(p))
+          print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
+          print('=== BEGIN FULL PAGE TEXT ===')
+          for i, page in enumerate(r.pages, 1):
+              print(f'\n===== PAGE {i} / {len(r.pages)} =====\n')
+              print(page.extract_text() or '[NO EXTRACTABLE TEXT]')
+          print('\n=== END FULL PAGE TEXT ===')
+          doc = fitz.open(str(p))
+          for i, page in enumerate(doc):
+              pix = page.get_pixmap(matrix=fitz.Matrix(1.6,1.6), alpha=False)
+              pix.save(f'/tmp/c22106140003-pages/page-{i+1:02d}.png')
+          print(f'RENDERED_PAGES={len(doc)}')
+          PY
+      - name: Upload rendered pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: c22106140003-rendered-pages
+          path: /tmp/c22106140003-pages/
+          if-no-files-found: error
+          retention-days: 1
