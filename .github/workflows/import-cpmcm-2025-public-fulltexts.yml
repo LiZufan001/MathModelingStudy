@@ -1,0 +1,169 @@
+name: Import CPMCM 2025 verified public fulltexts
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-cpmcm-2025-public-fulltexts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify official first-prize baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p = Path('papers/CPMCM/_research/official_awards/FIRST_PRIZE_2024_2025.csv')
+          rows = list(csv.DictReader(p.open(encoding='utf-8-sig', newline='')))
+          hits = [r for r in rows if r['year']=='2025' and r['code']=='A25104250018']
+          if len(hits) != 1:
+              raise SystemExit(f'official award exact-match count={len(hits)}')
+          r = hits[0]
+          evidence = r['evidence']
+          required = ['一等奖', '赵浩羽', '中国石油大学（华东）', '蒋铭皓', '田欣媛', '华为专项二等奖']
+          missing = [x for x in required if x not in evidence]
+          if missing:
+              raise SystemExit(f'official award evidence missing: {missing}')
+          print('AWARD_OK', r['code'], evidence)
+          PY
+
+      - name: Clone author public repository and import PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/HaoyuZhao31415/MathModel.git /tmp/haoyu-mathmodel
+          src='/tmp/haoyu-mathmodel/华为杯2025 (7).pdf'
+          test -f "$src"
+          python - "$src" <<'PY'
+          from pathlib import Path
+          import sys, hashlib
+          p=Path(sys.argv[1])
+          data=p.read_bytes()
+          if not data.startswith(b'%PDF-'):
+              raise SystemExit('source is not a PDF')
+          if len(data) < 100_000:
+              raise SystemExit(f'suspiciously small PDF: {len(data)} bytes')
+          if len(data) >= 100*1024*1024:
+              raise SystemExit(f'PDF exceeds GitHub 100 MiB limit: {len(data)} bytes')
+          print('SOURCE_PDF_OK', len(data), hashlib.sha256(data).hexdigest())
+          PY
+          mkdir -p papers/CPMCM/2025/fulltext/A
+          cp "$src" papers/CPMCM/2025/fulltext/A/A25104250018.pdf
+
+      - name: Extract cover evidence when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils >/dev/null
+          pdf='papers/CPMCM/2025/fulltext/A/A25104250018.pdf'
+          pdftotext -f 1 -l 3 -layout "$pdf" /tmp/a25104250018-first-pages.txt || true
+          echo '--- first pages extracted text ---'
+          sed -n '1,120p' /tmp/a25104250018-first-pages.txt || true
+          if grep -Eq '25104250018|A25104250018' /tmp/a25104250018-first-pages.txt; then
+            echo 'PDF_CODE_EXACT_MATCH=yes'
+          else
+            echo 'PDF_CODE_EXACT_MATCH=no (identity is independently bound by author repository + official award row)'
+          fi
+
+      - name: Update verified fulltext records and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import csv, hashlib
+
+          matches = Path('papers/CPMCM/_research/MATCHES_2024_2025.csv')
+          rows = list(csv.DictReader(matches.open(encoding='utf-8-sig', newline='')))
+          fields = list(rows[0].keys())
+          code = 'A25104250018'
+          if not any((r.get('code') or '').strip()==code for r in rows):
+              rows.append({
+                  'year':'2025',
+                  'code':code,
+                  'problem':'A',
+                  'school':'中国石油大学（华东）',
+                  'names':'赵浩羽、蒋铭皓、田欣媛',
+                  'title':'通用神经网络处理器下的核内调度问题',
+                  'award_evidence':'一等奖（华为专项二等奖）',
+                  'fulltext_status':'已下载完整 PDF；作者团队公开 GitHub 仓库提供全文，且队伍与官方一等奖表精确绑定',
+                  'source_reference':'https://github.com/HaoyuZhao31415/MathModel/blob/main/华为杯2025%20(7).pdf',
+              })
+              rows.sort(key=lambda r: (int(r['year']), r['problem'], r['code']))
+              with matches.open('w', encoding='utf-8-sig', newline='') as f:
+                  w=csv.DictWriter(f, fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          cand = Path('papers/CPMCM/2025/CANDIDATE_FULLTEXTS.md')
+          text = cand.read_text(encoding='utf-8')
+          marker = '| E | `E25104860052` | 武汉大学 | 面向高速列车轴承的无监督迁移诊断与可解释性分析研究 | `M` |'
+          add = '| A | `A25104250018` | 中国石油大学（华东） | 通用神经网络处理器下的核内调度问题 | `M` |'
+          if add not in text:
+              if marker not in text:
+                  raise SystemExit('candidate M-table marker not found')
+              text = text.replace(marker, add+'\n'+marker)
+              cand.write_text(text, encoding='utf-8')
+
+          root = Path('papers/CPMCM')
+          expected = {2020:40, 2021:44, 2022:41, 2023:58, 2024:24, 2025:2}
+          manifest=[]
+          for year,n in expected.items():
+              files=sorted((root/str(year)/'fulltext').rglob('*.pdf'))
+              if len(files)!=n:
+                  raise SystemExit(f'{year}: PDF count {len(files)} != expected {n}')
+              for p in files:
+                  data=p.read_bytes()
+                  if not data.startswith(b'%PDF-'):
+                      raise SystemExit(f'invalid PDF: {p}')
+                  manifest.append({'path':p.as_posix(),'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+          if len(manifest)!=209:
+              raise SystemExit(f'grand total {len(manifest)} != 209')
+          out=root/'FULLTEXT_MANIFEST.csv'
+          with out.open('w', encoding='utf-8-sig', newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['path','bytes','sha256']); w.writeheader(); w.writerows(manifest)
+          print('MANIFEST_OK grand_total=209, 2025=2')
+          PY
+
+      - name: Commit and push verified PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config core.quotepath false
+          git add papers/CPMCM/2025/fulltext/A/A25104250018.pdf \
+                  papers/CPMCM/_research/MATCHES_2024_2025.csv \
+                  papers/CPMCM/2025/CANDIDATE_FULLTEXTS.md \
+                  papers/CPMCM/FULLTEXT_MANIFEST.csv
+          if git diff --cached --quiet; then
+            echo 'No import changes.'
+          else
+            git commit -m 'Add CPMCM 2025 A25104250018 verified first-prize fulltext [skip ci]'
+            git push origin HEAD:main
+          fi
+
+      - name: Final evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f papers/CPMCM/2025/fulltext/A/A25104250018.pdf
+          n2025=$(find papers/CPMCM/2025/fulltext -type f -name '*.pdf' | wc -l)
+          ntotal=$(find papers/CPMCM -path '*/fulltext/*' -type f -name '*.pdf' | wc -l)
+          echo "2025 PDFs=$n2025"
+          echo "TOTAL PDFs=$ntotal"
+          test "$n2025" -eq 2
+          test "$ntotal" -eq 209
+          git status --short
