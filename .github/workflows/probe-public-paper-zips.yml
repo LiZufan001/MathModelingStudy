@@ -1,4 +1,4 @@
-name: Inspect public CPMCM 2025 share folder
+name: Inspect public CPMCM paper archive
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Open public share folder and print visible names
+      - name: Open public share and print visible root names
         shell: bash
         run: |
           set -euo pipefail
@@ -24,7 +24,7 @@ jobs:
           import asyncio
           from playwright.async_api import async_playwright
 
-          URL='https://pan.baidu.com/s/1NpT9h6UwwcB6SLFh2RAXzQ?pwd=2kui'
+          URL='https://pan.baidu.com/s/1_ezm5JXyuNk3x1HkOpeNoA?pwd=1234'
 
           async def main():
               async with async_playwright() as p:
@@ -40,27 +40,15 @@ jobs:
                   if '请输入提取码' in body:
                       box=page.locator('input[placeholder*="提取码"]').first
                       if await box.count():
-                          await box.fill('2kui')
+                          await box.fill('1234')
                           button=page.locator('#submitBtn').first
                           if await button.count():
                               await button.click()
                               await page.wait_for_timeout(10000)
 
                   print('ROOT_VISIBLE_BEGIN')
-                  print((await page.locator('body').inner_text())[:30000])
-                  print('ROOT_VISIBLE_END')
-
-                  target=page.get_by_text('25华为杯',exact=True).last
-                  if await target.count():
-                      await target.dblclick(timeout=8000)
-                      print('OPENED_FOLDER_BY_DOUBLE_CLICK')
-                  else:
-                      print('FOLDER_TEXT_NOT_FOUND')
-                  await page.wait_for_timeout(10000)
-
-                  print('FOLDER_VISIBLE_BEGIN')
                   print((await page.locator('body').inner_text())[:50000])
-                  print('FOLDER_VISIBLE_END')
+                  print('ROOT_VISIBLE_END')
                   print('FINAL_URL',page.url)
                   await browser.close()
 
