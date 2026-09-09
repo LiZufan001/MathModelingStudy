@@ -1,4 +1,4 @@
-name: Probe original CPMCM 2025 defense replay source
+name: Inspect Weizan APIs for CPMCM 2025 defense replay
 
 on:
   push:
@@ -10,46 +10,43 @@ permissions:
   contents: read
 
 jobs:
-  inspect-weizan:
+  inspect-api:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Inspect public Weizan replay page and media references
+      - name: Inspect frontend JS for replay and media APIs
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
           UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
-          curl -L --fail --retry 3 -A "$UA" -D /tmp/headers.txt "$URL" -o /tmp/page.html
-          echo '=== RESPONSE HEADERS ==='
-          sed -n '1,80p' /tmp/headers.txt
-          echo "HTML_BYTES=$(stat -c%s /tmp/page.html)"
-          echo '=== TITLE / META / MEDIA ==='
+          JS='https://j.vzan.com/live-statics/livepage/app.6f5e46e8.js'
+          curl -L --fail --retry 3 -A "$UA" "$JS" -o /tmp/app.js
+          echo "JS_BYTES=$(stat -c%s /tmp/app.js)"
           python - <<'PY'
           import re, html
-          s=open('/tmp/page.html','rb').read().decode('utf-8','replace')
-          m=re.search(r'<title[^>]*>(.*?)</title>',s,re.S|re.I)
-          print('TITLE', html.unescape(re.sub('<.*?>','',m.group(1)).strip()) if m else '')
-          for m in re.finditer(r'<meta[^>]+(?:name|property)=["\']([^"\']+)["\'][^>]+content=["\']([^"\']*)["\'][^>]*>',s,re.I):
-              if any(k in m.group(1).lower() for k in ['description','title','video']):
-                  print('META',m.group(1),html.unescape(m.group(2))[:1000])
-          print('=== SCRIPT_SRCS ===')
-          for x in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I):
-              print('SCRIPT',html.unescape(x))
-          print('=== MEDIA_URLS ===')
-          urls=set(re.findall(r'https?://[^"\'<>\\\s]+',s))
-          for u in sorted(urls):
-              lu=u.lower()
-              if any(k in lu for k in ['m3u8','.mp4','.flv','play','video','vod','replay','live']):
-                  print('URL',html.unescape(u)[:3000])
-          print('=== STATE_LINES ===')
-          keys=re.compile(r'(703616836|liveid|live_id|recordid|record_id|videoid|video_id|playurl|play_url|videourl|video_url|m3u8|mp4|replay|record|vod|回放|直播)',re.I)
-          n=0
-          for i,line in enumerate(s.splitlines(),1):
-              if keys.search(line):
-                  txt=re.sub(r'\s+',' ',html.unescape(line)).strip()
-                  print('LINE',i,txt[:6000])
-                  n+=1
-                  if n>=100: break
-          print('STATE_MATCH_COUNT',n)
+          s=open('/tmp/app.js','rb').read().decode('utf-8','replace')
+          print('=== ABSOLUTE_URLS ===')
+          urls=sorted(set(re.findall(r'https?://[^"\'<>\\\s]+',s)))
+          for u in urls:
+              if any(k in u.lower() for k in ['api','live','play','video','record','replay','vod','m3u8','vzan','weizan']):
+                  print('URL',html.unescape(u)[:4000])
+          print('=== ENDPOINT-LIKE STRINGS ===')
+          strings=set(re.findall(r'["\']([^"\']{4,300})["\']',s))
+          hits=[]
+          for x in strings:
+              lx=x.lower()
+              if (x.startswith('/') or 'api' in lx) and any(k in lx for k in ['live','play','video','record','replay','vod','room','page','detail','info']):
+                  hits.append(x)
+          for x in sorted(hits)[:1000]: print('STR',x)
+          print('=== CONTEXTS ===')
+          key=re.compile(r'(getlive|liveinfo|liveid|topicid|record|replay|playurl|videourl|m3u8|vod|videoid|playback)',re.I)
+          seen=set(); n=0
+          for m in key.finditer(s):
+              a=max(0,m.start()-600); b=min(len(s),m.end()+1200)
+              c=s[a:b].replace('\n',' ')
+              sig=c[:300]
+              if sig in seen: continue
+              seen.add(sig); print('CTX',re.sub(r'\s+',' ',c)[:2200]); n+=1
+              if n>=120: break
+          print('CONTEXT_COUNT',n)
           PY
