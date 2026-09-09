@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 Math Modeling Star defense video
+name: Probe original CPMCM 2025 defense replay source
 
 on:
   push:
@@ -10,38 +10,45 @@ permissions:
   contents: read
 
 jobs:
-  inspect-video:
+  inspect-weizan:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
-      - name: Download low-res public defense video and OCR slides
+      - name: Inspect public Weizan replay page and media references
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install -q --upgrade yt-dlp
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-chi-sim ffmpeg >/dev/null
-          mkdir -p /tmp/star
-          for p in 1 2; do
-            echo "=== PART $p METADATA ==="
-            yt-dlp --no-warnings --print 'title=%(title)s duration=%(duration_string)s id=%(id)s' "https://www.bilibili.com/video/BV1oi2DBXEJE/?p=$p" || true
-            echo "=== PART $p DOWNLOAD ==="
-            yt-dlp --no-warnings --retries 3 --fragment-retries 3 \
-              -f 'worstvideo[height>=360]/worstvideo/worst' \
-              -o "/tmp/star/part${p}.%(ext)s" \
-              "https://www.bilibili.com/video/BV1oi2DBXEJE/?p=$p"
-            f=$(ls /tmp/star/part${p}.* | head -1)
-            echo "VIDEO_FILE=$f BYTES=$(stat -c%s "$f")"
-            mkdir -p "/tmp/star/frames$p"
-            ffmpeg -hide_banner -loglevel error -i "$f" -vf "fps=1/60,scale=1280:-1" -q:v 3 "/tmp/star/frames$p/%04d.jpg"
-            echo "FRAME_COUNT_PART_$p=$(find /tmp/star/frames$p -name '*.jpg' | wc -l)"
-            i=0
-            for img in /tmp/star/frames$p/*.jpg; do
-              i=$((i+1))
-              sec=$(( (i-1)*60 ))
-              txt=$(tesseract "$img" stdout -l chi_sim+eng --psm 6 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-1800)
-              if echo "$txt" | grep -Eiq '题|模型|研究|建模|大学|MIMO|OFDM|Frangi|湍流|轴承|园林|NPU|调度|裂隙|答辩|路径|诊断'; then
-                printf 'OCR part=%s sec=%s frame=%s :: %s\n' "$p" "$sec" "$(basename "$img")" "$txt"
-              fi
-            done
-          done
+          URL='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
+          curl -L --fail --retry 3 -A "$UA" -D /tmp/headers.txt "$URL" -o /tmp/page.html
+          echo '=== RESPONSE HEADERS ==='
+          sed -n '1,80p' /tmp/headers.txt
+          echo "HTML_BYTES=$(stat -c%s /tmp/page.html)"
+          echo '=== TITLE / META ==='
+          python - <<'PY'
+          import re, html
+          s=open('/tmp/page.html','rb').read().decode('utf-8','replace')
+          for pat in [r'<title[^>]*>(.*?)</title>',r'<meta[^>]+(?:description|og:title|og:description)[^>]+>',r'<script[^>]+src=["\']([^"\']+)']:
+              pass
+          m=re.search(r'<title[^>]*>(.*?)</title>',s,re.S|re.I)
+          print('TITLE', html.unescape(re.sub('<.*?>','',m.group(1)).strip()) if m else '')
+          for m in re.finditer(r'<meta[^>]+(?:name|property)=["\']([^"\']+)["\'][^>]+content=["\']([^"\']*)["\'][^>]*>',s,re.I):
+              if any(k in m.group(1).lower() for k in ['description','title','video']): print('META',m.group(1),html.unescape(m.group(2))[:1000])
+          print('=== SCRIPT_SRCS ===')
+          for x in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I): print('SCRIPT',html.unescape(x))
+          print('=== MEDIA_URLS ===')
+          urls=set(re.findall(r'https?://[^"\'<>\\\s]+',s))
+          for u in sorted(urls):
+              lu=u.lower()
+              if any(k in lu for k in ['m3u8','.mp4','.flv','play','video','vod','replay','live']): print('URL',html.unescape(u)[:3000])
+          print('=== STATE_LINES ===')
+          keys=re.compile(r'(703616836|liveid|live_id|recordid|record_id|videoid|video_id|playurl|play_url|videourl|video_url|m3u8|mp4|replay|record|vod|回放|直播)',re.I)
+          lines=s.splitlines()
+          n=0
+          for i,line in enumerate(lines,1):
+              if keys.search(line):
+                  txt=re.sub(r'\s+',' ',html.unescape(line)).strip()
+                  print('LINE',i,txt[:6000]); n+=1
+                  if n>=100: break
+          print('STATE_MATCH_COUNT',n)
+          PY
