@@ -1,4 +1,4 @@
-name: Inspect Weizan APIs for CPMCM 2025 defense replay
+name: Query Weizan CPMCM 2025 replay configuration
 
 on:
   push:
@@ -10,43 +10,53 @@ permissions:
   contents: read
 
 jobs:
-  inspect-api:
+  query-config:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Inspect frontend JS for replay and media APIs
+      - name: Probe public topic and video configuration APIs
         shell: bash
         run: |
           set -euo pipefail
           UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
-          JS='https://j.vzan.com/live-statics/livepage/app.6f5e46e8.js'
-          curl -L --fail --retry 3 -A "$UA" "$JS" -o /tmp/app.js
-          echo "JS_BYTES=$(stat -c%s /tmp/app.js)"
+          TP='703616836'
+          REFER='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
+          hosts=(
+            'https://re-live-play.vzan.com'
+            'https://live-play.vzan.com'
+            'https://live-capi.vzan.com'
+            'https://liveapi.vzan.com'
+            'https://live-liveapi.vzan.com'
+          )
+          paths=(
+            "/play/api/topic/topic_config?tpId=$TP&isPcBrowser=true&topicId=$TP&browserTerminal=1"
+            "/play/api/topic/video_config?tpId=$TP&browserTerminal=1"
+            "/api/topic/topic_config?tpId=$TP&isPcBrowser=true&topicId=$TP&browserTerminal=1"
+            "/api/topic/video_config?tpId=$TP&browserTerminal=1"
+            "/api/topic/topic_menu_ppt_data?tpid=$TP"
+          )
+          for h in "${hosts[@]}"; do
+            for p in "${paths[@]}"; do
+              u="$h$p"
+              code=$(curl -L -sS -A "$UA" -e "$REFER" -o /tmp/r.txt -w '%{http_code}' "$u" || true)
+              bytes=$(stat -c%s /tmp/r.txt 2>/dev/null || echo 0)
+              echo "=== PROBE code=$code bytes=$bytes url=$u ==="
+              if [ "$bytes" -gt 0 ]; then head -c 12000 /tmp/r.txt | tr '\n' ' '; echo; fi
+            done
+          done
+          echo '=== FIND BASE CONSTANTS ==='
+          curl -L --fail -sS -A "$UA" 'https://j.vzan.com/live-statics/livepage/app.6f5e46e8.js' -o /tmp/app.js
           python - <<'PY'
-          import re, html
+          import re
           s=open('/tmp/app.js','rb').read().decode('utf-8','replace')
-          print('=== ABSOLUTE_URLS ===')
-          urls=sorted(set(re.findall(r'https?://[^"\'<>\\\s]+',s)))
-          for u in urls:
-              if any(k in u.lower() for k in ['api','live','play','video','record','replay','vod','m3u8','vzan','weizan']):
-                  print('URL',html.unescape(u)[:4000])
-          print('=== ENDPOINT-LIKE STRINGS ===')
-          strings=set(re.findall(r'["\']([^"\']{4,300})["\']',s))
-          hits=[]
-          for x in strings:
-              lx=x.lower()
-              if (x.startswith('/') or 'api' in lx) and any(k in lx for k in ['live','play','video','record','replay','vod','room','page','detail','info']):
-                  hits.append(x)
-          for x in sorted(hits)[:1000]: print('STR',x)
-          print('=== CONTEXTS ===')
-          key=re.compile(r'(getlive|liveinfo|liveid|topicid|record|replay|playurl|videourl|m3u8|vod|videoid|playback)',re.I)
-          seen=set(); n=0
-          for m in key.finditer(s):
-              a=max(0,m.start()-600); b=min(len(s),m.end()+1200)
-              c=s[a:b].replace('\n',' ')
-              sig=c[:300]
-              if sig in seen: continue
-              seen.add(sig); print('CTX',re.sub(r'\s+',' ',c)[:2200]); n+=1
-              if n>=120: break
-          print('CONTEXT_COUNT',n)
+          for key in ['Ji','bX','y7','_5']:
+              print('KEY',key)
+              # contexts where object properties define environment URLs
+              pat=re.compile(r'\b'+re.escape(key)+r'\s*[:=]')
+              n=0
+              for m in pat.finditer(s):
+                  c=re.sub(r'\s+',' ',s[max(0,m.start()-1000):min(len(s),m.end()+1800)])
+                  if 'vzan.com' in c or 'weizan.cn' in c:
+                      print('CTX',c[:3500]); n+=1
+                      if n>=8: break
           PY
