@@ -17,7 +17,7 @@ jobs:
             problems/CPMCM/2023/B/DFT类矩阵的整数分解逼近.docx
             .github/workflows/read-b23104860044.yml
       - name: Install readers
-        run: python -m pip install --quiet pypdf pymupdf python-docx
+        run: python -m pip install --quiet pypdf pymupdf python-docx lxml
       - name: Extract paper and problem and render pages
         shell: bash
         run: |
@@ -26,7 +26,8 @@ jobs:
           from pathlib import Path
           from pypdf import PdfReader
           from docx import Document
-          import pymupdf
+          from lxml import etree
+          import pymupdf, zipfile
 
           p=Path('papers/CPMCM/2023/fulltext/B/B23104860044.pdf')
           d=Path('problems/CPMCM/2023/B/DFT类矩阵的整数分解逼近.docx')
@@ -57,13 +58,29 @@ jobs:
               for row in table.rows:
                   problem.append(' | '.join(cell.text.replace('\n',' / ') for cell in row.cells))
           (out/'problem.txt').write_text('\n'.join(problem),encoding='utf-8')
-          print('PROBLEM_PREVIEW')
-          print('\n'.join(problem)[:15000])
+
+          # Extract all Word/OMML text tokens directly from document.xml so equations are not lost.
+          with zipfile.ZipFile(d) as z:
+              xml=z.read('word/document.xml')
+          root=etree.fromstring(xml)
+          ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+              'm':'http://schemas.openxmlformats.org/officeDocument/2006/math'}
+          blocks=[]
+          for pnode in root.xpath('.//w:body/w:p',namespaces=ns):
+              toks=[]
+              for node in pnode.iter():
+                  if node.tag in {f'{{{ns["w"]}}}t', f'{{{ns["m"]}}}t'} and node.text:
+                      toks.append(node.text)
+              if toks:
+                  blocks.append(''.join(toks))
+          (out/'problem_xml_math.txt').write_text('\n'.join(blocks),encoding='utf-8')
+          print('PROBLEM_XML_PREVIEW')
+          print('\n'.join(blocks)[:18000])
           PY
       - name: Upload study extraction
         uses: actions/upload-artifact@v4
         with:
-          name: b23104860044-study-extraction
+          name: b23104860044-study-extraction-v2
           path: /tmp/b23104860044/
           if-no-files-found: error
           retention-days: 1
