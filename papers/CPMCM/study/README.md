@@ -9,7 +9,7 @@
 | 1 | 2022 C | `C22106140003` | 复杂调度、状态仿真、启发式规则、MILP | ✅ 已完成 |
 | 2 | 2020 F | `F20102840100` | 机理建模、动态 minimax、滚动贪心、差分进化 | ✅ 已完成 |
 | 3 | 2021 A | `A21102480004` | 矩阵结构、随机 SVD、复杂度与存储 | ✅ 已完成 |
-| 4 | 2024 B | `B24102860287` | 通信机理 + 数据驱动、验证设计 | ⏳ 待精读 |
+| 4 | 2024 B | `B24102860287` | 通信机理 + 数据驱动、验证设计 | ✅ 已完成 |
 | 5 | 2023 B | `B23104860044` | DFT 类矩阵、分解、ADMM、稀疏算法 | ⏳ 待精读 |
 
 ## 已完成成果
@@ -47,6 +47,18 @@
 - [`2021-A-A21102480004/COMPLEXITY_LEDGER.md`](2021-A-A21102480004/COMPLEXITY_LEDGER.md)：官方 basic-operation complexity、存储 bit、正确 evaluator 与比赛统一记账模板
 - [`2021-A-A21102480004/COMPETITION_PLAYBOOK.md`](2021-A-A21102480004/COMPETITION_PLAYBOOK.md)：矩阵 / 算法复杂度 / 压缩题现场速查
 
+### 4. 2024 B｜B24102860287
+
+原论文：[`../2024/fulltext/B/B24102860287.pdf`](../2024/fulltext/B/B24102860287.pdf)
+
+精读成果：
+
+- [`2024-B-B24102860287/README.md`](2024-B-B24102860287/README.md)：完整精读；Q1 发送机会、Q2 MCS/NSS、Q3 吞吐量，以及正文—代码—原题交叉审计
+- [`2024-B-B24102860287/MODEL_RECONSTRUCTION.md`](2024-B-B24102860287/MODEL_RECONSTRUCTION.md)：carrier-sensing 机理特征、grouped modeling、正确 SINR、层次 AMC 预测、物理+残差吞吐模型
+- [`2024-B-B24102860287/REVIEWER_REPORT.md`](2024-B-B24102860287/REVIEWER_REPORT.md)：指导老师/评审老师视角；A级验证风险、答辩追问与赛中指导门槛
+- [`2024-B-B24102860287/VALIDATION_PROTOCOL.md`](2024-B-B24102860287/VALIDATION_PROTOCOL.md)：实验组切分、泄漏防护、pair accuracy、CDF q90、AP/system 两级官方指标模板
+- [`2024-B-B24102860287/COMPETITION_PLAYBOOK.md`](2024-B-B24102860287/COMPETITION_PLAYBOOK.md)：机理 + 数据驱动题现场速查
+
 ## 使用原则
 
 1. **先复现作者问题链，再抽象可迁移范式。** 不把某个题目的专用技巧生搬硬套到其他题。
@@ -55,3 +67,4 @@
 4. **正式比赛以题目评分规则为准。** 历史论文只能提供建模思路，不能代替对当届题意、约束和数据的重新核验。
 5. **一等奖论文也要批判性阅读。** 奖项说明整体方案优秀，不代表每个公式、假设、参数和附录代码都无误。
 6. **算法型题单独维护 complexity ledger。** Big-O、官方基本运算计价、wall-clock runtime 和 peak memory 分开报告。
+7. **数据型题把 validation protocol 当成模型的一部分。** 同组样本必须隔离；所有 preprocessing 只在 train fold 上 fit；官方 evaluator 先于复杂模型完成并锁定。
