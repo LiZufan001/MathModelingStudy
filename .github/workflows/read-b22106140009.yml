@@ -1,0 +1,91 @@
+name: Read B22106140009 for study
+on:
+  push:
+    paths:
+      - '.github/workflows/read-b22106140009.yml'
+permissions:
+  contents: read
+jobs:
+  read-paper:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            papers/CPMCM/2022/fulltext/B/B22106140009.pdf
+            problems/CPMCM/2022/B/方形件组批优化问题.docx
+            problems/CPMCM/2022/B/子问题1-数据集A
+            problems/CPMCM/2022/B/子问题2-数据集B
+            .github/workflows/read-b22106140009.yml
+      - name: Install readers
+        run: python -m pip install --quiet pypdf pymupdf python-docx pandas numpy
+      - name: Extract paper problem and data summary
+        shell: bash
+        run: |
+          mkdir -p /tmp/b22106140009/pages
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          from docx import Document
+          import pymupdf, pandas as pd, numpy as np, json
+
+          p=Path('papers/CPMCM/2022/fulltext/B/B22106140009.pdf')
+          d=Path('problems/CPMCM/2022/B/方形件组批优化问题.docx')
+          out=Path('/tmp/b22106140009')
+
+          r=PdfReader(str(p))
+          print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
+          py=[]
+          for i,page in enumerate(r.pages,1):
+              py.append(f'===== PAGE {i} / {len(r.pages)} =====\n{page.extract_text() or "[NO TEXT]"}')
+          (out/'pypdf.txt').write_text('\n\n'.join(py),encoding='utf-8')
+
+          doc=pymupdf.open(str(p))
+          fitz=[]
+          for i,page in enumerate(doc,1):
+              fitz.append(f'===== PAGE {i} / {len(doc)} =====\n{page.get_text("text",sort=True)}')
+              pix=page.get_pixmap(matrix=pymupdf.Matrix(1.7,1.7),alpha=False)
+              pix.save(out/f'pages/page-{i:02d}.png')
+          (out/'pymupdf.txt').write_text('\n\n'.join(fitz),encoding='utf-8')
+          print(f'RENDERED_PAGES={len(doc)}')
+
+          dd=Document(str(d))
+          problem=[]
+          for para in dd.paragraphs:
+              if para.text.strip(): problem.append(para.text)
+          for ti,table in enumerate(dd.tables,1):
+              problem.append(f'\n[TABLE {ti}]')
+              for row in table.rows:
+                  problem.append(' | '.join(cell.text.replace('\n',' / ') for cell in row.cells))
+          (out/'problem.txt').write_text('\n'.join(problem),encoding='utf-8')
+
+          summaries=[]
+          roots=[Path('problems/CPMCM/2022/B/子问题1-数据集A'),Path('problems/CPMCM/2022/B/子问题2-数据集B')]
+          for root in roots:
+              for fp in sorted(root.glob('*.csv')):
+                  df=pd.read_csv(fp)
+                  rec={
+                    'file':str(fp), 'rows':len(df), 'cols':len(df.columns), 'columns':list(map(str,df.columns)),
+                    'head':df.head(5).to_dict(orient='records'),
+                    'dtypes':{str(k):str(v) for k,v in df.dtypes.items()},
+                    'missing':{str(k):int(v) for k,v in df.isna().sum().items()},
+                  }
+                  num=df.select_dtypes(include=[np.number])
+                  if not num.empty:
+                      rec['numeric_summary']=json.loads(num.describe().to_json())
+                  summaries.append(rec)
+          (out/'data-summary.json').write_text(json.dumps(summaries,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('PROBLEM_PREVIEW')
+          print('\n'.join(problem)[:16000])
+          print('DATA_FILES')
+          for s in summaries:
+              print(s['file'], s['rows'], s['cols'], s['columns'])
+          PY
+      - name: Upload study extraction
+        uses: actions/upload-artifact@v4
+        with:
+          name: b22106140009-study-extraction
+          path: /tmp/b22106140009/
+          if-no-files-found: error
+          retention-days: 1
