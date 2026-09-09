@@ -1,0 +1,199 @@
+name: Download CPMCM 2020-2023 verified fulltexts
+
+on:
+  push:
+    paths:
+      - '.github/workflows/download-cpmcm-2020-2023-fulltexts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            papers/CPMCM
+            .github/workflows/download-cpmcm-2020-2023-fulltexts.yml
+
+      - name: Clone verified public fulltext source
+        run: |
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/zhanwen/MathModel.git /tmp/MathModel
+
+      - name: Prepare importer
+        shell: bash
+        run: |
+          cat > /tmp/import_fulltexts.py <<'PY'
+          from pathlib import Path
+          from collections import Counter
+          from urllib.parse import urlsplit, unquote
+          import csv, subprocess, sys, hashlib
+
+          REPO = Path.cwd()
+          SOURCE_REPO = Path('/tmp/MathModel')
+          MATCHES = REPO / 'papers/CPMCM/_research/MATCHES.csv'
+          EXPECTED = {
+              2020: {'A':5,'B':11,'C':6,'D':6,'E':6,'F':6},
+              2021: {'A':7,'B':9,'C':7,'D':7,'E':7,'F':7},
+              2022: {'A':7,'B':7,'C':7,'D':7,'E':6,'F':7},
+              2023: {'A':10,'B':9,'C':10,'D':9,'E':10,'F':10},
+          }
+
+          def source_path(url: str) -> str:
+              p = urlsplit(url)
+              if p.netloc.lower() != 'github.com':
+                  raise RuntimeError(f'unsupported source host: {url}')
+              parts = [unquote(x) for x in p.path.strip('/').split('/')]
+              if len(parts) < 5 or parts[0:2] != ['zhanwen','MathModel'] or parts[2] != 'blob':
+                  raise RuntimeError(f'unexpected source URL: {url}')
+              return '/'.join(parts[4:])
+
+          def git_blob(path: str) -> bytes:
+              return subprocess.check_output(['git','-C',str(SOURCE_REPO),'show',f'HEAD:{path}'])
+
+          year = int(sys.argv[1])
+          if year not in EXPECTED:
+              raise SystemExit(f'unsupported year {year}')
+
+          rows = []
+          seen = set()
+          with MATCHES.open('r', encoding='utf-8-sig', newline='') as f:
+              for row in csv.DictReader(f):
+                  if int(row['year']) != year:
+                      continue
+                  code = (row.get('code') or '').strip().upper()
+                  if not code or code[0] not in 'ABCDEF':
+                      raise RuntimeError(f'invalid code: {code!r}')
+                  if code in seen:
+                      continue
+                  seen.add(code)
+                  row['code'] = code
+                  rows.append(row)
+
+          counts = Counter(r['code'][0] for r in rows)
+          actual = {p: counts[p] for p in 'ABCDEF'}
+          if actual != EXPECTED[year]:
+              raise RuntimeError(f'{year} MATCHES count mismatch: {actual} != {EXPECTED[year]}')
+
+          expected_codes = {r['code'] for r in rows}
+          dest_root = REPO / f'papers/CPMCM/{year}/fulltext'
+          for p in 'ABCDEF':
+              (dest_root / p).mkdir(parents=True, exist_ok=True)
+
+          total_bytes = 0
+          for i, row in enumerate(sorted(rows, key=lambda r: r['code']), 1):
+              code = row['code']
+              problem = code[0]
+              src = source_path(row['source_url'])
+              dest = dest_root / problem / f'{code}.pdf'
+              if dest.exists() and dest.read_bytes()[:5] == b'%PDF-':
+                  data = dest.read_bytes()
+                  print(f'[{i:03d}/{len(rows)}] reuse {dest.relative_to(REPO)} ({len(data)} bytes)')
+              else:
+                  data = git_blob(src)
+                  if not data.startswith(b'%PDF-'):
+                      raise RuntimeError(f'{code}: source is not a PDF: {src}')
+                  if len(data) >= 100 * 1024 * 1024:
+                      raise RuntimeError(f'{code}: {len(data)} bytes >= GitHub 100 MiB limit')
+                  dest.write_bytes(data)
+                  print(f'[{i:03d}/{len(rows)}] wrote {dest.relative_to(REPO)} ({len(data)} bytes)')
+              total_bytes += len(data)
+
+          actual_files = list(dest_root.rglob('*.pdf'))
+          actual_codes = {p.stem.upper() for p in actual_files}
+          missing = sorted(expected_codes - actual_codes)
+          if missing:
+              raise RuntimeError(f'{year}: missing after import: {missing}')
+
+          for p in actual_files:
+              if p.stem.upper() in expected_codes and p.read_bytes()[:5] != b'%PDF-':
+                  raise RuntimeError(f'{p}: invalid PDF header')
+
+          print(f'YEAR_OK {year}: {len(expected_codes)} verified PDFs, {total_bytes} bytes')
+          PY
+
+          cat > /tmp/rebuild_manifest.py <<'PY'
+          from pathlib import Path
+          import csv, hashlib
+
+          root = Path('papers/CPMCM')
+          expected = {2020:40, 2021:44, 2022:41, 2023:58, 2024:24, 2025:1}
+          rows = []
+          counts = {}
+          for year, n in expected.items():
+              base = root / str(year) / 'fulltext'
+              files = sorted(base.rglob('*.pdf')) if base.exists() else []
+              counts[year] = len(files)
+              if len(files) != n:
+                  raise RuntimeError(f'{year}: fulltext count {len(files)} != expected {n}')
+              for f in files:
+                  data = f.read_bytes()
+                  if not data.startswith(b'%PDF-'):
+                      raise RuntimeError(f'not a PDF: {f}')
+                  rows.append({
+                      'path': f.as_posix(),
+                      'bytes': len(data),
+                      'sha256': hashlib.sha256(data).hexdigest(),
+                  })
+
+          if len(rows) != 208:
+              raise RuntimeError(f'grand total {len(rows)} != 208')
+
+          out = root / 'FULLTEXT_MANIFEST.csv'
+          with out.open('w', encoding='utf-8-sig', newline='') as f:
+              w = csv.DictWriter(f, fieldnames=['path','bytes','sha256'])
+              w.writeheader(); w.writerows(rows)
+
+          print('MANIFEST_OK', counts, 'grand_total=', len(rows))
+          PY
+
+      - name: Download, validate, commit and push each year
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config core.quotepath false
+
+          for year in 2020 2021 2022 2023; do
+            echo "=== Import $year ==="
+            python /tmp/import_fulltexts.py "$year"
+            git add "papers/CPMCM/$year/fulltext"
+            if git diff --cached --quiet; then
+              echo "$year: no new binary changes"
+            else
+              git commit -m "Add CPMCM $year verified first-prize fulltext PDFs [skip ci]"
+              git push origin HEAD:main
+            fi
+          done
+
+      - name: Rebuild and verify fulltext manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/rebuild_manifest.py
+          git add papers/CPMCM/FULLTEXT_MANIFEST.csv
+          if git diff --cached --quiet; then
+            echo 'Manifest unchanged.'
+          else
+            git commit -m 'Update CPMCM verified fulltext manifest [skip ci]'
+            git push origin HEAD:main
+          fi
+
+      - name: Final evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          for year in 2020 2021 2022 2023 2024 2025; do
+            n=$(find "papers/CPMCM/$year/fulltext" -type f -name '*.pdf' 2>/dev/null | wc -l)
+            echo "$year PDFs=$n"
+          done
+          echo "TOTAL PDFs=$(find papers/CPMCM -path '*/fulltext/*' -type f -name '*.pdf' | wc -l)"
+          git status --short
