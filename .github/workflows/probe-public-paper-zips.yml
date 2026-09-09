@@ -1,4 +1,4 @@
-name: Probe public CPMCM 2025 Baidu share
+name: Inspect public CPMCM 2025 share folder
 
 on:
   push:
@@ -10,131 +10,58 @@ permissions:
   contents: read
 
 jobs:
-  baidu-share-probe:
+  inspect-public-folder:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Inspect public Baidu share directory
+      - name: Open public share folder and print visible names
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install -q playwright
           python -m playwright install chromium >/dev/null
           cat >/tmp/probe.py <<'PY'
-          import asyncio, json, re
+          import asyncio
           from playwright.async_api import async_playwright
 
           URL='https://pan.baidu.com/s/1NpT9h6UwwcB6SLFh2RAXzQ?pwd=2kui'
-          PWD='2kui'
-          interesting=re.compile(r'(share|list|verify|fs_id|fid|pan\.baidu|nd-api|api/)', re.I)
-
-          def clean_url(u):
-              # Keep public request path/query but redact common auth-ish values if present.
-              u=re.sub(r'(?i)(bdstoken|access_token|token|sign|timestamp|logid|sekey)=([^&]+)', r'\1=<redacted>', u)
-              return u
 
           async def main():
               async with async_playwright() as p:
                   browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
-                  context=await browser.new_context(
+                  ctx=await browser.new_context(
                       viewport={'width':1440,'height':1000},
-                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
-                  )
-                  page=await context.new_page()
-                  responses=[]
-                  async def on_response(resp):
-                      if not interesting.search(resp.url):
-                          return
-                      rec={'status':resp.status,'url':clean_url(resp.url)}
-                      try:
-                          ct=(await resp.header_value('content-type')) or ''
-                          if ('json' in ct or 'text' in ct or 'javascript' in ct) and resp.status < 500:
-                              txt=await resp.text()
-                              if len(txt) <= 120000:
-                                  # Redact obvious token-bearing JSON fields but keep filenames/IDs.
-                                  txt=re.sub(r'(?i)("(?:bdstoken|access_token|token|sign|sekey)"\s*:\s*")[^"]+(\")', r'\1<redacted>\2', txt)
-                                  rec['body']=txt[:120000]
-                      except Exception:
-                          pass
-                      responses.append(rec)
-                  page.on('response', on_response)
+                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36')
+                  page=await ctx.new_page()
+                  await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
+                  await page.wait_for_timeout(12000)
 
-                  try:
-                      r=await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
-                      print('NAV_STATUS',r.status if r else None)
-                  except Exception as e:
-                      print('NAV_ERROR',repr(e))
-                  await page.wait_for_timeout(8000)
-
-                  # If Baidu still shows an extraction-code form, submit the known public code.
-                  try:
-                      text=(await page.locator('body').inner_text())[:12000]
-                      print('BODY_INITIAL',text)
-                      if ('提取码' in text or '请输入提取码' in text or '请输入' in text and '提取' in text):
-                          candidates=[
-                              'input[placeholder*="提取码"]','input[placeholder*="请输入"]','input[type="password"]','input[type="text"]'
-                          ]
-                          filled=False
-                          for sel in candidates:
-                              loc=page.locator(sel).first
-                              if await loc.count():
-                                  try:
-                                      await loc.fill(PWD)
-                                      filled=True
-                                      print('PWD_FILLED',sel)
-                                      break
-                                  except Exception:
-                                      pass
-                          if filled:
-                              for sel in ['button:has-text("提取文件")','button:has-text("确定")','button:has-text("提取")','a:has-text("提取")']:
-                                  loc=page.locator(sel).first
-                                  if await loc.count():
-                                      try:
-                                          await loc.click()
-                                          print('PWD_SUBMIT',sel)
-                                          break
-                                      except Exception:
-                                          pass
+                  body=await page.locator('body').inner_text()
+                  if '请输入提取码' in body:
+                      box=page.locator('input[placeholder*="提取码"]').first
+                      if await box.count():
+                          await box.fill('2kui')
+                          button=page.locator('#submitBtn').first
+                          if await button.count():
+                              await button.click()
                               await page.wait_for_timeout(10000)
-                  except Exception as e:
-                      print('FORM_ERROR',repr(e))
 
-                  print('TITLE',await page.title())
-                  print('FINAL_URL',clean_url(page.url))
-                  try:
-                      body=(await page.locator('body').inner_text())[:50000]
-                      print('BODY_FINAL',body)
-                  except Exception as e:
-                      print('BODY_ERROR',repr(e))
+                  print('ROOT_VISIBLE_BEGIN')
+                  print((await page.locator('body').inner_text())[:30000])
+                  print('ROOT_VISIBLE_END')
 
-                  # Print visible links/text and likely filename-like strings from DOM/state.
-                  try:
-                      items=await page.evaluate('''() => {
-                        const out=[];
-                        for (const el of document.querySelectorAll('a,button,div,span')) {
-                          const t=(el.innerText||'').trim();
-                          if(t && t.length<300) out.push(t);
-                        }
-                        return Array.from(new Set(out)).slice(0,2000);
-                      }''')
-                      for t in items:
-                          if re.search(r'(华为|2025|优秀论文|A题|B题|C题|D题|E题|F题|\.pdf|\.zip|\.rar|\.7z|论文|代码)',t,re.I):
-                              print('DOM_ITEM',t)
-                  except Exception as e:
-                      print('DOM_ERROR',repr(e))
+                  target=page.get_by_text('25华为杯',exact=True).last
+                  if await target.count():
+                      await target.dblclick(timeout=8000)
+                      print('OPENED_FOLDER_BY_DOUBLE_CLICK')
+                  else:
+                      print('FOLDER_TEXT_NOT_FOUND')
+                  await page.wait_for_timeout(10000)
 
-                  print('NETWORK_BEGIN')
-                  seen=set()
-                  for rec in responses:
-                      key=(rec.get('status'),rec.get('url'))
-                      if key in seen: continue
-                      seen.add(key)
-                      body=rec.get('body','')
-                      # Prefer list/verify responses and anything containing filenames.
-                      if ('list' in rec['url'].lower() or 'verify' in rec['url'].lower() or
-                          re.search(r'(server_filename|filename|path|fs_id|优秀论文|\.pdf|\.zip|\.rar|\.7z)', body, re.I)):
-                          print('NET',json.dumps(rec,ensure_ascii=False)[:140000])
-                  print('NETWORK_END')
+                  print('FOLDER_VISIBLE_BEGIN')
+                  print((await page.locator('body').inner_text())[:50000])
+                  print('FOLDER_VISIBLE_END')
+                  print('FINAL_URL',page.url)
                   await browser.close()
 
           asyncio.run(main())
