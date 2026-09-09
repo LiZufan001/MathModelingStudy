@@ -1,8 +1,10 @@
-# CPMCM 国一论文五篇精读路线
+# CPMCM 国一 / S 级论文精读路线
 
-> 目的：把优秀论文从“收藏的 PDF”转化为比赛时真正可调用的建模经验。每篇精读都至少产出：完整拆解、模型/算法重构、比赛速查笔记；必要时增加评审视角专题。
+> 目的：把优秀论文从“收藏的 PDF”转化为比赛时真正可调用的建模经验。每篇精读至少产出：完整拆解、模型/算法重构、比赛速查；根据题型增加评审报告、复杂度账本、验证协议或专项审计。
 
-## 固定精读顺序
+---
+
+# 第一阶段：五类核心能力样本（5/5 完成）
 
 | 顺序 | 年份/题号 | 参赛编号 | 核心训练方向 | 状态 |
 |---|---|---|---|---|
@@ -12,68 +14,85 @@
 | 4 | 2024 B | `B24102860287` | 通信机理 + 数据驱动、验证设计 | ✅ 已完成 |
 | 5 | 2023 B | `B23104860044` | DFT 类矩阵、结构分解、稀疏/量化、硬件复杂度 | ✅ 已完成 |
 
-## 已完成成果
+# 第二阶段：S 级扩展精读（1/8 完成）
 
-### 1. 2022 C｜C22106140003
+> 第二阶段不机械按年份，而按能力互补顺序推进。只有拿到可核验全文后才标记“精读”；校方新闻/摘要不能代替论文正文。
+
+| 总顺序 | 年份/题号 | 参赛编号/目标团队 | 核心训练方向 | 状态 |
+|---|---|---|---|---|
+| 6 | 2022 B | `B22106140009` | 大规模排样、订单组批、结构化预处理、启发式、下界 | ✅ 已完成 |
+| 7 | 2020 C | 电子科大 贾召钱/殷康宁/王文超 | 信号处理→特征→监督/半监督分类→验证 | ⏳ 待精读 |
+| 8 | 2024 F | `F24104860143` | 物理机理、相对论/运动学修正、非齐次泊松、仿真 | ⏳ 待精读 |
+| 9 | 2024 E | 广西大学 王家宝/石磊/施涵 | 视觉提参→拥堵预测→模糊决策，多模型变量传递 | ⏳ 待确认全文后精读 |
+| 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | ⏳ 待确认全文后精读 |
+| 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | ⏳ 待确认全文后精读 |
+| 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | ⏳ 待确认全文后精读 |
+| 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | ⏳ 待确认全文后精读 |
+
+---
+
+# 已完成成果
+
+## 1. 2022 C｜C22106140003
 
 原论文：[`../2022/fulltext/C/C22106140003.pdf`](../2022/fulltext/C/C22106140003.pdf)
-
-精读成果：
 
 - [`2022-C-C22106140003/README.md`](2022-C-C22106140003/README.md)：完整精读与评价
 - [`2022-C-C22106140003/MODEL_RECONSTRUCTION.md`](2022-C-C22106140003/MODEL_RECONSTRUCTION.md)：模型、算法与代码重构
 - [`2022-C-C22106140003/COMPETITION_PLAYBOOK.md`](2022-C-C22106140003/COMPETITION_PLAYBOOK.md)：比赛速查与迁移模板
 
-### 2. 2020 F｜F20102840100
+## 2. 2020 F｜F20102840100
 
 原论文：[`../2020/fulltext/F/F20102840100.pdf`](../2020/fulltext/F/F20102840100.pdf)
 
-精读成果：
-
-- [`2020-F-F20102840100/README.md`](2020-F-F20102840100/README.md)：完整精读；按指导老师与评审老师视角分析四问、结果、优点和缺陷
-- [`2020-F-F20102840100/MODEL_RECONSTRUCTION.md`](2020-F-F20102840100/MODEL_RECONSTRUCTION.md)：统一机理状态模型、官方约束、minimax 控制与可复现重构方案
+- [`2020-F-F20102840100/README.md`](2020-F-F20102840100/README.md)：完整精读；指导老师与评审老师视角分析四问、结果、优点和缺陷
+- [`2020-F-F20102840100/MODEL_RECONSTRUCTION.md`](2020-F-F20102840100/MODEL_RECONSTRUCTION.md)：统一机理状态模型、官方约束、minimax 控制与可复现重构
 - [`2020-F-F20102840100/REVIEWER_REPORT.md`](2020-F-F20102840100/REVIEWER_REPORT.md)：模拟评审/答辩追问、扣分风险与赛中指导建议
-- [`2020-F-F20102840100/COMPETITION_PLAYBOOK.md`](2020-F-F20102840100/COMPETITION_PLAYBOOK.md)：机理 + 动态优化题比赛速查工作流
+- [`2020-F-F20102840100/COMPETITION_PLAYBOOK.md`](2020-F-F20102840100/COMPETITION_PLAYBOOK.md)：机理 + 动态优化题速查
 
-### 3. 2021 A｜A21102480004
+## 3. 2021 A｜A21102480004
 
 原论文：[`../2021/fulltext/A/A21102480004.pdf`](../2021/fulltext/A/A21102480004.pdf)
 
-精读成果：
+- [`2021-A-A21102480004/README.md`](2021-A-A21102480004/README.md)：结构复用、随机 SVD、矩阵内核、压缩与端到端评价
+- [`2021-A-A21102480004/MODEL_RECONSTRUCTION.md`](2021-A-A21102480004/MODEL_RECONSTRUCTION.md)：相似图/代表元、低秩近似、Cholesky solve、分块压缩重构
+- [`2021-A-A21102480004/REVIEWER_REPORT.md`](2021-A-A21102480004/REVIEWER_REPORT.md)：官方指标、复杂度口径和理论归属审计
+- [`2021-A-A21102480004/COMPLEXITY_LEDGER.md`](2021-A-A21102480004/COMPLEXITY_LEDGER.md)：官方 basic-operation complexity、存储 bit、正确 evaluator
+- [`2021-A-A21102480004/COMPETITION_PLAYBOOK.md`](2021-A-A21102480004/COMPETITION_PLAYBOOK.md)：矩阵 / 算法复杂度 / 压缩题速查
 
-- [`2021-A-A21102480004/README.md`](2021-A-A21102480004/README.md)：完整精读；结构复用、随机 SVD、矩阵内核、压缩与端到端方法评价
-- [`2021-A-A21102480004/MODEL_RECONSTRUCTION.md`](2021-A-A21102480004/MODEL_RECONSTRUCTION.md)：相似图/代表元、低秩近似、Cholesky solve、分块压缩的统一重构
-- [`2021-A-A21102480004/REVIEWER_REPORT.md`](2021-A-A21102480004/REVIEWER_REPORT.md)：模拟指导与评审；重点核查官方指标、复杂度口径和理论归属
-- [`2021-A-A21102480004/COMPLEXITY_LEDGER.md`](2021-A-A21102480004/COMPLEXITY_LEDGER.md)：官方 basic-operation complexity、存储 bit、正确 evaluator 与比赛统一记账模板
-- [`2021-A-A21102480004/COMPETITION_PLAYBOOK.md`](2021-A-A21102480004/COMPETITION_PLAYBOOK.md)：矩阵 / 算法复杂度 / 压缩题现场速查
-
-### 4. 2024 B｜B24102860287
+## 4. 2024 B｜B24102860287
 
 原论文：[`../2024/fulltext/B/B24102860287.pdf`](../2024/fulltext/B/B24102860287.pdf)
 
-精读成果：
+- [`2024-B-B24102860287/README.md`](2024-B-B24102860287/README.md)：Q1 发送机会、Q2 MCS/NSS、Q3 吞吐量与正文—代码—原题审计
+- [`2024-B-B24102860287/MODEL_RECONSTRUCTION.md`](2024-B-B24102860287/MODEL_RECONSTRUCTION.md)：carrier sensing、grouped modeling、SINR、层次 AMC、物理+残差模型
+- [`2024-B-B24102860287/REVIEWER_REPORT.md`](2024-B-B24102860287/REVIEWER_REPORT.md)：A级验证风险、答辩追问与指导门槛
+- [`2024-B-B24102860287/VALIDATION_PROTOCOL.md`](2024-B-B24102860287/VALIDATION_PROTOCOL.md)：实验组切分、泄漏防护、pair accuracy、CDF q90
+- [`2024-B-B24102860287/COMPETITION_PLAYBOOK.md`](2024-B-B24102860287/COMPETITION_PLAYBOOK.md)：机理 + 数据驱动题速查
 
-- [`2024-B-B24102860287/README.md`](2024-B-B24102860287/README.md)：完整精读；Q1 发送机会、Q2 MCS/NSS、Q3 吞吐量，以及正文—代码—原题交叉审计
-- [`2024-B-B24102860287/MODEL_RECONSTRUCTION.md`](2024-B-B24102860287/MODEL_RECONSTRUCTION.md)：carrier-sensing 机理特征、grouped modeling、正确 SINR、层次 AMC 预测、物理+残差吞吐模型
-- [`2024-B-B24102860287/REVIEWER_REPORT.md`](2024-B-B24102860287/REVIEWER_REPORT.md)：指导老师/评审老师视角；A级验证风险、答辩追问与赛中指导门槛
-- [`2024-B-B24102860287/VALIDATION_PROTOCOL.md`](2024-B-B24102860287/VALIDATION_PROTOCOL.md)：实验组切分、泄漏防护、pair accuracy、CDF q90、AP/system 两级官方指标模板
-- [`2024-B-B24102860287/COMPETITION_PLAYBOOK.md`](2024-B-B24102860287/COMPETITION_PLAYBOOK.md)：机理 + 数据驱动题现场速查
-
-### 5. 2023 B｜B23104860044
+## 5. 2023 B｜B23104860044
 
 原论文：[`../2023/fulltext/B/B23104860044.pdf`](../2023/fulltext/B/B23104860044.pdf)
 
-精读成果：
+- [`2023-B-B23104860044/README.md`](2023-B-B23104860044/README.md)：BSVD、稀疏/量化、Kronecker、GIG 与原题—更正—公式—代码审计
+- [`2023-B-B23104860044/MODEL_RECONSTRUCTION.md`](2023-B-B23104860044/MODEL_RECONSTRUCTION.md)：官方目标、解析 β、FFT baseline、投影优化、ADMM、residual correction
+- [`2023-B-B23104860044/REVIEWER_REPORT.md`](2023-B-B23104860044/REVIEWER_REPORT.md)：A级指标风险、数学解释问题、模拟答辩
+- [`2023-B-B23104860044/OBJECTIVE_AND_COST_AUDIT.md`](2023-B-B23104860044/OBJECTIVE_AND_COST_AUDIT.md)：目标函数时间线、RMSE evaluator、`C=qL` 审计
+- [`2023-B-B23104860044/COMPETITION_PLAYBOOK.md`](2023-B-B23104860044/COMPETITION_PLAYBOOK.md)：结构化矩阵 / 硬件近似 / 稀疏量化题速查
 
-- [`2023-B-B23104860044/README.md`](2023-B-B23104860044/README.md)：完整精读；BSVD、稀疏/量化、Kronecker、GIG，以及原题—官方更正—公式—代码交叉审计
-- [`2023-B-B23104860044/MODEL_RECONSTRUCTION.md`](2023-B-B23104860044/MODEL_RECONSTRUCTION.md)：官方目标、解析 β、exact FFT baseline、投影优化、真正 ADMM、Kronecker 与 residual correction 重构
-- [`2023-B-B23104860044/REVIEWER_REPORT.md`](2023-B-B23104860044/REVIEWER_REPORT.md)：指导老师/评审老师视角；A级指标风险、数学解释问题、12 个模拟答辩追问
-- [`2023-B-B23104860044/OBJECTIVE_AND_COST_AUDIT.md`](2023-B-B23104860044/OBJECTIVE_AND_COST_AUDIT.md)：官方目标函数时间线、RMSE evaluator、β 解析解、`C=qL` 与真实乘法器计数审计
-- [`2023-B-B23104860044/COMPETITION_PLAYBOOK.md`](2023-B-B23104860044/COMPETITION_PLAYBOOK.md)：结构化矩阵 / 硬件近似 / 稀疏量化题现场速查
+## 6. 2022 B｜B22106140009
+
+原论文：[`../2022/fulltext/B/B22106140009.pdf`](../2022/fulltext/B/B22106140009.pdf)
+
+- [`2022-B-B22106140009/README.md`](2022-B-B22106140009/README.md)：完整精读；2-Items、stack→stripe→plate、组批 similarity、结果与代码审计
+- [`2022-B-B22106140009/MODEL_RECONSTRUCTION.md`](2022-B-B22106140009/MODEL_RECONSTRUCTION.md)：formal model、packing oracle、lower bound、batching feedback、local search 重构
+- [`2022-B-B22106140009/REVIEWER_REPORT.md`](2022-B-B22106140009/REVIEWER_REPORT.md)：指导老师/评审老师视角、A级风险与 12 个模拟答辩追问
+- [`2022-B-B22106140009/PACKING_BATCHING_AUDIT.md`](2022-B-B22106140009/PACKING_BATCHING_AUDIT.md)：原始数据下界、B2 批次数可行性、正文—表格—代码复现审计
+- [`2022-B-B22106140009/COMPETITION_PLAYBOOK.md`](2022-B-B22106140009/COMPETITION_PLAYBOOK.md)：大规模排样 / 组批 / decomposition 现场速查
 
 ---
 
-# 五篇合起来训练什么
+# 能力矩阵
 
 | 样本 | 核心能力 |
 |---|---|
@@ -82,34 +101,39 @@
 | 2021 A | 矩阵结构 → 计算/存储复杂度 → 低秩与算法工程 |
 | 2024 B | 通信机理 → 特征工程 → 数据建模 → 严格验证 |
 | 2023 B | 结构化矩阵 → 稀疏/量化 → 硬件代价 → Pareto 设计 |
+| 2022 B | NP-hard 大规模组合优化 → 结构降维 → 可行启发式 → lower bound |
 
-这五篇不用于背“模型模板”，而用于建立一套统一判断：
+统一训练目标不是背模型名，而是形成：
 
 ```text
-题意/官方指标
+题意 / 最新官方指标
       ↓
-结构、机理、状态或数据生成机制
+结构、机理、状态、工艺或数据生成机制
       ↓
 硬约束与软目标
       ↓
-baseline
+baseline + lower bound
       ↓
-可计算模型 / 算法
+可计算模型 / decomposition / 算法
       ↓
-官方 evaluator
+唯一官方 evaluator
       ↓
-验证、消融、复杂度 / 稳健性
+验证、消融、复杂度、稳健性
       ↓
-论文表述与结果一致性
+单一结果源自动生成论文数字
 ```
 
-## 使用原则
+---
 
-1. **先复现作者问题链，再抽象可迁移范式。** 不把某个题目的专用技巧生搬硬套到其他题。
-2. **区分“官方题意、赛中更正、论文写法、我们的二次判断”。** 对作者新增假设、符号冲突、公式/代码差异、验证不足单独标注。
-3. **优先学习闭环，而不是算法名。** 真正值得迁移的是“机理/状态/结构/约束 → 模型 → 算法 → 仿真/计算 → 评分 → 验证”的完整链条。
-4. **正式比赛以题目最新官方口径为准。** 历史论文只能提供建模思路，必须同步检查赛中更正和通知。
-5. **一等奖论文也要批判性阅读。** 奖项说明整体方案优秀，不代表每个公式、假设、参数和附录代码都无误。
-6. **算法型题单独维护 complexity ledger。** Big-O、官方基本运算计价、wall-clock runtime、硬件乘法器数和 peak memory 分开报告。
-7. **数据型题把 validation protocol 当成模型的一部分。** 同组样本必须隔离；所有 preprocessing 只在 train fold 上 fit；官方 evaluator 先于复杂模型完成并锁定。
-8. **所有题都先锁定 evaluator。** 结果表、摘要关键数字、Pareto 图最好从同一机器可读结果源自动生成。
+# 使用原则
+
+1. **先复现作者问题链，再抽象可迁移范式。** 不把专用技巧生搬硬套。
+2. **区分“官方题意、赛中更正、论文写法、公开代码、我们的二次判断”。**
+3. **优先学习闭环，而不是算法名。**
+4. **正式比赛以最新官方口径为准，并同步检查更正通知。**
+5. **一等奖论文也要批判性阅读。** 奖项不代表每个公式/参数/代码都无误。
+6. **算法型题维护 complexity ledger。** Big-O、官方计价、wall-clock、硬件/内存分开。
+7. **数据型题把 validation protocol 当成模型的一部分。**
+8. **NP-hard 优化题必须同时报告 feasibility 与 lower bound。** heuristic 好坏不能只看目标值。
+9. **formal model 与 actual solver 必须解释关系。** 若用 decomposition，要明确说明为什么。
+10. **所有题先锁定 evaluator。** 摘要、正文、表格、CSV、图尽量由同一机器可读结果源生成。
