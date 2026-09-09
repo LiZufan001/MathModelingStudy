@@ -1,0 +1,62 @@
+name: Probe public Baidu 25 HuaweiCup share
+
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-baidu-25huaweicup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe public wxlist endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+
+          pwd = '2kui'
+          candidates = ['NpT9h6UwwcB6SLFh2RAXzQ', '1NpT9h6UwwcB6SLFh2RAXzQ']
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (Linux; Android 13; MicroMessenger) AppleWebKit/537.36 Mobile Safari/537.36 MicroMessenger/8.0',
+              'Referer': 'https://pan.baidu.com/'
+          }
+          for shorturl in candidates:
+              url = 'https://pan.baidu.com/share/wxlist?' + urllib.parse.urlencode({
+                  'clienttype': '25', 'root': '1', 'shorturl': shorturl, 'pwd': pwd,
+              })
+              print('PROBE_URL', url)
+              try:
+                  req = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      body = r.read()
+                  print('HTTP_OK', len(body), r.headers.get('content-type'))
+                  text = body.decode('utf-8', errors='replace')
+                  print('BODY_PREFIX', text[:12000])
+                  try:
+                      data = json.loads(text)
+                      print('JSON_ERRNO', data.get('errno'))
+                      print('JSON_KEYS', sorted(data.keys()))
+                      if data.get('errno') == 0:
+                          print('WX_LIST_SUCCESS_SHORTURL', shorturl)
+                          for k in ('share_id','uk','sekey','list'):
+                              if k in data:
+                                  val = data[k]
+                                  if k == 'list':
+                                      print('ROOT_LIST_COUNT', len(val) if isinstance(val, list) else type(val).__name__)
+                                      if isinstance(val, list):
+                                          for item in val:
+                                              print('ROOT_ITEM', json.dumps({x:item.get(x) for x in ['fs_id','server_filename','path','isdir','size','md5']}, ensure_ascii=False))
+                                  else:
+                                      print(k.upper(), val)
+                  except Exception as e:
+                      print('JSON_PARSE_ERROR', repr(e))
+              except Exception as e:
+                  print('PROBE_ERROR', shorturl, type(e).__name__, repr(e))
+          PY
