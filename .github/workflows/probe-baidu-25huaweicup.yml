@@ -14,97 +14,59 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Verify share and enumerate root
+      - name: Read verified public share metadata
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, time, urllib.parse, urllib.request, http.cookiejar
+          import json, re, time, urllib.parse, urllib.request, http.cookiejar
 
           surl = 'NpT9h6UwwcB6SLFh2RAXzQ'
           pwd = '2kui'
           jar = http.cookiejar.CookieJar()
           opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
           ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152 Safari/537.36'
-
+          share_url = 'https://pan.baidu.com/s/1' + surl
           init_url = 'https://pan.baidu.com/share/init?' + urllib.parse.urlencode({'surl': surl, 'pwd': pwd})
-          req = urllib.request.Request(init_url, headers={'User-Agent': ua})
-          try:
-              with opener.open(req, timeout=30) as r:
-                  init_body = r.read()
-              print('INIT_OK', len(init_body), r.geturl(), r.headers.get('content-type'))
-              print('INIT_COOKIES', [c.name for c in jar])
-          except Exception as e:
-              print('INIT_ERROR', type(e).__name__, repr(e))
 
+          opener.open(urllib.request.Request(init_url, headers={'User-Agent': ua}), timeout=30).read()
           verify_url = 'https://pan.baidu.com/share/verify?' + urllib.parse.urlencode({
-              'surl': surl,
-              't': str(int(time.time()*1000)),
-              'channel': 'chunlei',
-              'web': '1',
-              'app_id': '250528',
-              'bdstoken': 'null',
-              'clienttype': '0',
-          })
+              'surl': surl, 't': str(int(time.time()*1000)), 'channel': 'chunlei',
+              'web': '1', 'app_id': '250528', 'bdstoken': 'null', 'clienttype': '0'})
           body = urllib.parse.urlencode({'pwd': pwd, 'vcode': '', 'vcode_str': ''}).encode()
           req = urllib.request.Request(verify_url, data=body, headers={
-              'User-Agent': 'netdisk',
-              'Referer': init_url,
-              'Origin': 'https://pan.baidu.com',
-              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          })
-          verify = None
-          try:
-              with opener.open(req, timeout=30) as r:
-                  raw = r.read().decode('utf-8', errors='replace')
-              print('VERIFY_BODY', raw[:4000])
-              verify = json.loads(raw)
-              print('VERIFY_ERRNO', verify.get('errno'))
-              print('VERIFY_KEYS', sorted(verify.keys()))
-              print('VERIFY_COOKIES', [c.name for c in jar])
-          except Exception as e:
-              print('VERIFY_ERROR', type(e).__name__, repr(e))
+              'User-Agent': 'netdisk', 'Referer': share_url,
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'})
+          verify = json.loads(opener.open(req, timeout=30).read().decode())
+          print('VERIFY_ERRNO', verify.get('errno'))
+          if verify.get('errno') != 0:
+              raise SystemExit(1)
 
-          if isinstance(verify, dict) and verify.get('errno') == 0 and verify.get('randsk'):
-              randsk = verify['randsk']
-              # Some clients explicitly mirror randsk into BDCLND.
-              from urllib.parse import urlparse
-              cookie = http.cookiejar.Cookie(
-                  version=0, name='BDCLND', value=randsk, port=None, port_specified=False,
-                  domain='.baidu.com', domain_specified=True, domain_initial_dot=True,
-                  path='/', path_specified=True, secure=True, expires=None, discard=True,
-                  comment=None, comment_url=None, rest={}, rfc2109=False)
-              jar.set_cookie(cookie)
-              print('RANSK_LEN', len(randsk))
+          req = urllib.request.Request(share_url, headers={'User-Agent': ua, 'Referer': init_url})
+          with opener.open(req, timeout=30) as r:
+              html = r.read().decode('utf-8', errors='replace')
+              print('SHARE_PAGE', r.geturl(), len(html))
 
-          endpoints = [
-              ('GET', 'https://pan.baidu.com/share/wxlist?' + urllib.parse.urlencode({
-                  'clienttype':'25','root':'1','shorturl':surl,'pwd':pwd
-              }), None),
-              ('POST', 'https://pan.baidu.com/share/wxlist?channel=weixin&version=2.2.2&clienttype=25&web=1',
-               urllib.parse.urlencode({'shorturl':surl,'dir':'','root':'1','pwd':pwd}).encode()),
-          ]
-          for method, url, data in endpoints:
-              print('LIST_TRY', method, url)
-              req = urllib.request.Request(url, data=data, headers={
-                  'User-Agent':'Mozilla/5.0 (Linux; Android 13; MicroMessenger) AppleWebKit/537.36 Mobile Safari/537.36 MicroMessenger/8.0',
-                  'Referer': init_url,
-                  'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8',
-              })
+          print('HAS_YUNDATA', 'yunData.setData' in html)
+          print('HAS_CONTEXT', '_context' in html)
+          for name in ['shareid', 'share_id', 'uk']:
+              vals = re.findall(r'["\']'+re.escape(name)+r'["\']\s*:\s*["\']?(\d+)', html)
+              print('SCALAR', name, vals[:5])
+
+          m = re.search(r'yunData\.setData\((\{.*?\})\);', html, re.S)
+          if not m:
+              m = re.search(r'(?:window\.)?_context\s*=\s*(\{.*?\})\s*;', html, re.S)
+          if m:
               try:
-                  with opener.open(req, timeout=30) as r:
-                      raw = r.read().decode('utf-8', errors='replace')
-                  print('LIST_BODY_PREFIX', raw[:16000])
-                  dataj = json.loads(raw)
-                  print('LIST_ERRNO', dataj.get('errno'))
-                  payload = dataj.get('data') if isinstance(dataj.get('data'), dict) else dataj
-                  if dataj.get('errno') == 0:
-                      print('LIST_SUCCESS')
-                      print('META', json.dumps({k:payload.get(k) for k in ['shareid','share_id','uk','seckey','sekey'] if k in payload}, ensure_ascii=False))
-                      items = payload.get('list') or []
-                      print('ROOT_LIST_COUNT', len(items))
-                      for item in items:
-                          print('ROOT_ITEM', json.dumps({x:item.get(x) for x in ['fs_id','server_filename','path','isdir','size','md5']}, ensure_ascii=False))
+                  data = json.loads(m.group(1))
+                  print('CONTEXT_KEYS', sorted(data.keys()))
+                  print('CONTEXT_META', data.get('shareid'), data.get('uk'))
+                  fl = data.get('file_list') or {}
+                  items = fl.get('list') if isinstance(fl, dict) else fl
+                  items = items or []
+                  print('ROOT_COUNT', len(items))
+                  for x in items:
+                      print('ROOT_ITEM', json.dumps({k:x.get(k) for k in ['fs_id','server_filename','path','isdir','size','md5']}, ensure_ascii=False))
               except Exception as e:
-                  print('LIST_ERROR', method, type(e).__name__, repr(e))
+                  print('CONTEXT_PARSE_ERROR', type(e).__name__, repr(e))
           PY
