@@ -14,21 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Download and inspect public zip
+      - name: Inspect paper source and cover
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib, io, urllib.request, zipfile
+          import hashlib, io, re, subprocess, urllib.request, zipfile
           url = 'https://raw.githubusercontent.com/DDDDDawn/railway_failure_detection/master/%E5%85%A8%E5%9B%BD%E7%A0%94%E7%A9%B6%E7%94%9F%E6%95%B0%E5%AD%A6%E5%BB%BA%E6%A8%A1%E7%AB%9E%E8%B5%9B%E8%AE%BA%E6%96%87%E6%A0%87%E9%A2%98__1_.zip'
           data = urllib.request.urlopen(url, timeout=60).read()
-          print('ZIP_BYTES', len(data))
-          print('ZIP_SHA256', hashlib.sha256(data).hexdigest())
           z = zipfile.ZipFile(io.BytesIO(data))
-          for info in z.infolist():
-              print('ENTRY', info.filename, info.file_size)
-              if not info.is_dir() and info.file_size <= 50_000_000:
-                  b = z.read(info)
-                  print('ENTRY_SHA256', info.filename, hashlib.sha256(b).hexdigest())
-                  print('ENTRY_MAGIC', info.filename, b[:8])
+          tex = z.read('example.tex').decode('utf-8', errors='replace')
+          print('TEX_LEN', len(tex))
+          for i, line in enumerate(tex.splitlines(), 1):
+              if i <= 180 or re.search(r'(251\d{8}|参赛|学校|题目|title|author|队员|摘要|轴承)', line, re.I):
+                  print(f'TEX {i}: {line[:1000]}')
+          pdf = z.read('example.pdf')
+          print('PDF_BYTES', len(pdf))
+          print('PDF_SHA256', hashlib.sha256(pdf).hexdigest())
+          open('/tmp/example.pdf','wb').write(pdf)
+          try:
+              out = subprocess.check_output(['pdftotext','-f','1','-l','4','-layout','/tmp/example.pdf','-'], stderr=subprocess.STDOUT, timeout=30)
+              text = out.decode('utf-8', errors='replace')
+              print('PDFTEXT_BEGIN')
+              print(text[:20000])
+              print('PDFTEXT_END')
+          except Exception as e:
+              print('PDFTEXT_ERROR', repr(e))
           PY
