@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Open public share and print visible root names
+      - name: Open public share and inspect archive folder
         shell: bash
         run: |
           set -euo pipefail
@@ -29,13 +29,10 @@ jobs:
           async def main():
               async with async_playwright() as p:
                   browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
-                  ctx=await browser.new_context(
-                      viewport={'width':1440,'height':1000},
-                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36')
+                  ctx=await browser.new_context(viewport={'width':1440,'height':1000},user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36')
                   page=await ctx.new_page()
                   await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
                   await page.wait_for_timeout(12000)
-
                   body=await page.locator('body').inner_text()
                   if '请输入提取码' in body:
                       box=page.locator('input[placeholder*="提取码"]').first
@@ -46,9 +43,17 @@ jobs:
                               await button.click()
                               await page.wait_for_timeout(10000)
 
-                  print('ROOT_VISIBLE_BEGIN')
-                  print((await page.locator('body').inner_text())[:50000])
-                  print('ROOT_VISIBLE_END')
+                  target=page.get_by_text('华为杯研究生建模资料',exact=True).last
+                  if await target.count():
+                      await target.dblclick(timeout=8000)
+                      print('OPENED_ARCHIVE_FOLDER')
+                      await page.wait_for_timeout(10000)
+                  else:
+                      print('ARCHIVE_FOLDER_NOT_FOUND')
+
+                  print('LEVEL1_VISIBLE_BEGIN')
+                  print((await page.locator('body').inner_text())[:60000])
+                  print('LEVEL1_VISIBLE_END')
                   print('FINAL_URL',page.url)
                   await browser.close()
 
