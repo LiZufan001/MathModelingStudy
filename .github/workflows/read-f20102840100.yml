@@ -1,0 +1,56 @@
+name: Read F20102840100 for study
+on:
+  push:
+    paths:
+      - '.github/workflows/read-f20102840100.yml'
+permissions:
+  contents: read
+jobs:
+  read-paper:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            papers/CPMCM/2020/fulltext/F/F20102840100.pdf
+            .github/workflows/read-f20102840100.yml
+      - name: Install PDF readers
+        run: python -m pip install --quiet pypdf pymupdf
+      - name: Extract text and render every page
+        shell: bash
+        run: |
+          mkdir -p /tmp/f20102840100/pages
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          import pymupdf
+
+          p = Path('papers/CPMCM/2020/fulltext/F/F20102840100.pdf')
+          out = Path('/tmp/f20102840100')
+
+          r = PdfReader(str(p))
+          print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
+          pypdf_text = []
+          for i, page in enumerate(r.pages, 1):
+              pypdf_text.append(f'===== PAGE {i} / {len(r.pages)} =====\n{page.extract_text() or "[NO TEXT]"}')
+          (out/'pypdf.txt').write_text('\n\n'.join(pypdf_text), encoding='utf-8')
+
+          doc = pymupdf.open(str(p))
+          fitz_text = []
+          for i, page in enumerate(doc, 1):
+              fitz_text.append(f'===== PAGE {i} / {len(doc)} =====\n{page.get_text("text", sort=True)}')
+              pix = page.get_pixmap(matrix=pymupdf.Matrix(1.7,1.7), alpha=False)
+              pix.save(out/f'pages/page-{i:02d}.png')
+          (out/'pymupdf.txt').write_text('\n\n'.join(fitz_text), encoding='utf-8')
+          print(f'RENDERED_PAGES={len(doc)}')
+          print('FIRST_PAGES_PREVIEW')
+          print('\n'.join(fitz_text[:4])[:16000])
+          PY
+      - name: Upload study extraction
+        uses: actions/upload-artifact@v4
+        with:
+          name: f20102840100-study-extraction
+          path: /tmp/f20102840100/
+          if-no-files-found: error
+          retention-days: 1
