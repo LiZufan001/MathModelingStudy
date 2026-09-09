@@ -1,4 +1,4 @@
-name: Hunt public CPMCM 2025 repos by problem
+name: Hunt deleted CPMCM 2025 paper files
 
 on:
   push:
@@ -10,60 +10,58 @@ permissions:
   contents: read
 
 jobs:
-  hunt:
+  history:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Search by six problem themes and inspect paper-like files
+      - name: Scan full commit histories of real contestant repos
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, re, time, urllib.parse, urllib.request
+          import json, os, re, time, urllib.request
           token=os.environ['GH_TOKEN']
-          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'CPMCM2025-hunter','X-GitHub-Api-Version':'2022-11-28'}
-          queries=[
-            '"通用神经网络处理器" 核内调度','NPU 核内调度 2025','Davinci NPU scheduling',
-            '"无线通信系统链路速率"','MIMO OFDM EESM 2025','MIMO OFDM 链路速率',
-            '"围岩裂隙" 三维重构','Frangi 裂隙 三维重构','borehole fracture 2025 modeling',
-            '"低空湍流" 航路规划','turbulence route planning 2025','低空 湍流 航路',
-            '"高速列车轴承" 故障诊断','railway bearing fault diagnosis transfer 2025','CWRU MMD railway 2025',
-            '"江南古典园林" 美学 建模','classical garden modeling 2025','园林 美学 数学建模 2025'
+          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'CPMCM2025-history-hunter','X-GitHub-Api-Version':'2022-11-28'}
+          repos=[
+            'zm-astro/gmcm2025',
+            'juniorPOON/HuaweiCup2025',
+            'HelenLi1025/2025MathGame-E-lwp',
+            'RessMatthew/HuaweiCup-E',
+            'XinhanWang/PGMM2025',
+            'DDDDDawn/railway_failure_detection',
+            'xiyuhang2003/E-problem',
+            'yangzhe0/study_shumo',
+            'Nanqipro/25HuaweiCup_MCM',
+            'yohakuo/GMCM2025',
+            'wxzher/2025-HuaweiCup-E',
+            'HaoyuZhao31415/MathModel'
           ]
+          paper=re.compile(r'\.(pdf|docx|doc|tex|zip|7z|rar)$',re.I)
+          strong=re.compile(r'(251\d{8}|论文|paper|final|submit|submission|终稿|最终|答辩|证书|award|获奖)',re.I)
           def get(url):
             req=urllib.request.Request(url,headers=headers)
-            with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode())
-          repos={}
-          for q in queries:
-            try:data=get('https://api.github.com/search/repositories?'+urllib.parse.urlencode({'q':q,'per_page':100,'sort':'updated','order':'desc'}))
+            with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode('utf-8'))
+          for full in repos:
+            print('REPO_BEGIN',full)
+            try: commits=get(f'https://api.github.com/repos/{full}/commits?per_page=100')
             except Exception as e:
-              print('SEARCH_ERROR',q,repr(e)); time.sleep(2); continue
-            print('SEARCH',q,'count',data.get('total_count'),'returned',len(data.get('items',[])))
-            for r in data.get('items',[]):repos[r['full_name']]={'branch':r.get('default_branch') or 'main','size':r.get('size'),'description':r.get('description') or ''}
-            time.sleep(0.8)
-          print('UNIQUE_REPOS',len(repos))
-          ext=re.compile(r'\.(pdf|docx|doc|tex|zip|7z|rar)$',re.I)
-          interesting=re.compile(r'(paper|论文|doc|final|submit|report|答辩|award|certificate|证书|251\d{8})',re.I)
-          codepat=re.compile(r'(^|/)[A-F]251\d{8}\.(pdf|docx|doc)$',re.I)
-          awardpat=re.compile(r'(全国一等奖|国家一等奖|一等奖|first\s*prize|national\s*first)',re.I)
-          for full,meta in sorted(repos.items()):
-            owner,repo=full.split('/',1); branch=meta['branch']
-            try:tree=get(f'https://api.github.com/repos/{owner}/{repo}/git/trees/{urllib.parse.quote(branch,safe="")}?recursive=1')
-            except Exception as e:print('TREE_ERROR',full,repr(e));continue
-            blobs=[x for x in tree.get('tree',[]) if x.get('type')=='blob']
-            hits=[{'path':x.get('path'),'size':x.get('size'),'sha':x.get('sha')} for x in blobs if ext.search(x.get('path','')) and (interesting.search(x.get('path','')) or x.get('path','').lower().endswith('.pdf'))]
-            paths={x.get('path','') for x in blobs}; readme=''
-            for rp in ('README.md','readme.md','README.MD'):
-              if rp in paths:
-                try:
-                  raw=f'https://raw.githubusercontent.com/{owner}/{repo}/{urllib.parse.quote(branch,safe="")}/{rp}'
-                  readme=urllib.request.urlopen(urllib.request.Request(raw,headers={'User-Agent':'hunter'}),timeout=15).read().decode('utf-8',errors='replace')[:100000]
-                except Exception:pass
-                break
-            award=bool(awardpat.search(readme)); codes=[x for x in hits if codepat.search(x['path'])]
-            if hits or award:
-              print('CANDIDATE',json.dumps({'repo':full,'size_kb':meta['size'],'description':meta['description'],'award_claim':award,'code_hits':codes,'file_hits':hits[:100]},ensure_ascii=False))
-            time.sleep(0.12)
+              print('COMMITS_ERROR',full,repr(e));continue
+            print('COMMIT_COUNT',full,len(commits))
+            for c in reversed(commits):
+              sha=c.get('sha'); msg=(c.get('commit') or {}).get('message','').replace('\n',' ')[:300]
+              try: detail=get(f'https://api.github.com/repos/{full}/commits/{sha}')
+              except Exception as e:
+                print('DETAIL_ERROR',full,sha,repr(e));continue
+              hits=[]
+              for f in detail.get('files') or []:
+                fn=f.get('filename','')
+                prev=f.get('previous_filename','') or ''
+                if (paper.search(fn) or paper.search(prev)) and (strong.search(fn) or strong.search(prev) or fn.lower().endswith('.pdf')):
+                  hits.append({'status':f.get('status'),'filename':fn,'previous_filename':prev,'sha':f.get('sha'),'raw_url':f.get('raw_url')})
+              if hits or re.search(r'(论文|paper|final|submit|终稿|获奖|award)',msg,re.I):
+                print('HISTORY_HIT',json.dumps({'repo':full,'commit':sha,'date':((c.get('commit') or {}).get('author') or {}).get('date'),'message':msg,'files':hits},ensure_ascii=False))
+              time.sleep(0.08)
+            print('REPO_END',full)
           PY
