@@ -1,4 +1,4 @@
-name: Query Weizan CPMCM 2025 replay configuration
+name: Render public CPMCM 2025 defense replay
 
 on:
   push:
@@ -10,53 +10,89 @@ permissions:
   contents: read
 
 jobs:
-  query-config:
+  browser-probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Probe public topic and video configuration APIs
+      - name: Open replay in Chromium and capture public playback state
         shell: bash
         run: |
           set -euo pipefail
-          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
-          TP='703616836'
-          REFER='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
-          hosts=(
-            'https://re-live-play.vzan.com'
-            'https://live-play.vzan.com'
-            'https://live-capi.vzan.com'
-            'https://liveapi.vzan.com'
-            'https://live-liveapi.vzan.com'
-          )
-          paths=(
-            "/play/api/topic/topic_config?tpId=$TP&isPcBrowser=true&topicId=$TP&browserTerminal=1"
-            "/play/api/topic/video_config?tpId=$TP&browserTerminal=1"
-            "/api/topic/topic_config?tpId=$TP&isPcBrowser=true&topicId=$TP&browserTerminal=1"
-            "/api/topic/video_config?tpId=$TP&browserTerminal=1"
-            "/api/topic/topic_menu_ppt_data?tpid=$TP"
-          )
-          for h in "${hosts[@]}"; do
-            for p in "${paths[@]}"; do
-              u="$h$p"
-              code=$(curl -L -sS -A "$UA" -e "$REFER" -o /tmp/r.txt -w '%{http_code}' "$u" || true)
-              bytes=$(stat -c%s /tmp/r.txt 2>/dev/null || echo 0)
-              echo "=== PROBE code=$code bytes=$bytes url=$u ==="
-              if [ "$bytes" -gt 0 ]; then head -c 12000 /tmp/r.txt | tr '\n' ' '; echo; fi
-            done
-          done
-          echo '=== FIND BASE CONSTANTS ==='
-          curl -L --fail -sS -A "$UA" 'https://j.vzan.com/live-statics/livepage/app.6f5e46e8.js' -o /tmp/app.js
-          python - <<'PY'
-          import re
-          s=open('/tmp/app.js','rb').read().decode('utf-8','replace')
-          for key in ['Ji','bX','y7','_5']:
-              print('KEY',key)
-              # contexts where object properties define environment URLs
-              pat=re.compile(r'\b'+re.escape(key)+r'\s*[:=]')
-              n=0
-              for m in pat.finditer(s):
-                  c=re.sub(r'\s+',' ',s[max(0,m.start()-1000):min(len(s),m.end()+1800)])
-                  if 'vzan.com' in c or 'weizan.cn' in c:
-                      print('CTX',c[:3500]); n+=1
-                      if n>=8: break
+          python -m pip install -q playwright
+          python -m playwright install chromium >/dev/null
+          cat >/tmp/probe.py <<'PY'
+          import asyncio, json, re
+          from playwright.async_api import async_playwright
+
+          URL='https://etxgdu.vnet.weizan.cn/live/page/703616836?v=1764845309273'
+          interesting=re.compile(r'(topic_config|video_config|ppt|doc/|history|playback|m3u8|\.mp4|playurl|record|replay)',re.I)
+
+          def scrub(obj, depth=0):
+              if depth>6: return '<depth>'
+              if isinstance(obj, dict):
+                  out={}
+                  for k,v in obj.items():
+                      lk=str(k).lower()
+                      if any(x in lk for x in ['token','cookie','session','openid','userid','mobile','phone','password','secret','signature','usersig']):
+                          continue
+                      if any(x in lk for x in ['play','video','history','host','ppt','doc','live','title','status','source','url','tpid','zbid','config','scene']):
+                          out[k]=scrub(v,depth+1)
+                  return out
+              if isinstance(obj,list): return [scrub(x,depth+1) for x in obj[:30]]
+              if isinstance(obj,(str,int,float,bool)) or obj is None: return obj
+              return str(obj)[:500]
+
+          async def main():
+              async with async_playwright() as p:
+                  browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
+                  context=await browser.new_context(
+                      viewport={'width':1440,'height':900},
+                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0 Safari/537.36'
+                  )
+                  page=await context.new_page()
+                  reqs=[]
+                  async def on_response(resp):
+                      u=resp.url
+                      if interesting.search(u):
+                          rec={'status':resp.status,'url':u}
+                          try:
+                              ct=(await resp.header_value('content-type')) or ''
+                              if 'json' in ct or 'text' in ct:
+                                  txt=await resp.text()
+                                  if len(txt)<25000: rec['body']=txt[:25000]
+                          except Exception: pass
+                          reqs.append(rec)
+                  page.on('response',on_response)
+                  try:
+                      r=await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
+                      print('NAV_STATUS',r.status if r else None)
+                      await page.wait_for_timeout(20000)
+                  except Exception as e:
+                      print('NAV_ERROR',repr(e))
+                  print('TITLE',await page.title())
+                  print('FINAL_URL',page.url)
+                  for name in ['zbvd','educationData','historySignalList']:
+                      try:
+                          val=await page.evaluate(f'() => window.{name} || null')
+                          print('WINDOW_'+name.upper(),json.dumps(scrub(val),ensure_ascii=False)[:50000])
+                      except Exception as e: print('WINDOW_ERROR',name,repr(e))
+                  try:
+                      vids=await page.evaluate('''() => Array.from(document.querySelectorAll('video')).map(v=>({src:v.src,currentSrc:v.currentSrc,poster:v.poster,duration:v.duration,readyState:v.readyState}))''')
+                      print('VIDEOS',json.dumps(vids,ensure_ascii=False)[:20000])
+                  except Exception as e: print('VIDEO_ERROR',repr(e))
+                  print('NETWORK_BEGIN')
+                  seen=set()
+                  for x in reqs:
+                      key=(x.get('status'),x.get('url'))
+                      if key in seen: continue
+                      seen.add(key)
+                      print('NET',json.dumps(x,ensure_ascii=False)[:30000])
+                  print('NETWORK_END')
+                  try:
+                      await page.screenshot(path='/tmp/replay.png',full_page=False)
+                      print('SCREENSHOT_OK')
+                  except Exception as e: print('SCREENSHOT_ERROR',repr(e))
+                  await browser.close()
+          asyncio.run(main())
           PY
+          python /tmp/probe.py
