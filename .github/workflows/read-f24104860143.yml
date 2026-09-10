@@ -1,4 +1,4 @@
-name: Read F24104860143 for study
+name: Audit F24104860143 timing
 on:
   push:
     paths:
@@ -6,118 +6,67 @@ on:
 permissions:
   contents: read
 jobs:
-  read-paper:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            papers/CPMCM/2024/fulltext/F/F24104860143.pdf
-            problems/CPMCM/2024/F/X射线脉冲星光子到达时间建模.docx
-            problems/CPMCM/2024/F/“华为杯”第二十一届中国研究生数学建模竞赛F题附录.docx
             problems/CPMCM/2024/F/F题.zip
             .github/workflows/read-f24104860143.yml
-      - name: Install readers
-        run: python -m pip install --quiet pypdf pymupdf python-docx pandas openpyxl numpy scipy
-      - name: Extract paper and problem
+      - name: Install jplephem
+        run: python -m pip install --quiet jplephem numpy scipy
+      - name: Audit units and timing
         shell: bash
         run: |
-          mkdir -p /tmp/f24104860143/pages /tmp/f24104860143/problem_zip
           python - <<'PY'
-          from pathlib import Path
-          from pypdf import PdfReader
-          from docx import Document
-          import pymupdf, zipfile, json, re, pandas as pd, numpy as np
-
-          root=Path('.')
-          p=root/'papers/CPMCM/2024/fulltext/F/F24104860143.pdf'
-          q=root/'problems/CPMCM/2024/F/X射线脉冲星光子到达时间建模.docx'
-          a=root/'problems/CPMCM/2024/F/“华为杯”第二十一届中国研究生数学建模竞赛F题附录.docx'
-          z=root/'problems/CPMCM/2024/F/F题.zip'
-          out=Path('/tmp/f24104860143')
-
-          def safe_write(path, text):
-              path.write_bytes(str(text).encode('utf-8','replace'))
-
-          r=PdfReader(str(p))
-          print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
-          texts=[]
-          for i,page in enumerate(r.pages,1):
-              texts.append(f'===== PAGE {i} / {len(r.pages)} =====\n{page.extract_text() or "[NO TEXT]"}')
-          safe_write(out/'pypdf.txt','\n\n'.join(texts))
-
-          doc=pymupdf.open(str(p))
-          ftexts=[]
-          for i,page in enumerate(doc,1):
-              ftexts.append(f'===== PAGE {i} / {len(doc)} =====\n{page.get_text("text",sort=True)}')
-              pix=page.get_pixmap(matrix=pymupdf.Matrix(1.7,1.7),alpha=False)
-              pix.save(out/f'pages/page-{i:03d}.png')
-          safe_write(out/'pymupdf.txt','\n\n'.join(ftexts))
-          print('RENDERED_PAGES',len(doc))
-
-          def extract_docx(path, name):
-              d=Document(str(path))
-              lines=[]
-              for para in d.paragraphs:
-                  if para.text.strip(): lines.append(para.text)
-              for ti,table in enumerate(d.tables,1):
-                  lines.append(f'\n[TABLE {ti}]')
-                  for row in table.rows:
-                      lines.append(' | '.join(cell.text.replace('\n',' / ') for cell in row.cells))
-              safe_write(out/f'{name}.txt','\n'.join(lines))
-              with zipfile.ZipFile(path) as zz:
-                  xml=zz.read('word/document.xml').decode('utf-8','ignore')
-              xml_text=re.sub(r'<[^>]+>',' ',xml)
-              xml_text=re.sub(r'\s+',' ',xml_text)
-              safe_write(out/f'{name}-xmltext.txt',xml_text)
-              return lines
-
-          problem=extract_docx(q,'problem')
-          appendix=extract_docx(a,'official-appendix')
-          print('PROBLEM_PREVIEW')
-          print('\n'.join(problem)[:24000].encode('utf-8','replace').decode('utf-8'))
-
-          zipdir=out/'problem_zip'
+          import zipfile, pathlib, math, numpy as np
+          from jplephem.spk import SPK
+          z=pathlib.Path('problems/CPMCM/2024/F/F题.zip')
+          out=pathlib.Path('/tmp/f-audit'); out.mkdir(exist_ok=True)
           with zipfile.ZipFile(z) as zz:
-              names=zz.namelist()
-              safe_write(out/'zip-list.txt','\n'.join(names))
-              for n in names:
-                  if n.endswith('/'):
-                      continue
-                  try:
-                      dest=zipdir/Path(n).name
-                      with zz.open(n) as src, open(dest,'wb') as dst:
-                          dst.write(src.read())
-                  except Exception as e:
-                      print('EXTRACT_FAIL',n,e)
-          summaries=[]
-          for fp in sorted(zipdir.iterdir()):
-              rec={'name':fp.name,'size':fp.stat().st_size}
-              try:
-                  if fp.suffix.lower() in ('.xlsx','.xls'):
-                      xl=pd.ExcelFile(fp)
-                      rec['sheets']=[]
-                      for sh in xl.sheet_names:
-                          df=pd.read_excel(fp,sheet_name=sh)
-                          rec['sheets'].append({'sheet':sh,'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')})
-                  elif fp.suffix.lower() in ('.csv','.txt'):
-                      try:
-                          df=pd.read_csv(fp)
-                          rec.update({'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')})
-                      except Exception:
-                          rec['preview']=fp.read_text(encoding='utf-8',errors='ignore')[:3000]
-              except Exception as e:
-                  rec['error']=repr(e)
-              summaries.append(rec)
-          safe_write(out/'attachments-summary.json',json.dumps(summaries,ensure_ascii=False,indent=2,default=str))
-          print('ZIP_FILES')
-          for s in summaries:
-              print(s['name'],s['size'],s.get('rows',''),s.get('columns',''))
+              bsp=[n for n in zz.namelist() if n.endswith('de200.bsp')][0]
+              bsp_path=out/'de200.bsp'; bsp_path.write_bytes(zz.read(bsp))
+          kernel=SPK.open(str(bsp_path))
+          c=299792458.0
+          p_g=np.array([1274.913415085168,-1848.8519649923514,6507.26265527945])
+          v_g=np.array([-6.210795173831417,3.7461273059407443,2.2763308795948665])
+          ref_jd=57715.000000295+2400000.5; ref_ra=83.63307631324167; ref_dec=22.014493269173464
+          dra=-14.7e-3/3600/365.2425; ddec=2.0e-3/3600/365.2425
+          def uvec(jd):
+              ra=math.radians(ref_ra+(jd-ref_jd)*dra); dec=math.radians(ref_dec+(jd-ref_jd)*ddec)
+              return np.array([math.cos(dec)*math.cos(ra),math.cos(dec)*math.sin(ra),math.sin(dec)])
+          def tdb(jd, buggy):
+              g=6.24+0.017202*(jd-2451545.0); seconds=0.001657*math.sin(g)
+              return jd + (seconds if buggy else seconds/86400.0), seconds
+          def pv(jd):
+              pe,ve=kernel[3,399].compute_and_differentiate(jd); pm,vm=kernel[0,3].compute_and_differentiate(jd)
+              return pm+pe+p_g, vm/86400+ve/86400+v_g
+          for mjd in [57062.0,58119.1651507519]:
+              jd=mjd+2400000.5
+              jb,s=tdb(jd,True); jc,_=tdb(jd,False)
+              pb,vb=pv(jb); pc,vc=pv(jc); u=uvec(jd)
+              db=-np.dot(pb,u)*1000/c; dc=-np.dot(pc,u)*1000/c
+              print('MJD',mjd)
+              print('TDB_MINUS_TT_SECONDS',s)
+              print('BUGGY_EPHEM_OFFSET_SECONDS',s*86400)
+              print('BUGGY_JD',repr(jb),'CORRECTED_JD',repr(jc))
+              print('BUGGY_P_KM',pb.tolist())
+              print('CORRECTED_P_KM',pc.tolist())
+              print('POSITION_DIFFERENCE_KM',float(np.linalg.norm(pb-pc)))
+              print('BUGGY_GEO_DELAY_S',float(db),'CORRECTED_GEO_DELAY_S',float(dc),'DIFF_S',float(db-dc))
+              if mjd>58000:
+                  # paper functions, both barycentric and GCRS SR choice
+                  psun=kernel[0,10].compute(jb)
+                  ps2=pb-psun
+                  dproj=np.dot(ps2,u)*1000; dsun=np.linalg.norm(ps2)*1000
+                  sh=-2*1.327e20/c**3*np.log(dproj/dsun+1)
+                  red=-1.327e20/(np.linalg.norm(pb)*1000)/c**2
+                  sr_g=2*np.dot(p_g*1000,v_g*1000)/c**2
+                  sr_b=2*np.dot(pb*1000,vb*1000)/c**2
+                  print('BUGGY_SHAPIRO_S',float(sh))
+                  print('PAPER_REDSHIFT_NUMERIC',float(red),'DIMENSIONLESS_BY_UNITS')
+                  print('SR_GCRS_CODE_S',float(sr_g),'SR_BCRS_COMMENTED_S',float(sr_b))
+                  print('EARTH_SSB_BUGGY_KM',(pb-p_g).tolist())
+          kernel.close()
           PY
-      - name: Upload study extraction
-        uses: actions/upload-artifact@v4
-        with:
-          name: f24104860143-study-extraction-v2
-          path: /tmp/f24104860143/
-          if-no-files-found: error
-          retention-days: 1
