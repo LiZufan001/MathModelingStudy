@@ -27,8 +27,7 @@ jobs:
           from pathlib import Path
           from pypdf import PdfReader
           from docx import Document
-          import pymupdf, zipfile, json, re, os, pandas as pd, numpy as np
-          from xml.etree import ElementTree as ET
+          import pymupdf, zipfile, json, re, pandas as pd, numpy as np
 
           root=Path('.')
           p=root/'papers/CPMCM/2024/fulltext/F/F24104860143.pdf'
@@ -37,12 +36,15 @@ jobs:
           z=root/'problems/CPMCM/2024/F/F题.zip'
           out=Path('/tmp/f24104860143')
 
+          def safe_write(path, text):
+              path.write_bytes(str(text).encode('utf-8','replace'))
+
           r=PdfReader(str(p))
           print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
           texts=[]
           for i,page in enumerate(r.pages,1):
               texts.append(f'===== PAGE {i} / {len(r.pages)} =====\n{page.extract_text() or "[NO TEXT]"}')
-          (out/'pypdf.txt').write_text('\n\n'.join(texts),encoding='utf-8')
+          safe_write(out/'pypdf.txt','\n\n'.join(texts))
 
           doc=pymupdf.open(str(p))
           ftexts=[]
@@ -50,7 +52,7 @@ jobs:
               ftexts.append(f'===== PAGE {i} / {len(doc)} =====\n{page.get_text("text",sort=True)}')
               pix=page.get_pixmap(matrix=pymupdf.Matrix(1.7,1.7),alpha=False)
               pix.save(out/f'pages/page-{i:03d}.png')
-          (out/'pymupdf.txt').write_text('\n\n'.join(ftexts),encoding='utf-8')
+          safe_write(out/'pymupdf.txt','\n\n'.join(ftexts))
           print('RENDERED_PAGES',len(doc))
 
           def extract_docx(path, name):
@@ -62,25 +64,23 @@ jobs:
                   lines.append(f'\n[TABLE {ti}]')
                   for row in table.rows:
                       lines.append(' | '.join(cell.text.replace('\n',' / ') for cell in row.cells))
-              (out/f'{name}.txt').write_text('\n'.join(lines),encoding='utf-8')
-              # preserve math-ish XML textual order as secondary helper
+              safe_write(out/f'{name}.txt','\n'.join(lines))
               with zipfile.ZipFile(path) as zz:
                   xml=zz.read('word/document.xml').decode('utf-8','ignore')
               xml_text=re.sub(r'<[^>]+>',' ',xml)
               xml_text=re.sub(r'\s+',' ',xml_text)
-              (out/f'{name}-xmltext.txt').write_text(xml_text,encoding='utf-8')
+              safe_write(out/f'{name}-xmltext.txt',xml_text)
               return lines
 
           problem=extract_docx(q,'problem')
           appendix=extract_docx(a,'official-appendix')
           print('PROBLEM_PREVIEW')
-          print('\n'.join(problem)[:24000])
+          print('\n'.join(problem)[:24000].encode('utf-8','replace').decode('utf-8'))
 
-          # Inspect packaged official attachments and summarize machine-readable tables.
           zipdir=out/'problem_zip'
           with zipfile.ZipFile(z) as zz:
               names=zz.namelist()
-              (out/'zip-list.txt').write_text('\n'.join(names),encoding='utf-8')
+              safe_write(out/'zip-list.txt','\n'.join(names))
               for n in names:
                   if n.endswith('/'):
                       continue
@@ -99,8 +99,7 @@ jobs:
                       rec['sheets']=[]
                       for sh in xl.sheet_names:
                           df=pd.read_excel(fp,sheet_name=sh)
-                          shrec={'sheet':sh,'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')}
-                          rec['sheets'].append(shrec)
+                          rec['sheets'].append({'sheet':sh,'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')})
                   elif fp.suffix.lower() in ('.csv','.txt'):
                       try:
                           df=pd.read_csv(fp)
@@ -110,7 +109,7 @@ jobs:
               except Exception as e:
                   rec['error']=repr(e)
               summaries.append(rec)
-          (out/'attachments-summary.json').write_text(json.dumps(summaries,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
+          safe_write(out/'attachments-summary.json',json.dumps(summaries,ensure_ascii=False,indent=2,default=str))
           print('ZIP_FILES')
           for s in summaries:
               print(s['name'],s['size'],s.get('rows',''),s.get('columns',''))
@@ -118,7 +117,7 @@ jobs:
       - name: Upload study extraction
         uses: actions/upload-artifact@v4
         with:
-          name: f24104860143-study-extraction
+          name: f24104860143-study-extraction-v2
           path: /tmp/f24104860143/
           if-no-files-found: error
           retention-days: 1
