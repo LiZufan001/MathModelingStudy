@@ -2,7 +2,7 @@
 
 ## A–F 赛题
 
-- A：通用神经网络处理器下的核内调度问题
+- A：[通用神经网络处理器下的核内调度问题](A/study/README.md)
 - B：无线通信系统链路速率建模
 - C：围岩裂隙精准识别与三维模型重构
 - D：低空湍流监测及最优航路规划
@@ -29,6 +29,7 @@ https://www.newsdata.uestc.edu.cn/?Id=98642&n=UestcNews.Front.DocumentV2.Article
 
 - A–F 六题均收录题面
 - 每题同时保留 `DOCX` 与 `PDF` 两种格式
+- A 题已新增面向模拟写题的系统精读、三问建模路线、验证计划和论文建议，见 [`A/study/`](A/study/README.md)
 - F 题额外整理了录屏课完整 ASR 字幕、系统讲解分析和自学训练资料，见 [`F/study/`](F/study/README.md)
 - A 题已补齐附录 E 的示例计算图数据：6 个 JSON + 12 个 CSV，见 [`A/data/`](A/data/README.md)
 
