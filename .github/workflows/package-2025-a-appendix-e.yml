@@ -1,0 +1,28 @@
+name: Package 2025 A Appendix E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/package-2025-a-appendix-e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare package directory
+        run: |
+          mkdir -p package/附录E示例计算图数据
+          cp -R problems/CPMCM/2025/A/data/. package/附录E示例计算图数据/
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2025研究生数模A题_附录E示例计算图数据
+          path: package/附录E示例计算图数据
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 1
