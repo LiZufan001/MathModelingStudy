@@ -14,6 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A/data
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
       - name: Prepare package directory
         run: |
           mkdir -p package/附录E示例计算图数据
