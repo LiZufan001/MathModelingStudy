@@ -30,7 +30,7 @@ https://www.newsdata.uestc.edu.cn/?Id=98642&n=UestcNews.Front.DocumentV2.Article
 - A–F 六题均收录题面
 - 每题同时保留 `DOCX` 与 `PDF` 两种格式
 - F 题额外整理了录屏课完整 ASR 字幕、系统讲解分析和自学训练资料，见 [`F/study/`](F/study/README.md)
-- 本次 `2025.zip` 中未发现独立的数据附件文件，因此当前仅收录题面；后续若找到官方独立附件，再按题号补入对应目录
+- A 题已补齐附录 E 的示例计算图数据：6 个 JSON + 12 个 CSV，见 [`A/data/`](A/data/README.md)
 
 目录结构为 `A/` ～ `F/`。
 <!-- LOCAL-MATERIALS-2025-END -->
