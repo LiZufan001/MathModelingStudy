@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   import-data:
-    if: github.event.head_commit.message == 'chore: bootstrap 2025 A appendix E import'
+    if: "${{ github.event.head_commit.message == 'chore: bootstrap 2025 A appendix E import' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
