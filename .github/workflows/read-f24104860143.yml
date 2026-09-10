@@ -1,0 +1,124 @@
+name: Read F24104860143 for study
+on:
+  push:
+    paths:
+      - '.github/workflows/read-f24104860143.yml'
+permissions:
+  contents: read
+jobs:
+  read-paper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            papers/CPMCM/2024/fulltext/F/F24104860143.pdf
+            problems/CPMCM/2024/F/X射线脉冲星光子到达时间建模.docx
+            problems/CPMCM/2024/F/“华为杯”第二十一届中国研究生数学建模竞赛F题附录.docx
+            problems/CPMCM/2024/F/F题.zip
+            .github/workflows/read-f24104860143.yml
+      - name: Install readers
+        run: python -m pip install --quiet pypdf pymupdf python-docx pandas openpyxl numpy scipy
+      - name: Extract paper and problem
+        shell: bash
+        run: |
+          mkdir -p /tmp/f24104860143/pages /tmp/f24104860143/problem_zip
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          from docx import Document
+          import pymupdf, zipfile, json, re, os, pandas as pd, numpy as np
+          from xml.etree import ElementTree as ET
+
+          root=Path('.')
+          p=root/'papers/CPMCM/2024/fulltext/F/F24104860143.pdf'
+          q=root/'problems/CPMCM/2024/F/X射线脉冲星光子到达时间建模.docx'
+          a=root/'problems/CPMCM/2024/F/“华为杯”第二十一届中国研究生数学建模竞赛F题附录.docx'
+          z=root/'problems/CPMCM/2024/F/F题.zip'
+          out=Path('/tmp/f24104860143')
+
+          r=PdfReader(str(p))
+          print(f'PDF_META pages={len(r.pages)} encrypted={r.is_encrypted} bytes={p.stat().st_size}')
+          texts=[]
+          for i,page in enumerate(r.pages,1):
+              texts.append(f'===== PAGE {i} / {len(r.pages)} =====\n{page.extract_text() or "[NO TEXT]"}')
+          (out/'pypdf.txt').write_text('\n\n'.join(texts),encoding='utf-8')
+
+          doc=pymupdf.open(str(p))
+          ftexts=[]
+          for i,page in enumerate(doc,1):
+              ftexts.append(f'===== PAGE {i} / {len(doc)} =====\n{page.get_text("text",sort=True)}')
+              pix=page.get_pixmap(matrix=pymupdf.Matrix(1.7,1.7),alpha=False)
+              pix.save(out/f'pages/page-{i:03d}.png')
+          (out/'pymupdf.txt').write_text('\n\n'.join(ftexts),encoding='utf-8')
+          print('RENDERED_PAGES',len(doc))
+
+          def extract_docx(path, name):
+              d=Document(str(path))
+              lines=[]
+              for para in d.paragraphs:
+                  if para.text.strip(): lines.append(para.text)
+              for ti,table in enumerate(d.tables,1):
+                  lines.append(f'\n[TABLE {ti}]')
+                  for row in table.rows:
+                      lines.append(' | '.join(cell.text.replace('\n',' / ') for cell in row.cells))
+              (out/f'{name}.txt').write_text('\n'.join(lines),encoding='utf-8')
+              # preserve math-ish XML textual order as secondary helper
+              with zipfile.ZipFile(path) as zz:
+                  xml=zz.read('word/document.xml').decode('utf-8','ignore')
+              xml_text=re.sub(r'<[^>]+>',' ',xml)
+              xml_text=re.sub(r'\s+',' ',xml_text)
+              (out/f'{name}-xmltext.txt').write_text(xml_text,encoding='utf-8')
+              return lines
+
+          problem=extract_docx(q,'problem')
+          appendix=extract_docx(a,'official-appendix')
+          print('PROBLEM_PREVIEW')
+          print('\n'.join(problem)[:24000])
+
+          # Inspect packaged official attachments and summarize machine-readable tables.
+          zipdir=out/'problem_zip'
+          with zipfile.ZipFile(z) as zz:
+              names=zz.namelist()
+              (out/'zip-list.txt').write_text('\n'.join(names),encoding='utf-8')
+              for n in names:
+                  if n.endswith('/'):
+                      continue
+                  try:
+                      dest=zipdir/Path(n).name
+                      with zz.open(n) as src, open(dest,'wb') as dst:
+                          dst.write(src.read())
+                  except Exception as e:
+                      print('EXTRACT_FAIL',n,e)
+          summaries=[]
+          for fp in sorted(zipdir.iterdir()):
+              rec={'name':fp.name,'size':fp.stat().st_size}
+              try:
+                  if fp.suffix.lower() in ('.xlsx','.xls'):
+                      xl=pd.ExcelFile(fp)
+                      rec['sheets']=[]
+                      for sh in xl.sheet_names:
+                          df=pd.read_excel(fp,sheet_name=sh)
+                          shrec={'sheet':sh,'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')}
+                          rec['sheets'].append(shrec)
+                  elif fp.suffix.lower() in ('.csv','.txt'):
+                      try:
+                          df=pd.read_csv(fp)
+                          rec.update({'rows':len(df),'cols':len(df.columns),'columns':list(map(str,df.columns)),'head':df.head(5).to_dict(orient='records')})
+                      except Exception:
+                          rec['preview']=fp.read_text(encoding='utf-8',errors='ignore')[:3000]
+              except Exception as e:
+                  rec['error']=repr(e)
+              summaries.append(rec)
+          (out/'attachments-summary.json').write_text(json.dumps(summaries,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
+          print('ZIP_FILES')
+          for s in summaries:
+              print(s['name'],s['size'],s.get('rows',''),s.get('columns',''))
+          PY
+      - name: Upload study extraction
+        uses: actions/upload-artifact@v4
+        with:
+          name: f24104860143-study-extraction
+          path: /tmp/f24104860143/
+          if-no-files-found: error
+          retention-days: 1
