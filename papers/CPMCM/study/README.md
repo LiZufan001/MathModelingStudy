@@ -4,7 +4,7 @@
 
 ---
 
-# 当前进度：8 / 13
+# 当前进度：9 / 13
 
 ## 第一阶段：五类核心能力样本（5/5 完成）
 
@@ -16,7 +16,7 @@
 | 4 | 2024 B | `B24102860287` | 通信机理 + 数据驱动、验证设计 | ✅ |
 | 5 | 2023 B | `B23104860044` | DFT 类矩阵、稀疏/量化、硬件复杂度 | ✅ |
 
-## 第二阶段：S 级扩展精读（3/8 完成）
+## 第二阶段：S 级扩展精读（4/8 完成）
 
 > 第二阶段按能力互补推进。只有拿到可核验全文后才标记“精读”；校方新闻/摘要不能代替论文正文。
 
@@ -25,13 +25,15 @@
 | 6 | 2022 B | `B22106140009` | 大规模排样、订单组批、结构化预处理、启发式、下界 | ✅ |
 | 7 | 2020 C | `C20102860127` 东南大学；另保留电子科大目标队方法对照 | 信号处理→通道选择→监督/半监督→资源受限验证 | ✅ |
 | 8 | 2024 F | `F24104860143` 武汉大学 | 轨道机理、参考系/时间尺度、相对论时延、NHPP 仿真 | ✅ |
-| 9 | 2024 E | 广西大学 王家宝/石磊/施涵 | 视觉提参→拥堵预测→模糊决策，多模型变量传递 | ⏳ 待确认全文 |
+| 9 | 2024 E | `E24102910005` 南京工业大学；另保留广西大学目标队官方方法对照 | 视频标定→交通状态→时序预测→滞回控制→反事实评估 | ✅ |
 | 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | ⏳ 待确认全文 |
 | 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | ⏳ 待确认全文 |
 | 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | ⏳ 待确认全文 |
 | 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | ⏳ 待确认全文 |
 
 > **2020 C 来源说明：**原路线点名电子科技大学贾召钱、殷康宁、王文超团队。校方可核验其一等奖身份和方法链，但当前公开优秀论文包中未找到与该队成员精确对应的完整 PDF。为避免冒充全文，本轮实际逐页精读 exact-match 国一 `C20102860127`（东南大学李典泽、付银、程鑫），并另建 UESTC 方法对照。若日后获得可核验全文，再新增独立目录。
+
+> **2024 E 来源说明：**原路线点名广西大学王家宝、石磊、施涵团队（`E24105930017`）。校方官方报道可核验其全国一等奖身份，并公开 YOLOv10+FairMOT、AHP、K-means、改进机器学习、模糊逻辑的总体方法链，但当前公开全文包未收录与该队精确对应的 PDF。本轮实际逐页精读 `E24102910005`（南京工业大学任碧芸、张朝凯、武瑞，全国一等奖、数模之星提名），同时另建广西大学官方方法对照；若日后获得广西大学全文，再新增独立目录。
 
 ---
 
@@ -115,6 +117,17 @@
 - [`2024-F-F24104860143/TIME_AND_SIMULATION_AUDIT.md`](2024-F-F24104860143/TIME_AND_SIMULATION_AUDIT.md)：TT/TDB、GCRS/BCRS、m/km、相对论量纲、NHPP sampler/evaluator 专项审计
 - [`2024-F-F24104860143/COMPETITION_PLAYBOOK.md`](2024-F-F24104860143/COMPETITION_PLAYBOOK.md)：物理机理 + 随机过程题速查
 
+## 9. 2024 E｜E24102910005
+
+原论文：[`../2024/fulltext/E/E24102910005.pdf`](../2024/fulltext/E/E24102910005.pdf)
+
+- [`2024-E-E24102910005/README.md`](2024-E-E24102910005/README.md)：60 页完整精读；视频提参、交通流、预警、K(t)、控制、量化与布点审计
+- [`2024-E-E24102910005/MODEL_RECONSTRUCTION.md`](2024-E-E24102910005/MODEL_RECONSTRUCTION.md)：Observation → Calibration → State → Forecast → Action → Counterfactual → Sensor Design 重构
+- [`2024-E-E24102910005/REVIEWER_REPORT.md`](2024-E-E24102910005/REVIEWER_REPORT.md)：指导老师/评审老师视角与 12 个模拟答辩问题
+- [`2024-E-E24102910005/VIDEO_TO_CONTROL_AUDIT.md`](2024-E-E24102910005/VIDEO_TO_CONTROL_AUDIT.md)：测量标定、单位、公式复算、时序验证、K(t)、反事实和传感器布点专项审计
+- [`2024-E-E24102910005/COMPETITION_PLAYBOOK.md`](2024-E-E24102910005/COMPETITION_PLAYBOOK.md)：视频交通预测/控制题速查
+- [`2024-E-E24102910005/GXU_METHOD_COMPARISON.md`](2024-E-E24102910005/GXU_METHOD_COMPARISON.md)：广西大学王家宝队官方方法链同题对照；不冒充全文精读
+
 ---
 
 # 当前能力矩阵
@@ -129,6 +142,7 @@
 | 2022 B | NP-hard 组合优化 → 结构降维 → heuristic → lower bound |
 | 2020 C | 事件信号 → group-aware validation → 资源压缩 |
 | 2024 F | 轨道/时延机理 → unit/frame/time-scale discipline → NHPP |
+| 2024 E | 视频测量 → calibration → 守恒状态 → 时序预测 → hysteresis control → counterfactual |
 
 ---
 
@@ -139,7 +153,7 @@
       ↓
 结构、机理、状态、工艺或数据生成机制
       ↓
-单位 / 参考系 / 数据独立单位
+单位 / 参考系 / 数据独立单位 / measurement calibration
       ↓
 硬约束与软目标
       ↓
@@ -149,7 +163,7 @@ baseline + lower bound / sanity bound
       ↓
 唯一 evaluator
       ↓
-独立验证、消融、复杂度、稳健性
+独立验证、消融、复杂度、稳健性 / sensitivity
       ↓
 单一结果源自动生成论文数字
 ```
@@ -166,3 +180,5 @@ baseline + lower bound / sanity bound
 8. 算法型题维护 complexity ledger。
 9. 物理题额外维护 unit / frame / time-scale ledger，并对每个小修正做 dimension audit。
 10. 仿真题把 self-consistency 与 independent validation 分开，不用生成器输入本身冒充独立验证。
+11. 视频/传感器题必须维护 measurement calibration 与 uncertainty；像素检测正确不等于物理量正确。
+12. 控制题把 counterfactual assumption 与 empirical effect 分开，安全类条件优先写成 hard constraints。
