@@ -10,73 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Probe public Baidu share
+      - name: Search public corpus repository history
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install -q playwright
-          python -m playwright install chromium >/dev/null
-          cat >/tmp/probe.py <<'PY'
-          import asyncio, re
-          from playwright.async_api import async_playwright
-
-          URL='https://pan.baidu.com/s/1_ezm5JXyuNk3x1HkOpeNoA?pwd=1234'
-
-          async def open_exact(page, text):
-              loc=page.get_by_text(text, exact=True).last
-              if not await loc.count():
-                  print('NOT_FOUND_EXACT', repr(text)); return False
-              await loc.dblclick(timeout=10000)
-              await page.wait_for_timeout(5000)
-              print('OPENED', repr(text), 'URL', page.url)
-              return True
-
-          async def dump(page, label):
-              body=await page.locator('body').inner_text()
-              print('\n===== '+label+' =====')
-              print(body[:60000])
-              print('===== END '+label+' =====\n')
-              return body
-
-          async def main():
-              async with async_playwright() as p:
-                  browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
-                  ctx=await browser.new_context(viewport={'width':1440,'height':1000},user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152 Safari/537.36')
-                  page=await ctx.new_page()
-                  await page.goto(URL,wait_until='domcontentloaded',timeout=90000)
-                  await page.wait_for_timeout(8000)
-                  body=await page.locator('body').inner_text()
-                  if '请输入提取码' in body:
-                      box=page.locator('input[placeholder*="提取码"]').first
-                      if await box.count():
-                          await box.fill('1234')
-                          btn=page.locator('#submitBtn').first
-                          if await btn.count(): await btn.click(); await page.wait_for_timeout(6000)
-                  await open_exact(page,'华为杯研究生建模资料')
-                  await open_exact(page,'华为杯优秀论文（2010-2025年）')
-                  body=await dump(page,'YEARS')
-
-                  # Try likely 2025 folder labels; otherwise click the shortest visible line containing 2025.
-                  opened=False
-                  for cand in ['2025年','2025','2025年优秀论文','2025年研究生数学建模竞赛优秀论文选']:
-                      if await open_exact(page,cand): opened=True; break
-                  if not opened:
-                      lines=[x.strip() for x in body.splitlines() if '2025' in x and len(x.strip())<100]
-                      print('2025_CANDIDATE_LINES',lines[:30])
-                      for text in sorted(set(lines), key=len):
-                          loc=page.get_by_text(text, exact=True).last
-                          if await loc.count():
-                              try:
-                                  await loc.dblclick(timeout=8000); await page.wait_for_timeout(5000); opened=True; print('OPENED_FUZZY',repr(text)); break
-                              except Exception as e: print('FUZZY_FAIL',repr(text),repr(e))
-                  if opened:
-                      body2=await dump(page,'2025_FOLDER')
-                      # If a C folder is visible, enter it.
-                      for cand in ['C题优秀论文','C题','C']:
-                          if await open_exact(page,cand):
-                              await dump(page,'2025_C_FOLDER')
-                              break
-                  await browser.close()
-          asyncio.run(main())
-          PY
-          python /tmp/probe.py
+          git clone --filter=blob:none --no-checkout https://github.com/yan315598-design/mathmodel-studio.git /tmp/mmstudio
+          cd /tmp/mmstudio
+          git fetch --all --tags --prune
+          echo '--- current tree filename search ---'
+          git ls-tree -r --name-only HEAD | grep -Ei 'Frangi|裂隙|2025.*C' | head -100 || true
+          echo '--- all-history filename search ---'
+          git log --all --full-history --name-only --pretty='format:COMMIT %H' -- . | grep -Ei '(^COMMIT|Frangi|裂隙|2025年研究生数学建模竞赛优秀论文选)' | head -400 || true
+          echo '--- large blob candidates in reachable history ---'
+          git rev-list --objects --all | grep -Ei 'Frangi|裂隙|C题优秀论文' | head -200 || true
