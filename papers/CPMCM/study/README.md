@@ -29,7 +29,7 @@
 | 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | 🟡 证据重构，待封面核验 |
 | 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | 🟡 证据重构，待封面核验 |
 | 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | 🟡 同题候选证据重构；目标队全文未找到 |
-| 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | ⏳ 待确认全文 |
+| 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | 🟡 F1候选证据重构；目标队全文未找到 |
 
 > **2020 C 来源说明：**原路线点名电子科技大学贾召钱、殷康宁、王文超团队。校方可核验其一等奖身份和方法链，但当前公开优秀论文包中未找到与该队成员精确对应的完整 PDF。为避免冒充全文，本轮实际逐页精读 exact-match 国一 `C20102860127`（东南大学李典泽、付银、程鑫），并另建 UESTC 方法对照。若日后获得可核验全文，再新增独立目录。
 
@@ -219,3 +219,16 @@ baseline + lower bound / sanity bound
 - [`2025-D-95743f6ef8d6/REVIEWER_REPORT.md`](2025-D-95743f6ef8d6/REVIEWER_REPORT.md)：模拟评审与16个答辩问题
 - [`2025-D-95743f6ef8d6/COMPETITION_PLAYBOOK.md`](2025-D-95743f6ef8d6/COMPETITION_PLAYBOOK.md)：多源融合+NWP校正+风险航路速查
 - [`2025-D-95743f6ef8d6/SOURCE_PROVENANCE.md`](2025-D-95743f6ef8d6/SOURCE_PROVENANCE.md)：目标队与候选身份边界
+
+
+## 13. 2025 F｜77892f7dcdfe 主候选（证据级深读 + 实战综合）
+
+> **身份边界：**目标国一作品为湖州师范学院周萌团队 `F25100130044`《江南古典园林的游园路线规划及美学特征建模》；当前四份 2025 F 优秀论文候选题名均不同，不能绑定目标队。本目录以 182 页 `F题-1-江南古典园林的美学特征建模`（evidence `77892f7dcdfe`）为主证据，并横向吸收其余 F 题候选中可迁移的实战技巧。
+
+- [`2025-F-77892f7dcdfe/README.md`](2025-F-77892f7dcdfe/README.md)：主观概念→机制→路径/评分/相似度证据级深读
+- [`2025-F-77892f7dcdfe/MODEL_RECONSTRUCTION.md`](2025-F-77892f7dcdfe/MODEL_RECONSTRUCTION.md)：统一 subjective concept → observable state → decision → validation 重构
+- [`2025-F-77892f7dcdfe/PRACTICAL_MODELING_TOOLKIT.md`](2025-F-77892f7dcdfe/PRACTICAL_MODELING_TOOLKIT.md)：四份 F 题优秀论文横向提炼的赛场实战工具箱
+- [`2025-F-77892f7dcdfe/REVIEWER_REPORT.md`](2025-F-77892f7dcdfe/REVIEWER_REPORT.md)：模拟评审与 16 个答辩追问
+- [`2025-F-77892f7dcdfe/TARGET_TEAM_COMPARISON.md`](2025-F-77892f7dcdfe/TARGET_TEAM_COMPARISON.md)：湖州师范目标国一公开方法链对照
+- [`2025-F-77892f7dcdfe/COMPETITION_PLAYBOOK.md`](2025-F-77892f7dcdfe/COMPETITION_PLAYBOOK.md)：主观评价/空间体验题速查
+- [`2025-F-77892f7dcdfe/SOURCE_PROVENANCE.md`](2025-F-77892f7dcdfe/SOURCE_PROVENANCE.md)：候选全文、目标队与证据边界
