@@ -1,0 +1,7 @@
+case,strategy,nodes,edges,q1_peak,baseline_spill_count,spill_count,spill_delta,baseline_extra_traffic,extra_traffic,traffic_delta,affinity_decisions,footprint_decisions,valid
+Matmul_Case0,optimized,4160,7104,9216,272,225,-47,34816,28800,-6016,119,119,True
+Matmul_Case1,optimized,30976,55040,34816,3600,3361,-239,460800,430208,-30592,495,495,True
+FlashAttention_Case0,optimized,1716,2712,26728,301,301,0,55188,55188,0,0,0,True
+FlashAttention_Case1,optimized,6952,11184,106992,1782,1782,0,242552,242552,0,0,0,True
+Conv_Case0,optimized,2580,3869,80170,493,493,0,178212,178212,0,0,0,True
+Conv_Case1,optimized,36086,85653,310408,9550,9550,0,724630,724630,0,0,0,True
