@@ -41,6 +41,7 @@ jobs:
       - name: Run Q2 baseline on all six official Appendix-E cases
         run: |
           python problems/CPMCM/2025/A/src/batch_q2.py \
+            --strategy baseline \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q2-baseline-results
       - name: Compare Matmul strict allocator with exact uniform-page Belady oracle
@@ -55,6 +56,12 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --baseline-summary /tmp/q2-baseline-results/q2_baseline_summary.csv \
             --out-dir /tmp/q2-reuse
+      - name: Generate promoted Q2 optimized solutions with exact regression gates
+        run: |
+          python problems/CPMCM/2025/A/src/batch_q2.py \
+            --strategy optimized \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q2-optimized-results
       - name: Download archived 2025-09-25 competition Problem 2 attachment
         run: |
           mkdir -p /tmp/public-q2
@@ -102,6 +109,7 @@ jobs:
           path: |
             /tmp/q2-statement-records.json
             /tmp/q2-baseline-results
+            /tmp/q2-optimized-results
             /tmp/q2-matmul-belady-oracle.csv
             /tmp/q2-matmul-belady-oracle.json
             /tmp/q2-reuse

@@ -9,6 +9,7 @@ from pathlib import Path
 from parser import load_case
 from q1_scheduler import schedule_q1_baseline
 from q2_allocator import allocate_q2_baseline
+from q2_optimized import EXPECTED_Q2_OPTIMIZED, schedule_q2_optimized
 from q2_validator import validate_q2_solution
 
 CASES = (
@@ -19,6 +20,7 @@ CASES = (
     "Conv_Case0",
     "Conv_Case1",
 )
+STRATEGIES = ("baseline", "optimized")
 
 EXPECTED = {
     "Matmul_Case0": (4160, 7104),
@@ -51,11 +53,39 @@ def _write_official_outputs(case: str, out_dir: Path, solution) -> None:
     )
 
 
+def _schedule(graph, strategy: str):
+    if strategy == "baseline":
+        return schedule_q1_baseline(graph)
+    if strategy == "optimized":
+        return schedule_q2_optimized(graph)
+    raise ValueError(f"unknown Q2 strategy: {strategy}")
+
+
+def _assert_optimized_regression(case: str, scheduled, replay) -> None:
+    expected = EXPECTED_Q2_OPTIMIZED[case]
+    actual = (
+        scheduled.evaluation.peak_residency,
+        replay.spill_count,
+        replay.extra_traffic,
+    )
+    target = (expected.q1_peak, expected.spill_count, expected.extra_traffic)
+    if actual != target:
+        raise AssertionError(
+            f"{case}: optimized regression expected peak/spills/traffic={target}, got {actual}"
+        )
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Run strict Q2 baseline on all official cases")
+    ap = argparse.ArgumentParser(description="Generate strict Q2 solutions on official cases")
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--case", choices=CASES, action="append", dest="cases")
+    ap.add_argument(
+        "--strategy",
+        choices=STRATEGIES,
+        default="baseline",
+        help="baseline keeps the Q1 order; optimized uses the promoted pure-footprint Q2 order",
+    )
     args = ap.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -71,12 +101,12 @@ def main() -> int:
                 f"{(graph.node_count, graph.edge_count)}"
             )
 
-        q1_start = time.perf_counter()
-        q1 = schedule_q1_baseline(graph)
-        q1_seconds = time.perf_counter() - q1_start
+        schedule_start = time.perf_counter()
+        scheduled = _schedule(graph, args.strategy)
+        schedule_seconds = time.perf_counter() - schedule_start
 
         q2_start = time.perf_counter()
-        q2 = allocate_q2_baseline(graph, q1.order)
+        q2 = allocate_q2_baseline(graph, scheduled.order)
         q2_seconds = time.perf_counter() - q2_start
 
         # A second explicit replay here is intentional: batch acceptance must not
@@ -85,18 +115,26 @@ def main() -> int:
         replay.require_ok()
         if replay.extra_traffic != q2.validation.extra_traffic:
             raise AssertionError(f"{case}: Q2 traffic mismatch between validation passes")
+        if replay.spill_count != q2.validation.spill_count:
+            raise AssertionError(f"{case}: Q2 spill-count mismatch between validation passes")
+
+        if args.strategy == "optimized":
+            _assert_optimized_regression(case, scheduled, replay)
 
         _write_official_outputs(case, args.out_dir, q2.solution)
         rows.append(
             {
                 "case": case,
+                "strategy": args.strategy,
                 "nodes": graph.node_count,
                 "edges": graph.edge_count,
-                "q1_peak": q1.evaluation.peak_residency,
+                "q1_peak": scheduled.evaluation.peak_residency,
                 "spill_count": replay.spill_count,
                 "extra_traffic": replay.extra_traffic,
                 "final_schedule_nodes": len(q2.solution.schedule),
-                "q1_seconds": round(q1_seconds, 6),
+                "affinity_decisions": getattr(scheduled, "affinity_decisions", 0),
+                "footprint_decisions": getattr(scheduled, "footprint_decisions", 0),
+                "q1_seconds": round(schedule_seconds, 6),
                 "q2_seconds": round(q2_seconds, 6),
                 "valid": replay.ok,
             }
@@ -104,22 +142,26 @@ def main() -> int:
 
     fields = [
         "case",
+        "strategy",
         "nodes",
         "edges",
         "q1_peak",
         "spill_count",
         "extra_traffic",
         "final_schedule_nodes",
+        "affinity_decisions",
+        "footprint_decisions",
         "q1_seconds",
         "q2_seconds",
         "valid",
     ]
-    csv_path = args.out_dir / "q2_baseline_summary.csv"
+    stem = f"q2_{args.strategy}_summary"
+    csv_path = args.out_dir / f"{stem}.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
-    (args.out_dir / "q2_baseline_summary.json").write_text(
+    (args.out_dir / f"{stem}.json").write_text(
         json.dumps(rows, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
