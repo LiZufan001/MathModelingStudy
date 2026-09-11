@@ -7,13 +7,19 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC))
 
-from model import ComputeGraph
+from model import ComputeGraph, Node
 from q2_model import CACHE_CAPACITIES, Q2Solution
 from q2_validator import validate_q2_solution
 from q3_audit import physical_epochs
-from q3_dependencies import official_literal_reuse_edges
+from q3_dependencies import (
+    augmented_nodes,
+    official_literal_reuse_edges,
+    original_edges,
+    pipe_edges,
+    spill_edges,
+)
 from q3_evaluator import evaluate_q3_solution
-from q3_model import Q3TimingResult
+from q3_model import Q3TimingResult, node_cycles
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +27,7 @@ class LocalRecolorTrial:
     buf_id: int
     old_offset: int
     new_offset: int
-    q2_valid: bool
+    q2_valid: bool | None
     safe_valid: bool | None
     official_cycles: int | None
     safe_cycles: int | None
@@ -45,6 +51,77 @@ class LocalRecolorSearchResult:
         return self.best_official.total_cycles < self.baseline_official.total_cycles
 
 
+@dataclass(frozen=True, slots=True)
+class FastOfficialScore:
+    total_cycles: int
+    reuse_edge_count: int
+
+
+@dataclass(slots=True)
+class OfficialFastContext:
+    """Cached Appendix-C timing context for fixed schedule/SPILL decisions.
+
+    A local initial-offset move changes only literal address-reuse edges. Original
+    DAG, SPILL dependencies, Pipe serialization, node cycles, and schedule positions
+    remain immutable. Candidate screening can therefore reuse all static timing
+    predecessors and rebuild only literal reuse edges. Any candidate that can win
+    this fast screen is still replayed by the full Q2/Q3 validators before it is
+    accepted.
+    """
+
+    schedule: tuple[int, ...]
+    pos: dict[int, int]
+    static_predecessors: dict[int, tuple[int, ...]]
+    cycles: dict[int, int]
+
+    @classmethod
+    def build(cls, graph: ComputeGraph, solution: Q2Solution) -> "OfficialFastContext":
+        nodes = augmented_nodes(graph, solution)
+        pos = {node_id: index for index, node_id in enumerate(solution.schedule)}
+        static_edges = (
+            original_edges(graph)
+            | spill_edges(graph, solution, nodes, pos)
+            | pipe_edges(solution, nodes)
+        )
+        predecessors: dict[int, list[int]] = {node_id: [] for node_id in nodes}
+        for u, v in static_edges:
+            if u not in pos or v not in pos:
+                raise ValueError(f"static timing edge ({u}->{v}) references absent node")
+            if pos[u] >= pos[v]:
+                raise ValueError(
+                    f"static timing edge ({u}->{v}) contradicts schedule positions "
+                    f"{pos[u]} >= {pos[v]}"
+                )
+            predecessors[v].append(u)
+        return cls(
+            tuple(solution.schedule),
+            pos,
+            {node_id: tuple(preds) for node_id, preds in predecessors.items()},
+            {node_id: node_cycles(node) for node_id, node in nodes.items()},
+        )
+
+    def score(self, graph: ComputeGraph, solution: Q2Solution) -> FastOfficialScore:
+        if tuple(solution.schedule) != self.schedule:
+            raise ValueError("fast official context requires the frozen schedule")
+        reuse = official_literal_reuse_edges(graph, solution, self.pos)
+        dynamic_predecessors: dict[int, list[int]] = {}
+        for u, v in reuse:
+            dynamic_predecessors.setdefault(v, []).append(u)
+
+        finish_times: dict[int, int] = {}
+        total_cycles = 0
+        for node_id in self.schedule:
+            start = 0
+            for pred in self.static_predecessors[node_id]:
+                start = max(start, finish_times[pred])
+            for pred in dynamic_predecessors.get(node_id, ()):
+                start = max(start, finish_times[pred])
+            finish = start + self.cycles[node_id]
+            finish_times[node_id] = finish
+            total_cycles = max(total_cycles, finish)
+        return FastOfficialScore(total_cycles, len(reuse))
+
+
 def critical_reuse_targets(
     graph: ComputeGraph,
     solution: Q2Solution,
@@ -52,13 +129,6 @@ def critical_reuse_targets(
     max_targets: int = 6,
     official_timing: Q3TimingResult | None = None,
 ) -> tuple[int, ...]:
-    """Return buffers whose initial ALLOC is on a literal-reuse critical edge.
-
-    Targets are ordered from the tail of the current official critical path toward
-    the head.  This keeps the search focused on serialization that contributes to
-    the makespan, rather than every reuse edge in the graph.
-    """
-
     if max_targets <= 0:
         return ()
     timing = official_timing
@@ -85,12 +155,7 @@ def critical_reuse_targets(
     return tuple(out)
 
 
-def _address_pressure(
-    graph: ComputeGraph,
-    solution: Q2Solution,
-    *,
-    target_buf: int,
-) -> tuple[str, int, list[int]]:
+def _address_pressure(graph: ComputeGraph, solution: Q2Solution, *, target_buf: int) -> tuple[str, int, list[int]]:
     alloc = graph.alloc_node_for_buffer(target_buf)
     if alloc is None or alloc.memory_type is None or alloc.size is None:
         raise ValueError(f"buffer {target_buf} lacks complete ALLOC metadata")
@@ -117,22 +182,7 @@ def _address_pressure(
     return memory_type, alloc.size, pressure
 
 
-def _blocked_initial_bytes(
-    graph: ComputeGraph,
-    solution: Q2Solution,
-    *,
-    target_buf: int,
-) -> list[int]:
-    """Return a byte mask blocked during the target's initial sequential epoch.
-
-    This is an exact *necessary* prefilter for an initial-offset-only move under the
-    submitted Q2 event stream.  Any other residency epoch whose schedule-position
-    interval overlaps the target initial epoch must occupy disjoint bytes.  The
-    final winner still goes through the independent full Q2 replay and both Q3
-    evaluators; this mask only avoids replaying candidates that are guaranteed to
-    fail physical overlap.
-    """
-
+def _blocked_initial_bytes(graph: ComputeGraph, solution: Q2Solution, *, target_buf: int) -> list[int]:
     alloc = graph.alloc_node_for_buffer(target_buf)
     if alloc is None or alloc.memory_type is None:
         raise ValueError(f"buffer {target_buf} lacks complete ALLOC metadata")
@@ -140,20 +190,12 @@ def _blocked_initial_bytes(
     capacity = CACHE_CAPACITIES[memory_type]
     pos = {node_id: i for i, node_id in enumerate(solution.schedule)}
     epochs = physical_epochs(graph, solution)
-    target = next(
-        (
-            epoch
-            for epoch in epochs
-            if epoch.buf_id == target_buf and epoch.acquire_node == alloc.id
-        ),
-        None,
-    )
+    target = next((epoch for epoch in epochs if epoch.buf_id == target_buf and epoch.acquire_node == alloc.id), None)
     if target is None:
         raise ValueError(f"buffer {target_buf} has no initial residency epoch")
     target_a = pos[target.acquire_node]
     target_b = pos[target.release_node]
     blocked = [0] * capacity
-
     for epoch in epochs:
         if epoch.buf_id == target_buf or epoch.memory_type != memory_type:
             continue
@@ -166,22 +208,7 @@ def _blocked_initial_bytes(
     return blocked
 
 
-def candidate_initial_offsets(
-    graph: ComputeGraph,
-    solution: Q2Solution,
-    buf_id: int,
-    *,
-    max_starts: int = 12,
-) -> tuple[int, ...]:
-    """Propose diverse low-history-pressure, sequentially feasible offsets.
-
-    The pressure score counts how often bytes are occupied by *other* initial/SPILL
-    residency epochs.  Before ranking, a schedule-position residency mask removes
-    every start that is guaranteed to overlap a simultaneously resident epoch.
-    This reduces expensive full replays without changing the final correctness
-    gate or encoding any case/operator names.
-    """
-
+def candidate_initial_offsets(graph: ComputeGraph, solution: Q2Solution, buf_id: int, *, max_starts: int = 12) -> tuple[int, ...]:
     if max_starts <= 0:
         return ()
     alloc = graph.alloc_node_for_buffer(buf_id)
@@ -193,13 +220,11 @@ def candidate_initial_offsets(
     current = solution.initial_offsets[buf_id]
     if size == 0 or size > capacity:
         return ()
-
     pressure_prefix = [0]
     blocked_prefix = [0]
     for value, unavailable in zip(pressure, blocked):
         pressure_prefix.append(pressure_prefix[-1] + value)
         blocked_prefix.append(blocked_prefix[-1] + unavailable)
-
     scored: list[tuple[int, int, int]] = []
     for start in range(0, capacity - size + 1):
         if start == current:
@@ -209,10 +234,6 @@ def candidate_initial_offsets(
         score = pressure_prefix[start + size] - pressure_prefix[start]
         scored.append((score, abs(start - current), start))
     scored.sort()
-
-    # Keep neighbouring starts from consuming the whole budget.  The pressure and
-    # overlap signatures are piecewise constant between placement boundaries, so
-    # spatial diversity gives more distinct reuse patterns per strict replay.
     min_gap = max(1, size // 4)
     chosen: list[int] = []
     for _, _, start in scored:
@@ -229,11 +250,7 @@ def candidate_initial_offsets(
     return tuple(chosen)
 
 
-def move_initial_offset(
-    solution: Q2Solution,
-    buf_id: int,
-    new_offset: int,
-) -> Q2Solution:
+def move_initial_offset(solution: Q2Solution, buf_id: int, new_offset: int) -> Q2Solution:
     offsets = dict(solution.initial_offsets)
     if buf_id not in offsets:
         raise ValueError(f"buffer {buf_id} has no initial offset")
@@ -241,22 +258,7 @@ def move_initial_offset(
     return Q2Solution(solution.schedule, offsets, solution.spills)
 
 
-def search_q3_critical_recolor(
-    graph: ComputeGraph,
-    solution: Q2Solution,
-    *,
-    max_targets: int = 6,
-    max_starts: int = 12,
-) -> LocalRecolorSearchResult:
-    """Search single-buffer initial-offset moves on critical literal reuse edges.
-
-    SPILL identity/order/offsets and the global schedule are frozen.  Every
-    candidate first enters the official evaluator, which already performs a full
-    independent Q2 replay.  The more expensive residency-safe evaluator is only
-    run for candidates that strictly beat the current official best.  The final
-    winner is replayed once more by the standalone Q2 validator.
-    """
-
+def search_q3_critical_recolor(graph: ComputeGraph, solution: Q2Solution, *, max_targets: int = 6, max_starts: int = 12) -> LocalRecolorSearchResult:
     base_q2 = validate_q2_solution(graph, solution)
     base_q2.require_ok()
     baseline_safe = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
@@ -265,12 +267,14 @@ def search_q3_critical_recolor(
     baseline_official.require_ok()
     base_spill_buffers = tuple(spill.buf_id for spill in solution.spills)
 
-    targets = critical_reuse_targets(
-        graph,
-        solution,
-        max_targets=max_targets,
-        official_timing=baseline_official,
-    )
+    fast_context = OfficialFastContext.build(graph, solution)
+    baseline_fast = fast_context.score(graph, solution)
+    if baseline_fast.total_cycles != baseline_official.total_cycles:
+        raise AssertionError(f"cached official scorer disagrees with baseline evaluator: {baseline_fast.total_cycles} != {baseline_official.total_cycles}")
+    if baseline_fast.reuse_edge_count != baseline_official.reuse_edge_count:
+        raise AssertionError("cached official scorer disagrees with baseline reuse-edge count")
+
+    targets = critical_reuse_targets(graph, solution, max_targets=max_targets, official_timing=baseline_official)
     best_solution = solution
     best_safe = baseline_safe
     best_official = baseline_official
@@ -278,109 +282,29 @@ def search_q3_critical_recolor(
 
     for buf_id in targets:
         old_offset = solution.initial_offsets[buf_id]
-        for new_offset in candidate_initial_offsets(
-            graph,
-            solution,
-            buf_id,
-            max_starts=max_starts,
-        ):
+        for new_offset in candidate_initial_offsets(graph, solution, buf_id, max_starts=max_starts):
             candidate = move_initial_offset(solution, buf_id, new_offset)
-            try:
-                # official evaluator includes strict Q2 replay internally, so do
-                # not redundantly validate the same candidate before this call.
-                official = evaluate_q3_solution(
-                    graph,
-                    candidate,
-                    reuse_mode="official_literal",
-                )
-                if not official.ok:
-                    q2_valid = not any(
-                        error.startswith("Q2 invalid:") for error in official.errors
-                    )
-                    trials.append(
-                        LocalRecolorTrial(
-                            buf_id,
-                            old_offset,
-                            new_offset,
-                            q2_valid,
-                            None,
-                            None,
-                            None,
-                            None,
-                            "; ".join(official.errors[:2]),
-                        )
-                    )
-                    continue
-
-                # No safe replay is needed if this candidate cannot become the
-                # official winner.  Safety remains a hard gate for every candidate
-                # that is actually competitive for acceptance.
-                if official.total_cycles >= best_official.total_cycles:
-                    trials.append(
-                        LocalRecolorTrial(
-                            buf_id,
-                            old_offset,
-                            new_offset,
-                            True,
-                            None,
-                            official.total_cycles,
-                            None,
-                            official.reuse_edge_count,
-                            "safe replay skipped: not official-competitive",
-                        )
-                    )
-                    continue
-
-                safe = evaluate_q3_solution(
-                    graph,
-                    candidate,
-                    reuse_mode="residency_safe",
-                )
-                if not safe.ok:
-                    trials.append(
-                        LocalRecolorTrial(
-                            buf_id,
-                            old_offset,
-                            new_offset,
-                            True,
-                            False,
-                            official.total_cycles,
-                            None,
-                            official.reuse_edge_count,
-                            "; ".join(safe.errors[:2]),
-                        )
-                    )
-                    continue
-
-                trials.append(
-                    LocalRecolorTrial(
-                        buf_id,
-                        old_offset,
-                        new_offset,
-                        True,
-                        True,
-                        official.total_cycles,
-                        safe.total_cycles,
-                        official.reuse_edge_count,
-                    )
-                )
-                best_solution = candidate
-                best_safe = safe
-                best_official = official
-            except Exception as exc:
-                trials.append(
-                    LocalRecolorTrial(
-                        buf_id,
-                        old_offset,
-                        new_offset,
-                        False,
-                        None,
-                        None,
-                        None,
-                        None,
-                        f"{type(exc).__name__}: {exc}",
-                    )
-                )
+            fast = fast_context.score(graph, candidate)
+            if fast.total_cycles >= best_official.total_cycles:
+                trials.append(LocalRecolorTrial(buf_id, old_offset, new_offset, None, None, fast.total_cycles, None, fast.reuse_edge_count, "full replay skipped: cached official score not competitive"))
+                continue
+            official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
+            if not official.ok:
+                q2_valid = not any(error.startswith("Q2 invalid:") for error in official.errors)
+                trials.append(LocalRecolorTrial(buf_id, old_offset, new_offset, q2_valid, None, None, None, None, "; ".join(official.errors[:2])))
+                continue
+            if official.total_cycles != fast.total_cycles:
+                raise AssertionError(f"cached official score mismatch for buffer {buf_id} offset {new_offset}: {fast.total_cycles} != {official.total_cycles}")
+            if official.reuse_edge_count != fast.reuse_edge_count:
+                raise AssertionError(f"cached reuse-edge count mismatch for buffer {buf_id} offset {new_offset}")
+            safe = evaluate_q3_solution(graph, candidate, reuse_mode="residency_safe")
+            if not safe.ok:
+                trials.append(LocalRecolorTrial(buf_id, old_offset, new_offset, True, False, official.total_cycles, None, official.reuse_edge_count, "; ".join(safe.errors[:2])))
+                continue
+            trials.append(LocalRecolorTrial(buf_id, old_offset, new_offset, True, True, official.total_cycles, safe.total_cycles, official.reuse_edge_count))
+            best_solution = candidate
+            best_safe = safe
+            best_official = official
 
     final_q2 = validate_q2_solution(graph, best_solution)
     final_q2.require_ok()
@@ -390,14 +314,12 @@ def search_q3_critical_recolor(
         raise AssertionError("local recolor changed spill count")
     if tuple(spill.buf_id for spill in best_solution.spills) != base_spill_buffers:
         raise AssertionError("local recolor changed spill victim identity/order")
-
-    return LocalRecolorSearchResult(
-        solution,
-        baseline_official,
-        baseline_safe,
-        best_solution,
-        best_official,
-        best_safe,
-        targets,
-        tuple(trials),
-    )
+    final_official = evaluate_q3_solution(graph, best_solution, reuse_mode="official_literal")
+    final_official.require_ok()
+    final_safe = evaluate_q3_solution(graph, best_solution, reuse_mode="residency_safe")
+    final_safe.require_ok()
+    if final_official.total_cycles != best_official.total_cycles:
+        raise AssertionError("final official replay disagrees with selected candidate")
+    if final_safe.total_cycles != best_safe.total_cycles:
+        raise AssertionError("final safe replay disagrees with selected candidate")
+    return LocalRecolorSearchResult(solution, baseline_official, baseline_safe, best_solution, final_official, final_safe, targets, tuple(trials))
