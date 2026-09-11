@@ -60,6 +60,22 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --solution-dir /tmp/public-q2 \
             --out /tmp/q2-public-benchmark.csv
+      - name: Download archived competition Problem 1 schedules
+        run: |
+          mkdir -p /tmp/public-q1
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/archive/submission_packages/extracted_A25100550012/A25100550012/Attachment/Problem1"
+          for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
+            curl --fail --location --silent --show-error \
+              "$base/Q1_${case}_schedule.txt" \
+              --output "/tmp/public-q1/Q1_${case}_schedule.txt"
+          done
+      - name: Hold Q2 allocator fixed and ablate schedule order
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_order_ablation.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --external-q1-dir /tmp/public-q1 \
+            --external-q2-dir /tmp/public-q2 \
+            --out /tmp/q2-order-ablation.csv
       - name: Upload Q2 acceptance evidence
         uses: actions/upload-artifact@v4
         with:
@@ -69,4 +85,6 @@ jobs:
             /tmp/q2-baseline-results
             /tmp/q2-public-benchmark.csv
             /tmp/q2-public-benchmark.json
+            /tmp/q2-order-ablation.csv
+            /tmp/q2-order-ablation.json
           if-no-files-found: error
