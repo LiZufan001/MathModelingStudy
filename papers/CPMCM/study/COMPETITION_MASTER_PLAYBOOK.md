@@ -1,706 +1,559 @@
-# 华为杯建模实战总手册｜从拿题到提交的统一决策框架
+# 华为杯建模实战总手册 v2｜把开放问题研究得科学、清楚、可信
 
-> 目标：把历年优秀论文里真正可迁移的经验压缩成一套**正赛可执行流程**。  
-> 适用：研究生数学建模竞赛 / 华为杯，尤其适合三人队、建模与编程强、需要在有限时间内快速形成可信闭环的队伍。  
-> 原则：**历史论文里的阈值、权重、超参数不直接迁移；只迁移方法结构、验证纪律和建模接口。**
+> 这不是模型大全，而是一套正赛研究方法。  
+> **最高原则：数模的核心不是求一个标准答案，也不是展示高级算法，而是在开放问题上建立一条可审计、可追问、证据与结论匹配的研究链。**  
+> **说服力是结果，不是方法。** 评委信服，应当来自研究判断有依据、方法有针对性、证据能区分、结论不过界。  
+> 历史论文中的具体阈值、权重、超参数不直接迁移；只迁移研究结构、方法选择逻辑、验证纪律和建模接口。  
+> 论文叙事专项见 [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)。
 
 ---
 
-# 0. 总纲：先把这 12 句话背下来
+# 0. 先把“拿奖逻辑”想对
 
-1. **先锁官方 evaluator，再建模型。**
-2. **先检查 hard constraints，再比较 objective。**
-3. **先做可信 baseline，再上高级算法。**
-4. **先找结构，再找算法；结构通常比算法名更值钱。**
-5. **复杂优化先写 evaluator / simulator，再写 optimizer。**
-6. **数据题先定义“谁才是独立样本”，再切 train / validation。**
-7. **时间序列只能让过去预测未来；同组样本不能随机拆散。**
-8. **高精度物理题先查单位、参考系、时间尺度和量级。**
-9. **测量值不等于真实状态；图像像素、雷达回波、插值网格都只是观测层。**
-10. **近似模型必须有 invariant / feasibility / official-score 兜底。**
-11. **下游决策最好接收 value + uncertainty + valid-domain，而不是一个裸点估计。**
-12. **摘要、正文、表格、代码只能有一个结果源；禁止人工多处抄数字。**
+没有标准答案，不代表结果随意。
 
-如果比赛中只能保住一条主线，就是：
+比赛真正评价的不是：
 
 ```text
-Official task
-   ↓
-Evaluator + hard constraints
-   ↓
-Simple trustworthy baseline
-   ↓
-Exploit structure / mechanism
-   ↓
-Advanced model only where needed
-   ↓
-Strict validation
-   ↓
-Ablation / sensitivity / lower bound
-   ↓
-One-source results export
-   ↓
-Paper
+你的数值 = 标准答案？
 ```
+
+而是：
+
+```text
+你为什么这样理解问题？
+→ 为什么这样数学化？
+→ 为什么选这个方法？
+→ 什么证据支持它？
+→ 结论能说到哪里？
+```
+
+因此真正的主线是：
+
+\[
+\boxed{
+\text{Observation}
+\rightarrow
+\text{Judgment}
+\rightarrow
+\text{Model}
+\rightarrow
+\text{Evidence}
+\rightarrow
+\text{Boundary}
+}
+\]
+
+简称 **OJME-B 研究链**。
+
+- **Observation**：题意、数据、机理、结构、失败现象；
+- **Judgment**：我们认为真正关键的矛盾是什么；
+- **Model**：把判断变成变量、约束、关系、算法；
+- **Evidence**：baseline、下界、实验、独立验证、敏感性、不确定性；
+- **Boundary**：结论适用到哪里，哪些只是近似/情景/评分。
+
+## 0.1 两个极端都要避免
+
+### 只有故事，没有验收
+
+```text
+想法漂亮
+→ 公式很多
+→ 没有 baseline / 独立验证 / 边界
+```
+
+这不是科学研究。
+
+### 只有验收，没有洞察
+
+```text
+evaluator 完美
+→ 代码无 bug
+→ 随机试十个算法取最高分
+```
+
+这也不是高水平建模。
+
+真正有竞争力的是：
+
+> **有洞察的问题抽象 + 有针对性的方法 + 有区分力的证据 + 高效清楚的表达。**
 
 ---
 
-# 1. 拿题后前 60–90 分钟：不要急着写算法
+# 1. 拿题后前 60–90 分钟：建立“研究问题画布”
 
-## 1.1 第一张纸只写 8 个东西
+每道候选题先填这 10 项：
 
-每道候选题统一填写：
-
-| 项 | 必须写清楚 |
+| 项目 | 必须回答 |
 |---|---|
-| 输入 | 文件、变量、单位、时间/空间分辨率 |
-| 输出 | 每问最终必须交什么对象 |
-| 官方指标 | RMSE / q90 / 成本 / 数量 / 概率 / 综合分等 |
-| hard constraints | 违反即答案无效的约束 |
-| soft objective | 可以权衡的目标 |
-| 数据独立单位 | 人、实验、订单、时间窗、设备、路段、园林…… |
-| 题目结构 | 图、时序、守恒、低秩、分块、聚类、物理机制、层次结构…… |
-| 最大风险 | 数据脏、计算量、物理知识、标签少、验证难、附件大…… |
+| 现实对象 | 到底在研究什么系统/过程/行为 |
+| 每问输出 | 题目最终要求交什么对象 |
+| 核心矛盾 | 精度-成本？风险-距离？信息-资源？ |
+| hard constraints | 违反即失效的条件 |
+| 官方评价 | 题面真正如何计分/判定 |
+| 数据独立单位 | 人、实验、订单、设备、时间段、园林…… |
+| 机理/结构 | 守恒、图、层次、低秩、工艺、时序、空间 |
+| 最简单 baseline | 2–3 小时能否得到可信第一版 |
+| 可验证证据 | 真值、下界、外部对象、规律、反事实？ |
+| 最大风险 | 最可能让整题崩掉的环节 |
 
-先把这张表写完，再讨论模型。
+然后每人独立写一句：
 
-## 1.2 先判断“题型主骨架”，不要按题号猜
+> **“我认为这道题最关键的不是 ______，而是 ______。”**
 
-### A. 调度 / 组合优化 / 排样 / 组批
-典型信号：大量离散决策、顺序、分配、覆盖、容量、冲突。
+三个人比较这句话，比先讨论“用 XGBoost 还是 LSTM”更有价值。
 
-第一反应：
+---
+
+# 2. 选题：优先选“能形成研究闭环”的题
+
+不要只问“我们会不会”。
+
+重点比较：
+
+1. 能否快速形成**清楚的问题判断**；
+2. 能否做一个可信 baseline；
+3. 是否存在可用的验证证据；
+4. 各问能否自然递进；
+5. 我们有没有机会提出 1–2 个真正有辨识度的表示/状态/结构；
+6. 最坏情况下是否仍有可提交方案。
+
+高奖题不一定是最复杂的题，而往往是你们能把：
 
 ```text
-可行性检查器
+理解 → 方法 → 证据 → 叙事
+```
+
+做得最完整的题。
+
+---
+
+# 3. 第一版模型：先形成可信“研究地基”
+
+## 3.1 evaluator-first 是执行纪律，不是最高原则
+
+在明确了研究判断以后，立即实现：
+
+```python
+def check_input(data): ...
+def check_feasibility(solution, data): ...
+def official_score(solution, data): ...
+def sanity_report(solution, data): ...
+```
+
+它们的作用不是“定义研究思想”，而是防止研究链建立在错误数字上。
+
+## 3.2 Baseline 的意义不是凑对照，而是建立因果理由
+
+每问至少一个最简单可信 baseline：
+
+| 题型 | baseline |
+|---|---|
+| 回归 | 均值 / 线性 / RF |
+| 时间序列 | persistence |
+| 分类 | majority / logistic |
+| 路径 | 直线 / Dijkstra / A* |
+| 调度 | FIFO / greedy |
+| 排样 | FFD/BFD + area lower bound |
+| 矩阵 | exact algorithm |
+| 融合 | IDW / OI |
+| 综合评价 | 单指标 / 等权 |
+
+高级模型只有在 baseline 暴露明确失败模式后才升级。
+
+## 3.3 结果不是“答案”，而是证据
+
+我们用结果回答：
+
+- 假设是否自洽；
+- 哪个机制真的重要；
+- 高级模型是否解决了已知失败模式；
+- 近似解离理论极限多远；
+- 结论对参数是否稳定；
+- 哪些场景会失败。
+
+所以没有标准答案，也仍然必须严肃对待结果。
+
+---
+
+# 4. 模型升级的唯一正当理由：解决一个已识别问题
+
+合法升级理由主要有五类：
+
+### 结构理由
+
+低秩、稀疏、分块、工艺层次、守恒、图结构。
+
+### 统计理由
+
+非线性、异方差、类别不平衡、组相关、时序依赖。
+
+### 计算理由
+
+精确算法规模不可承受，需要 decomposition / heuristic。
+
+### 信息理由
+
+单源信息不足、标签昂贵，需要融合/半监督/surrogate。
+
+### 决策理由
+
+平均预测误差不足以保障安全，需要 tail risk / uncertainty。
+
+差的升级：
+
+> “为了提高精度，我们采用 XGBoost。”
+
+好的升级：
+
+> “线性基线在高值区系统低估，残差呈稳定非线性，因此使用树提升模型拟合该残差；改进主要集中在原失败区间。”
+
+---
+
+# 5. 七类题型的稳健研究骨架
+
+## 5.1 调度 / 排样 / 组合优化
+
+```text
+规则与 hard constraints
+→ feasibility simulator
 → lower bound
-→ 构造型 baseline
-→ 结构化降维
-→ local search / metaheuristic / MIP hybrid
+→ greedy construction
+→ structure-aware reduction
+→ repair / local search
+→ gap + robustness
 ```
 
-参考：2022 C、2022 B。
+核心叙事：**为什么原问题规模大，以及题目结构如何允许降维。**
 
-### B. 物理机理 / 动态系统 / 高精度计算
-典型信号：状态方程、几何、时延、轨迹、守恒、随机过程。
+来源经验：2022 C、2022 B。
 
-第一反应：
+## 5.2 物理 / 动态系统
 
 ```text
-单位/参考系账本
-→ 可计算机理评价器
-→ 解析/数值 baseline
-→ 参数优化
-→ invariant / external cross-check
+单位/参考系
+→ 机理状态模型
+→ invariant
+→ baseline evaluator
+→ 控制/设计变量
+→ independent cross-check
+→ error budget
 ```
 
-参考：2020 F、2024 F。
+核心叙事：**先把物理地基做准，再让优化器重复调用。**
 
-### C. 数据预测 / 分类 / 信号学习
-典型信号：训练集、标签、时序、分类、回归、无标签数据。
+来源经验：2020 F、2024 F。
 
-第一反应：
+## 5.3 数据 / 信号学习
 
 ```text
-独立样本单位
+独立样本定义
 → split protocol
-→ majority/persistence/simple-tree baseline
-→ feature/mechanism
-→ ML
-→ grouped / temporal validation
+→ baseline
+→ mechanism-informed features
+→ model
+→ group/time validation
+→ resource / error analysis
 ```
 
-参考：2020 C、2024 B。
+核心叙事：**为什么这些特征或模型能表达系统机制，而不是模型赛马。**
 
-### D. 矩阵 / 算法复杂度 / 存储
-典型信号：大矩阵、分解、近似、运算次数、硬件复杂度、压缩。
+来源经验：2020 C、2024 B。
 
-第一反应：
+## 5.4 矩阵 / 算法工程
 
 ```text
-官方复杂度账本
-→ 结构诊断（低秩/稀疏/对称/块/FFT/Kronecker）
-→ exact baseline
+官方 cost ledger
+→ bottleneck profiling
+→ structure reuse
 → structured approximation
+→ single-kernel optimization
+→ storage / compute co-design
 → error-cost Pareto
 ```
 
-参考：2021 A、2023 B。
+核心叙事：**不断追问“现在真正贵在哪里”。**
 
-### E. 图像 / 视频 → 下游决策
-典型信号：检测、分割、跟踪只是前半问，后面还有几何/控制/重构。
+来源经验：2021 A、2023 B。
 
-第一反应：
+## 5.5 图像 / 视频 → 空间或决策
 
 ```text
-像素/检测结果
-→ 物理标定
-→ 状态估计
-→ downstream model
+raw pixel
+→ detection / segmentation
+→ physical calibration
+→ state / geometry
+→ uncertainty
+→ downstream task
 → end-to-end validation
 ```
 
-参考：2024 E、2025 C。
+核心叙事：**研究对象不断升级，而不是每问换一个视觉算法。**
 
-### F. 多源环境场 / 风险 / 航路
-典型信号：多传感器、插值/融合、预报、空间三维场、路径规划。
+来源经验：2024 E、2025 C。
 
-第一反应：
+## 5.6 多源环境场 / 风险航路
 
 ```text
-observation operator
+observation operators
 → QC / alignment
-→ probabilistic state
-→ forecast + uncertainty
+→ reference / state estimate
+→ uncertainty
+→ forecast calibration
 → risk field
-→ A*/Dijkstra baseline
-→ chance/CVaR route
+→ baseline route
+→ chance / CVaR decision
 ```
 
-参考：2025 D 两篇。
+核心叙事：**监测—预报—决策越长，不确定性越要一起往后传。**
 
-### G. 主观评价 / 美学 / 舒适 / 吸引力
-典型信号：软概念，没有直接标签，需要评分/排序/路线。
+来源经验：2025 D。
 
-第一反应：
+## 5.7 主观评价 / 美学 / 舒适度
 
 ```text
-概念 → 可观察机制
-→ 状态/变化/结构/决策四类指标
-→ 防刷分设计
+soft concept
+→ observable mechanism
+→ local state / change / structure
+→ anti-gaming metric
 → calibration anchor
-→ sensitivity + external consistency
+→ score / Pareto decision
+→ sensitivity + external object
 ```
 
-参考：2025 F。
+核心叙事：
+
+\[
+\boxed{Concept\rightarrow Mechanism\rightarrow Metric}
+\]
+
+而不是 `Concept → AHP`。
+
+来源经验：2025 F。
 
 ---
 
-# 2. 选题：用“闭环难度”而不是“看起来会不会”判断
+# 6. 验证：不是证明“标准答案正确”，而是检验研究判断
 
-三道题比较时，对每题 0–5 分打分：
+建立五级证据塔：
 
-| 维度 | 低分好还是高分好 | 判断 |
+1. **内部自洽**：范围、守恒、正定、round-trip；
+2. **简单 baseline**：是否真的比朴素方案好；
+3. **消融 / 敏感性**：提升来自哪里，参数是否稳定；
+4. **独立验证**：独立时间、设备、对象、实验组；
+5. **边界证据**：lower bound、最坏情况、置信区间、tail risk。
+
+尽量做到 3–5 层。
+
+## 6.1 数据验证纪律
+
+先定义谁才是独立样本，再 split。
+
+- 同一实验多行 → group split；
+- 同一被试多个 epoch → subject/trial-aware split；
+- 时间序列 → past → future；
+- scaler / PCA / feature selection → fold 内 fit。
+
+## 6.2 物理验证纪律
+
+维护：
+
+```text
+symbol | meaning | unit | frame/time-scale | valid range
+```
+
+强制检查：
+
+- 数量级；
+- invariant；
+- 独立公式/库/数据交叉验证；
+- 高阶修正是否小于基础误差。
+
+## 6.3 优化验证纪律
+
+同时报告：
+
+\[
+\boxed{Feasibility + Objective + Lower\ Bound/Reference}
+\]
+
+随机算法多个 seed，不能只给一次最好结果。
+
+## 6.4 主观评价验证纪律
+
+没有真值时至少做：
+
+```text
+理论应然关系
+→ simple baseline
+→ 权重/阈值 sensitivity
+→ frozen-parameter external object
+```
+
+---
+
+# 7. 论文叙事：把“为什么”写在“怎么做”之前
+
+完整专项见 [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)。
+
+每一问建议采用七段研究链：
+
+1. **核心矛盾**：本问真正难在哪里；
+2. **观察/诊断**：什么事实支持我们的理解；
+3. **建模判断**：因此把问题抽象成什么；
+4. **数学模型**：变量、状态、约束和关系；
+5. **求解方法**：怎样高效算；
+6. **验证/边界**：为什么相信，哪里不能用；
+7. **接口**：本问输出怎样进入下一问。
+
+## 7.1 最小叙事单元
+
+一段话尽量形成：
+
+```text
+观察 / 困难
+→ 判断
+→ 方法
+→ 证据
+→ 边界 / 下一步
+```
+
+## 7.2 多问之间必须有桥
+
+常见桥：
+
+- **输出桥**：前问状态成为后问输入；
+- **限制桥**：后一问放宽前问假设；
+- **资源桥**：高成本 reference → 低成本 surrogate；
+- **决策桥**：预测 → 控制/优化；
+- **不确定性桥**：估计误差 → 风险决策。
+
+如果只能用“针对问题二，我们……”连接，说明整篇主线还不够清楚。
+
+## 7.3 公式是论证节点
+
+公式前回答：
+
+> 为什么需要这个量？
+
+公式后回答：
+
+> 它增大/减小意味着什么？怎样进入下一步？
+
+不要连续堆公式，再统一解释。
+
+## 7.4 失败实验可以写，而且常常应该写
+
+只要失败：
+
+- 揭示一个事实；
+- 改变后续路线；
+- 在严格协议下得到；
+
+它就是研究证据。
+
+2025 C 的 ML 退回 Frangi、2025 D 的低 R² LSTM 转向其他数据源，都比“假装一开始就选对”更有研究味。
+
+## 7.5 创新优先写在哪里
+
+优先级：
+
+```text
+新问题表示
+> 新状态/变量
+> 新结构利用
+> 新模型接口
+> 新验证设计
+> 针对性组合
+> 改进算法名
+```
+
+评委通常更容易记住“你怎么看问题”，而不是“你把哪个算法改了一个系数”。
+
+---
+
+# 8. 回顾精读论文：真正值得学习的叙事模式
+
+| 论文 | 真正的研究主线 | 叙事技巧 |
 |---|---|---|
-| 题意歧义 | 低分好 | evaluator 是否明确 |
-| 数据清洁度 | 高分好 | 能否快速读入/理解 |
-| 可做 baseline | 高分好 | 2–3 小时内能否出第一版 |
-| 可验证性 | 高分好 | 是否有真值/下界/机理/外部规律 |
-| 我方知识匹配 | 高分好 | 是否有现成代码/知识 |
-| 算力需求 | 低分好 | 是否必须重训练大模型 |
-| 最终写作故事 | 高分好 | 各问能否形成连续链 |
-| 最坏风险 | 低分好 | 卡在一个环节是否整题瘫痪 |
+| 2022 C | 复杂规则 → 动态状态机 → 合法动作 → 调度策略 | 先重新定义题目本质 |
+| 2020 F | 几何质心 evaluator → 控制 → 初始设计 → 姿态复用 | 基础模块逐问复用 |
+| 2021 A | 重复计算 → 单次成本 → 存储 → 端到端 | 连续追问主导瓶颈 |
+| 2024 B | WLAN 机理 → 特征 → 发送机会 → 速率 → 吞吐量 | 机理驱动特征，不做算法赛马 |
+| 2023 B | butterfly → 稀疏 → 量化 → 联合 → Kronecker → 残差 | 约束逐层增加 |
+| 2022 B | item → stack → stripe → plate → packing oracle → batch | 用工艺结构解释启发式必要性 |
+| 2020 C | 轮数/通道/标签/样本 | 用“资源效率”统一分散小问 |
+| 2024 F | 轨道 → 时间/参考系 → 时延 → 相位 → NHPP | 前问状态自然传后问 |
+| 2024 E | measurement → state → forecast → control → sensor redesign | 完整闭环叙事 |
+| 2025 C | pixel → geometry → roughness → uncertain 3D → drilling | 研究对象不断升级 |
+| 2025 D | rich reference → constrained surrogate → field → forecast → route | reference hierarchy；失败实验推动选择 |
+| 2025 F | 软概念 → 机制 → 指标 → 路径/评分 → 泛化 | 抽象概念先机制化 |
 
-**优先选能形成“题意 → baseline → 改进 → 验证”闭环的题。**  
-不要因为某题能堆更多高级算法就选它。
+这些论文并非每个公式都正确。真正值得学的是：**它们如何让“为什么这样研究”成为整篇的骨架。**
 
 ---
 
-# 3. 建模第一原则：先写 evaluator，再写 model
+# 9. 摘要：不是算法目录，而是压缩研究故事
 
-## 3.1 所有题统一写 4 个函数
+摘要顺序建议：
 
-```python
-def check_input(data):
-    ...
-
-def check_feasibility(solution, data):
-    ...
-
-def official_score(solution, data):
-    ...
-
-def sanity_report(solution, data):
-    ...
+```text
+现实问题 + 关键困难
+→ 核心建模洞察
+→ 各问沿主线如何推进
+→ 最关键证据/结果
+→ 决策意义或适用边界
 ```
 
-### `check_feasibility`
-只处理 hard constraints。
+每问压缩成：
 
-例：
-- 批次数容量；
-- 排样是否越界/重叠；
-- 调度是否违反 FIFO/工艺规则；
-- 航路是否进入禁飞区；
-- 概率/相关系数是否超合法范围。
+```text
+任务 → 判断 → 方法 → 证据
+```
 
-### `official_score`
-**必须逐字对应题目公式。**
+## 30 秒测试
 
-不要在模型代码里复制一份，在画图代码里再复制另一份。
+把摘要里所有算法名删掉。
 
-### `sanity_report`
-放不一定是题目要求、但能抓错的 invariant：
+如果评委仍能理解：
 
-- `0 <= rho <= 1 + tol`；
-- 概率和≈1；
-- 守恒残差≈0；
-- 单位数量级；
-- 路径长度 ≥ 欧氏距离；
-- 批次数 ≥ 面积/容量下界；
-- RMSE 若变量范围 [0,1] 则不应 >1。
+- 你认为问题本质是什么；
+- 各问怎么连接；
+- 有什么关键判断；
+- 为什么值得相信；
 
-## 3.2 evaluator 必须先单元测试
-
-至少做：
-
-1. 人工构造一个能手算的小样本；
-2. 完全正确解应得预期分；
-3. 故意违反一条约束，必须被抓到；
-4. 边界值测试；
-5. 极端输入测试。
-
-这一步能直接避免 2023 B 的 `norm`/`norm²`、2024 B 的 q10/q90、2024 F 的 χ² 公式之类灾难。
+说明摘要真正有建模思想。
 
 ---
 
-# 4. Baseline-first：高级模型的存在必须有理由
+# 10. 结论：证据能支持多少，就说多少
 
-## 4.1 每问至少准备 1 个“笨但可信”基线
+维护 claim ladder：
 
-| 题型 | Baseline |
+| 证据 | 合法结论 |
 |---|---|
-| 回归 | 均值 / 线性回归 / RF |
-| 时序 | persistence `ŷ(t+h)=y(t)` |
-| 分类 | majority / logistic / RF |
-| 路径 | 直线 / Dijkstra / A* |
-| 调度 | FIFO / greedy / earliest-ready |
-| 排样 | FFD/BFD / area lower bound |
-| 矩阵 | 原始 exact 算法 |
-| 融合 | IDW / OI |
-| 主观评分 | 单指标 / 等权模型 |
+| self-consistency | 内部关系一致 |
+| baseline comparison | 当前协议下更优 |
+| independent test | 对未参与建模对象有泛化证据 |
+| assumed intervention + simulation | 在该假设下模型预测改善 |
+| real intervention | 才能更强谈实际效果 |
 
-论文里高级模型的结论必须至少是：
+特别警惕：
 
 ```text
-advanced - baseline = improvement
+score ≠ calibrated probability
+simulation ≠ empirical causality
+grid spacing ≠ effective resolution
+approximate optimum ≠ global optimum
 ```
 
-而不是只报高级模型自己的分数。
-
-## 4.2 模型升级只允许因为“发现了明确失败模式”
-
-例：
-
-```text
-baseline residual 呈非线性
-→ 加 nonlinear learner
-
-随机切分很好但跨设备崩
-→ domain/group modeling
-
-精确求解规模爆炸
-→ decomposition / heuristic
-
-NWP 有系统偏差
-→ calibration layer
-
-平均误差不错但危险峰值被抹掉
-→ tail-aware loss / risk metric
-```
-
-**没有失败证据，就没有必要升级。**
+知道自己不能说什么，本身就是科学性。
 
 ---
 
-# 5. 优化题统一套路
+# 11. 实验与代码：让研究链可复核
 
-## 5.1 复杂调度：simulator-first
-
-先写状态机：
-
-```text
-state
-→ enumerate legal actions
-→ transition
-→ cost
-→ next state
-```
-
-硬约束负责生成合法动作；软目标负责在合法动作中选。
-
-这比把所有业务规则直接塞进一个巨大目标函数更稳。
-
-## 5.2 任何近似优化先给 lower bound
-
-常见下界：
-
-- 面积/容量下界；
-- 最短欧氏距离；
-- 每类任务最少机器数；
-- 松弛 LP/MIP；
-- 忽略部分约束后的最优值；
-- 信息论/矩阵秩下界。
-
-报告：
-
-\[
-Gap = \frac{Obj-LB}{LB}.
-\]
-
-如果没有 known optimum，下界就是近似算法可信度的核心证据。
-
-## 5.3 结构化降维优先于暴力 metaheuristic
-
-典型：
-
-```text
-item → stack → stripe → plate
-matrix → blocks / low-rank factors
-vehicle → legal sequence groups
-road grid → salient graph
-raw events → state aggregates
-```
-
-先减少决策自由度，再搜索。
-
-## 5.4 约束多时：构造可行解 + 局部改进
-
-推荐：
-
-```text
-Greedy construction
-→ repair
-→ local search / tabu / SA
-→ perturb
-→ accept/reject
-```
-
-而不是让 GA/PSO 自己“学会”满足所有复杂约束。
-
-## 5.5 多目标先画 Pareto，不要急着拍权重
-
-如果题目本质是：
-
-- 路径短 vs 风险低；
-- 趣味高 vs 重复少；
-- 存储少 vs 误差小；
-- 成本低 vs 公平；
-
-先输出 Pareto frontier。
-
-只有必须给唯一方案时，再解释 preference / knee point / policy weight。
-
----
-
-# 6. 数据题：最重要的是 split，而不是模型
-
-## 6.1 第一问：谁才是“独立样本”？
-
-常见错误：
-
-```text
-一次实验生成多行
-→ 按行 random split
-```
-
-正确：按实验/人/订单/设备/路段/场次 group。
-
-推荐：
-
-```python
-GroupKFold
-GroupShuffleSplit
-LeaveOneGroupOut
-```
-
-## 6.2 时间序列只能过去 → 未来
-
-禁止：
-
-```text
-13:00 train
-13:01 test
-13:02 train
-```
-
-推荐：
-
-- blocked split；
-- rolling-origin；
-- walk-forward；
-- leave-one-day/event-out。
-
-## 6.3 preprocessing 也必须在 fold 内 fit
-
-以下都属于模型训练的一部分：
-
-- scaler；
-- imputer；
-- PCA；
-- feature selection；
-- target encoding；
-- threshold tuning；
-- class resampling。
-
-必须：
-
-```text
-train fold fit
-→ transform validation
-```
-
-## 6.4 类别不平衡先报 baseline
-
-先算：
-
-\[
-Accuracy_{majority}.
-\]
-
-再报：
-
-- macro-F1；
-- balanced accuracy；
-- per-class recall；
-- confusion matrix；
-- exact-pair accuracy（多输出分类）。
-
-## 6.5 安全任务不要只看 RMSE
-
-风险事件要报：
-
-- POD/Recall；
-- FAR；
-- CSI；
-- tail quantile；
-- calibration / Brier；
-- lead time。
-
-平均误差小但危险峰值漏掉，是失败模型。
-
----
-
-# 7. 物理 / 工程题：先做“量纲账本”
-
-## 7.1 每个关键变量至少写 4 列
-
-| symbol | meaning | unit | frame/time-scale/domain |
-|---|---|---|---|
-| `r` | 位置 | km or m | GCRS/BCRS |
-| `t` | 时间 | s/day | UTC/TT/TDB |
-| `ρ` | 密度 | veh/km | road segment |
-| `ε` | 耗散率 | m²/s³ | turbulence model |
-
-## 7.2 三个强制 sanity check
-
-### 数量级
-结果是否在现实数量级？
-
-### invariant
-守恒、正定、范围、几何恒等式是否满足？
-
-### independent cross-check
-不能只做“正算→反算”自洽；尽量用另一套公式/库/下界交叉。
-
-## 7.3 高阶修正必须服从误差预算
-
-如果基础量误差 10 ms，就没必要把 10⁻⁹ s 修正写成核心贡献。
-
-按误差量级排序：
-
-```text
-dominant error
-→ second-order error
-→ tiny correction
-```
-
-先解决大项。
-
----
-
-# 8. 图像 / 视频 / 传感器题：观测 ≠ 状态
-
-## 8.1 强制写 observation layer
-
-```text
-raw signal / pixel
-→ detector / segmenter
-→ calibration
-→ physical quantity
-→ state model
-```
-
-例：车辆像素位移不等于真实速度，必须有 homography / scale calibration。
-
-## 8.2 上游精度要用下游指标验收
-
-特征选择、通道选择、分割优化不能只报自己的局部指标。
-
-必须继续跑最终任务：
-
-```text
-selected features
-→ downstream classifier
-→ final task metric
-```
-
-## 8.3 图像 → 几何 → 三维时传 uncertainty
-
-建议接口：
-
-```python
-estimate = {
-  "value": ...,
-  "cov": ...,
-  "quality": ...,
-  "valid_domain": ...
-}
-```
-
-不要从二维分割直接跳到一个看似精确的三维概率。
-
----
-
-# 9. 多源融合 / 环境场 / 航路：四层分开
-
-## 9.1 Observation
-设备测了什么，不要直接叫 truth。
-
-## 9.2 State estimation
-IDW/OI/3DVAR/variational/Kalman。
-
-输出至少：
-
-```text
-state mean
-uncertainty
-observation density
-nearest-observation distance
-effective resolution
-```
-
-**grid spacing ≠ effective resolution。**
-
-## 9.3 Forecast
-NWP/ML 都先做 bias correction / calibration。
-
-特别是 NWP：
-
-```text
-NWP ≠ truth
-NWP → bias calibration → forecast distribution
-```
-
-## 9.4 Decision
-先 Dijkstra/A*，再考虑：
-
-\[
-\min E[J]+\lambda\operatorname{CVaR}_{0.95}(J)
-\]
-
-或 chance constraint：
-
-\[
-P(R\le R_{safe})\ge 1-\epsilon.
-\]
-
-高级风险规划必须和普通 A*/最短路在**同一 evaluator**下比较。
-
----
-
-# 10. 主观评价题：Concept → Mechanism，而不是 Concept → AHP
-
-## 10.1 四类机制扫描
-
-任何“好看/有趣/舒适/协调/活力”先拆：
-
-1. 状态：现在什么样；
-2. 变化：前后变了多少；
-3. 结构：整体如何组织；
-4. 决策：人在其中如何行动。
-
-## 10.2 指标设计强制问“怎么作弊”
-
-例：
-- 路径切短能否刷变化次数？
-- 路线变长能否刷累计得分？
-- 复制高度相关指标能否重复投票？
-- 极端值会不会把 min-max 拉坏？
-
-指标要有 denominator / cap / saturation / robust normalization。
-
-## 10.3 “适量最好”用单峰效用
-
-\[
-S(x)=\exp\left[-\frac{(x-x^*)^2}{\sigma^2}\right]
-\]
-
-适合表达：过少与过多都差。
-
-## 10.4 AHP 只表达价值偏好
-
-推荐：
-
-\[
-w(\lambda)=\lambda w_{AHP}+(1-\lambda)w_{obj}
-\]
-
-其中 `w_obj` 可取 entropy/CRITIC/regression-derived。
-
-必须扫权重并报告排名稳定性。
-
-## 10.5 无标签评价的四层验证
-
-```text
-1. theoretical expected relation
-2. simple baseline comparison
-3. sensitivity / perturbation
-4. frozen-parameter external object
-```
-
-不能只写“结果符合实际”。
-
----
-
-# 11. 结果可信度：五级证据塔
-
-从弱到强：
-
-1. **内部自洽**：正算反算、曲线看起来合理；
-2. **朴素 baseline**：比简单方法好；
-3. **消融/敏感性**：知道提升来自哪里；
-4. **独立验证**：独立对象/时间/设备/数据；
-5. **边界证据**：最坏场景、lower bound、置信区间、tail risk。
-
-尽量做到 3–5 层，不要停在第 1 层。
-
----
-
-# 12. 统一实验协议
-
-每一个模型实验至少记录：
-
-```yaml
-experiment_id:
-code_commit:
-data_version:
-split_protocol:
-seed:
-preprocessing:
-features:
-model:
-hyperparameters:
-constraints:
-metric_definition:
-baseline:
-result:
-notes:
-```
-
-随机算法至少多 seed：
-
-```text
-mean ± std
-best
-worst
-```
-
-不要只挑最好的一次。
-
----
-
-# 13. 推荐代码架构
+推荐架构：
 
 ```text
 project/
@@ -716,287 +569,141 @@ project/
 │  └─ plotting.py
 ├─ configs/
 ├─ experiments/
-├─ outputs/
-│  ├─ metrics.json
-│  ├─ tables/
-│  └─ figures/
-└─ paper/
+└─ outputs/
+   ├─ metrics.json
+   ├─ tables/
+   └─ figures/
 ```
 
-## 13.1 单一结果源
+实验记录至少包含：
 
-所有表格和摘要数字从：
+```yaml
+experiment_id:
+code_commit:
+data_version:
+split_protocol:
+seed:
+assumptions:
+model:
+hyperparameters:
+metric_definition:
+baseline:
+result:
+interpretation:
+next_decision:
+```
+
+这里新增 `interpretation` 和 `next_decision`：
+
+> **实验不只是存一个数字，还要记录这个数字改变了什么研究判断。**
+
+## 11.1 单一结果源
 
 ```text
-outputs/metrics.json
+experiment
+→ metrics.json / csv
+→ tables / figures / abstract numbers
 ```
 
-自动生成。
-
-禁止：
-
-```text
-运行结果
-→ 人工抄到 Excel
-→ 再抄正文
-→ 再抄摘要
-```
-
-这正是历年优秀论文中出现结果版本漂移的根源之一。
-
-## 13.2 输出对象要结构化
-
-```python
-result = {
-    "feasible": True,
-    "official_score": ...,
-    "secondary_metrics": {...},
-    "uncertainty": {...},
-    "runtime": ...,
-    "seed": ...,
-    "config": ...
-}
-```
+禁止人工多处抄数字。
 
 ---
 
-# 14. 图表模板：每张图必须回答一个问题
+# 12. 三人队：按“研究职能”协作，不只是按代码/写作分工
 
-## 14.1 模型机制图
-回答：变量如何传递？
+## 初期
+
+- A：题意、官方口径、研究问题画布；
+- B：独立 baseline、数据诊断；
+- C：论文骨架、符号表，同时记录每个选择“为什么”。
+
+## 中期
+
+- A：主模型/机理；
+- B：第二路线、验证、反例；
+- C：实时把 `Observation → Judgment → Method → Evidence` 写进正文。
+
+## 后期
+
+交叉验收：
+
+- 写模型的人不能唯一验证自己的 evaluator；
+- 写论文的人追问每个关键数字来源；
+- 第三人随机手算表格、公式、单位；
+- 对每个“显著、有效、概率、最优、提升”追问证据等级。
+
+---
+
+# 13. 停止规则：什么时候不再加模型
+
+满足以下条件后，优先冻结：
+
+1. 研究主线已经清楚；
+2. hard constraints 全通过；
+3. baseline 被稳定战胜或其作用已解释；
+4. 主要结论有至少 2–3 层证据；
+5. 主要失败模式与适用边界已经知道；
+6. 再加复杂模型的收益小于验证/写作/复现风险。
+
+最后 12–18 小时优先：
 
 ```text
-Input → State → Model → Decision → Validation
+补证据
+补解释
+补图表
+查公式
+查单位
+查摘要数字
+做交叉审计
 ```
 
-## 14.2 Baseline 对比表
-回答：高级模型是否真的必要？
-
-| Model | Primary metric | Secondary | Runtime | Feasible |
-|---|---:|---:|---:|---|
-
-## 14.3 Sensitivity curve
-回答：参数是不是拍脑袋？
-
-横轴参数，纵轴主指标；标稳定平台，不只标最佳点。
-
-## 14.4 Error / residual plot
-回答：模型在哪里失败？
-
-- residual vs prediction；
-- error by group/time/class；
-- worst cases。
-
-## 14.5 Pareto frontier
-回答：两个目标怎样权衡？
-
-## 14.6 Uncertainty map / interval
-回答：哪里不可信？
-
-## 14.7 Ablation table
-回答：提升来自哪个组件？
-
-| Variant | Metric | Δ |
-|---|---:|---:|
-
-## 14.8 Final decision figure
-回答：最终答案是什么？
-
-评委应该能在一张图里看到最终路线/分配/场/推荐位置。
+而不是再换主模型。
 
 ---
 
-# 15. 论文写法：按“判断”组织，不按算法名组织
+# 14. 赛末一票否决级红旗
 
-## 15.1 每一问固定五段
+出现任何一个先停下：
 
-1. **题意抽象**：本问本质是什么；
-2. **为什么这个模型**：数据/机制/失败模式；
-3. **模型与算法**：公式、输入输出；
-4. **验证**：baseline、hard constraints、敏感性；
-5. **结论与边界**：回答题目，不夸大。
+1. 官方 metric 代码与题面不一致；
+2. hard constraint 没有独立检查；
+3. 同组/同人/同实验随机切 train-test；
+4. 时间序列未来信息泄漏；
+5. scaler/PCA/feature selection 全数据 fit；
+6. 秒/天、m/km、dB/linear、参考系混用；
+7. 插值网格被写成真实分辨率；
+8. detector 输出直接冒充物理量；
+9. 高级模型没有 baseline；
+10. “概率”没有随机事件/校准定义；
+11. “最优”没有可行性/下界/条件说明；
+12. 情景仿真写成实测因果；
+13. 摘要、正文、表格、代码数字不同；
+14. 公式很多但没有任何实验/结论依赖它；
+15. 结论中的形容词比证据更强。
 
-## 15.2 不要写成算法展览
-
-差：
-
-```text
-先介绍 RF
-再介绍 XGBoost
-再介绍 LSTM
-再介绍 GA
-```
-
-好：
-
-```text
-因为 residual 呈非线性 → XGBoost
-因为数据有时间依赖 → blocked validation
-因为输出进入决策 → tail risk
-```
-
-## 15.3 摘要必须由最终结果自动回填
-
-摘要每问：
-
-```text
-任务 → 方法 → 最关键结果 → 验证/边界
-```
-
-不写没在正文实验证明的高级术语。
+最终审计使用 [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)。
 
 ---
 
-# 16. 模型停止规则：什么时候不要再加模型
+# 15. 最终评价观：评委真正评价的是研究判断力
 
-满足以下 4 条就应该收手，转向验证与写作：
+我不认为“只要让评委信服即可”足够准确，因为它可能把目标误导成包装。
 
-1. hard constraints 全通过；
-2. 比 baseline 有稳定提升；
-3. 主要误差来源已经解释；
-4. 再加复杂模型的边际提升小于验证/写作风险。
+更准确是：
 
-尤其最后 12–18 小时：
+> **让评委沿着研究链检查以后，关键步骤不需要靠脑补，且能看出你在不确定条件下做出了有水平的判断。**
 
-> **宁可给现有模型补一个严格验证，也不要再加一个未经消融的新模型。**
+评委实际上在判断：
 
----
+1. **问题理解有没有洞察**：是否抓住真正机制/矛盾；
+2. **建模选择是否有依据**：不是会什么用什么；
+3. **证据是否有区分力**：能否真正支持你的解释；
+4. **多问是否是一项连续研究**：而不是算法拼盘；
+5. **结论是否校准**：知道假设、近似、概率、因果、最优的边界；
+6. **表达是否高效**：评委能低成本重建你的研究逻辑。
 
-# 17. 三人队推荐工作流
+高奖论文往往只需要 1–2 个真正亮点，但整条研究链不能有致命断点。
 
-适合“两人建模/编程 + 一人建模/写作”的队形。
+最后把整套手册压成一句：
 
-## 阶段 A｜拿题与 baseline
-
-- A：题意/evaluator/数据检查；
-- B：独立做 baseline；
-- C：搭论文骨架、符号表、题面要求清单。
-
-## 阶段 B｜主模型
-
-- A：核心模型 1；
-- B：核心模型 2 / evaluator / 验证；
-- C：实时写“为什么选这个模型”，同步图表占位。
-
-## 阶段 C｜验收
-
-交叉换手：
-
-- 写代码的人不负责唯一验收自己的 evaluator；
-- 写论文的人拿结果逐项追问来源；
-- 第三人随机抽表格一行手算。
-
-## 阶段 D｜收口
-
-冻结模型后只允许：
-
-```text
-修 bug
-补验证
-补图
-修解释
-修排版
-```
-
-不允许无止境换算法。
-
----
-
-# 18. 从 13 篇训练材料提炼出的“高价值模式”
-
-| 模式 | 来源训练 | 正赛用途 |
-|---|---|---|
-| simulator-first | 2022 C | 复杂规则调度 |
-| lower bound + heuristic | 2022 B | NP-hard 近似质量 |
-| 机理评价器 + 策略降维 | 2020 F | 动态优化 |
-| 总成本=调用次数×单次成本 | 2021 A | 算法复杂度 |
-| 结构化分解优先 | 2023 B | 矩阵/硬件 |
-| group/time split | 2024 B、2020 C | 防数据泄漏 |
-| unit/frame/time-scale ledger | 2024 F | 高精度物理 |
-| measurement→state→control | 2024 E | 视频/传感器决策 |
-| estimate + uncertainty + domain | 2025 C | 2D→3D/概率 |
-| grid spacing ≠ effective resolution | 2025 D | 环境场融合 |
-| NWP/forecast 先校正 | 2025 D | 风险规划 |
-| concept→mechanism→metric | 2025 F | 主观评价 |
-| anti-gaming metric design | 2025 F | 综合评价/路径 |
-
----
-
-# 19. 最危险的 20 个红旗
-
-看到任何一个就停下来检查：
-
-1. evaluator 公式和官方题面不完全一样；
-2. 结果超出理论范围；
-3. 单位换了但代码没换；
-4. 秒直接加到“天”；
-5. m/km 混用；
-6. 同一实验多行随机切 train/test；
-7. 时间序列随机切；
-8. scaler/PCA 在全数据 fit；
-9. q90 实际取 q10；
-10. “准确率”其实只是多输出坐标平均；
-11. 把训练误差叫验证误差；
-12. 网格插值后宣称真实分辨率提高；
-13. detector 输出直接当物理量；
-14. 高级算法没有 baseline；
-15. 报最优解但没证明 feasible；
-16. 报“概率”却没有随机事件定义；
-17. 相似度几乎全是 0.98+ 还不检查饱和；
-18. 新增几十个公式但没有实验对应；
-19. 摘要、正文、表格数字不同；
-20. 附录代码缺数据时自动生成 synthetic data 继续跑。
-
----
-
-# 20. 最终评分观：评委真正需要相信什么
-
-一篇强论文最终要让评委相信四件事：
-
-### 1. 你理解了题
-官方目标和 hard constraints 没读错。
-
-### 2. 你的模型为什么合理
-结构、机理或数据证据支持选型。
-
-### 3. 你的数字为什么可信
-验证、baseline、下界、敏感性、独立测试完整。
-
-### 4. 你的结论有多大边界
-知道什么时候能用，什么时候不能用。
-
-高级算法只能帮助第 2 点，不能替代 1、3、4。
-
----
-
-# 21. 比赛现场最简流程
-
-```text
-读题
-↓
-写 evaluator / hard constraints
-↓
-数据与单位审计
-↓
-baseline
-↓
-找结构/机制
-↓
-主模型
-↓
-严格 split / lower bound / invariant
-↓
-ablation + sensitivity
-↓
-冻结
-↓
-自动出图表
-↓
-交叉复核
-↓
-提交
-```
-
-最后记一句：
-
-> **模型可以近似，验证不能含糊；算法可以简单，证据必须完整。**
+> **不是证明“我有答案”，而是证明“我知道怎样科学地研究这个没有标准答案的问题”；模型可以近似，算法可以简单，但研究判断必须有依据，证据必须完整，结论必须不过界。**
