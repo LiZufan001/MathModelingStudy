@@ -1,0 +1,49 @@
+name: Test CPMCM 2025 A Q3 FA Fine Search
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_fa_fine.py"
+      - ".github/workflows/test-cpmcm-2025-a-q3-fa-fine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-fa-fine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused scheduler and official-objective regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            -q
+      - name: Fine-grained FlashAttention Q3 search
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_fa_fine.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-fa-fine \
+            --rounds 2
+          test -s /tmp/q3-fa-fine/fa_fine_candidates.csv
+          test -s /tmp/q3-fa-fine/fa_fine_frontier.csv
+          test -s /tmp/q3-fa-fine/fa_fine_summary.json
+      - name: Upload FA fine-search evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-fa-fine
+          path: /tmp/q3-fa-fine
+          if-no-files-found: error
