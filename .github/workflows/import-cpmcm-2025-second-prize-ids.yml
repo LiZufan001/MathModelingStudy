@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y -qq unar
           python -m pip install --quiet pandas openpyxl xlrd
 
-      - name: Download and extract official 2025 award list
+      - name: Download and extract official 2025 final award list
         shell: bash
         run: |
           set -euo pipefail
@@ -89,8 +89,8 @@ jobs:
                       continue
                   for i, row in df.iterrows():
                       vals = [cv(x) for x in row.tolist()]
-                      # National award class is the prefix of the award cell. This includes
-                      # e.g. “二等奖(华为专项...)” but excludes “一等奖(华为专项二等奖)”.
+                      # The national award class is the prefix of the award cell.
+                      # This excludes “一等奖(华为专项二等奖)” from national second prize.
                       award_cells = [v for v in vals if v.startswith(('一等奖', '二等奖', '三等奖'))]
                       if not any(v.startswith('二等奖') for v in award_cells):
                           continue
@@ -133,7 +133,8 @@ jobs:
               'unique_second_prize_codes': len(records),
               'by_problem': by_problem,
               'parse_warnings': diagnostics,
-              'note': 'National award is classified by the award-cell prefix. This preserves national second-prize rows that also carry a Huawei special award, while excluding national first-prize rows whose parenthetical text contains 华为专项二等奖.'
+              'public_notice_second_prize_count': 3085,
+              'note': 'The 2025-11-17 public review notice announced 3085 proposed national second-prize teams. The later final XLSX attachment contains 3079 A-F rows whose national award begins with 二等奖. The final row-level attachment is retained as the authoritative identity baseline; the 6-team difference is documented rather than normalized away.'
           }
           (OUT / 'SECOND_PRIZE_2025_DIAGNOSTICS.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
           print(json.dumps(diag, ensure_ascii=False, indent=2))
@@ -149,9 +150,9 @@ jobs:
           p = 'papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025.csv'
           rows = list(csv.DictReader(open(p, encoding='utf-8-sig')))
           got = Counter(r['problem'] for r in rows)
-          expected = {'A':71, 'B':136, 'C':392, 'D':310, 'E':1953, 'F':223}
+          expected = {'A':71, 'B':130, 'C':392, 'D':310, 'E':1953, 'F':223}
           print('total', len(rows), 'by_problem', got)
-          assert len(rows) == 3085, len(rows)
+          assert len(rows) == 3079, len(rows)
           assert dict(got) == expected, (got, expected)
           PY
 
