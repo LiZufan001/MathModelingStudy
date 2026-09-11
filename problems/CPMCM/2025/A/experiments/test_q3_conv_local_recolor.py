@@ -12,8 +12,10 @@ from model import ComputeGraph, Node
 from q2_model import Q2Solution
 from q2_validator import validate_q2_solution
 from q3_conv_local_recolor import (
+    OfficialFastContext,
     candidate_initial_offsets,
     critical_reuse_targets,
+    move_initial_offset,
     search_q3_critical_recolor,
 )
 from q3_evaluator import evaluate_q3_solution
@@ -50,6 +52,25 @@ def test_critical_reuse_target_and_low_pressure_candidate() -> None:
     starts = candidate_initial_offsets(graph, solution, 1, max_starts=4)
     assert 0 not in starts
     assert any(start >= 4 for start in starts)
+
+
+def test_cached_official_score_matches_full_evaluator() -> None:
+    graph, solution = _two_independent_buffers(shared_offset=True)
+    context = OfficialFastContext.build(graph, solution)
+
+    baseline_fast = context.score(graph, solution)
+    baseline_full = evaluate_q3_solution(graph, solution, reuse_mode="official_literal")
+    baseline_full.require_ok()
+    assert baseline_fast.total_cycles == baseline_full.total_cycles == 200
+    assert baseline_fast.reuse_edge_count == baseline_full.reuse_edge_count == 1
+
+    moved = move_initial_offset(solution, 1, 4)
+    validate_q2_solution(graph, moved).require_ok()
+    moved_fast = context.score(graph, moved)
+    moved_full = evaluate_q3_solution(graph, moved, reuse_mode="official_literal")
+    moved_full.require_ok()
+    assert moved_fast.total_cycles == moved_full.total_cycles == 100
+    assert moved_fast.reuse_edge_count == moved_full.reuse_edge_count == 0
 
 
 def test_local_recolor_removes_critical_reuse_serialization() -> None:
