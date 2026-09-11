@@ -1,31 +1,31 @@
-case,window,changed_positions,q1_peak,spill_count,extra_traffic,traffic_delta,traffic_ratio,within_5pct,raw_safe_cycles,optimized_safe_cycles,safe_improvement_pct,official_literal_cycles,official_improvement_pct,accepted_zero_traffic_steps,valid,status
-Matmul_Case0,0,0,9216,225,28800,0,1.0,True,195024.0,160005.0,17.956252,133682.0,1.036408,2.0,True,valid
-Matmul_Case0,8,2229,9216,232,29696,896,1.03111111,True,173908.0,158495.0,18.730515,136214.0,-0.83801,2.0,True,valid
-Matmul_Case0,32,2243,9216,251,32128,3328,1.11555556,False,173373.0,,,,,,False,over_5pct
-Matmul_Case0,128,2531,10112,304,38912,10112,1.35111111,False,174433.0,,,,,,False,over_5pct
-Matmul_Case0,512,4139,10240,342,43776,14976,1.52,False,223508.0,,,,,,False,over_5pct
-Matmul_Case1,0,0,34816,3361,430208,0,1.0,True,1771302.0,1669574.0,5.74312,1531946.0,0.174115,2.0,True,valid
-Matmul_Case1,8,9797,34816,3376,432128,1920,1.00446296,True,1671074.0,1650497.0,6.820124,1537478.0,-0.186366,2.0,True,valid
-Matmul_Case1,32,9827,34816,3419,437632,7424,1.01725677,True,1670229.0,1651103.0,6.785912,1554936.0,-1.323978,2.0,True,valid
-Matmul_Case1,128,9917,34816,3597,460416,30208,1.0702172,False,1718375.0,,,,,,False,over_5pct
-Matmul_Case1,512,14554,36864,3841,491648,61440,1.14281464,False,1894060.0,,,,,,False,over_5pct
-FlashAttention_Case0,0,0,26728,301,55188,0,1.0,True,212425.0,212425.0,0.0,197374.0,0.0,0.0,True,valid
-FlashAttention_Case0,8,1626,26728,307,57088,1900,1.03442777,True,200966.0,200966.0,5.394374,194235.0,1.590382,0.0,True,valid
-FlashAttention_Case0,32,1680,27128,456,80336,25148,1.45567877,False,297433.0,,,,,,False,over_5pct
-FlashAttention_Case0,128,1709,28424,522,99472,44284,1.80242082,False,336368.0,,,,,,False,over_5pct
-FlashAttention_Case0,512,1712,31240,720,106116,50928,1.92280931,False,393020.0,,,,,,False,over_5pct
-FlashAttention_Case1,0,0,106992,1782,242552,0,1.0,True,1026762.0,1026762.0,0.0,962746.0,0.0,0.0,True,valid
-FlashAttention_Case1,8,6557,106992,1662,250584,8032,1.03311455,True,970684.0,970684.0,5.461636,942667.0,2.085597,0.0,True,valid
-FlashAttention_Case1,32,6857,107392,1914,301236,58684,1.241944,False,1145328.0,,,,,,False,over_5pct
-FlashAttention_Case1,128,6934,108688,2356,420940,178388,1.73546291,False,1426038.0,,,,,,False,over_5pct
-FlashAttention_Case1,512,6944,113808,2950,472400,229848,1.9476236,False,1643918.0,,,,,,False,over_5pct
-Conv_Case0,0,0,80170,493,178212,0,1.0,True,798190.0,798190.0,0.0,631915.0,0.0,0.0,True,valid
-Conv_Case0,8,1965,81706,645,354174,175962,1.98737459,False,,,,,,,False,safe_overlap_rejected
-Conv_Case0,32,2193,83242,792,431094,252882,2.41899535,False,,,,,,,False,safe_overlap_rejected
-Conv_Case0,128,2392,89706,1017,455562,277350,2.55629251,False,,,,,,,False,safe_overlap_rejected
-Conv_Case0,512,2578,89706,1183,469269,291057,2.63320652,False,1415872.0,,,,,,False,over_5pct
-Conv_Case1,0,0,310408,9550,724630,0,1.0,True,4214554.0,4083189.0,3.116937,3650628.0,3.899306,1.0,True,valid
-Conv_Case1,8,28050,310920,9714,744174,19544,1.02697101,True,,,,,,,False,safe_overlap_rejected
-Conv_Case1,32,29313,311944,9923,725986,1356,1.0018713,True,,,,,,,False,safe_overlap_rejected
-Conv_Case1,128,30404,315528,10921,817880,93250,1.12868636,False,,,,,,,False,safe_overlap_rejected
-Conv_Case1,512,33044,324232,15684,1195552,470922,1.64987925,False,,,,,,,False,safe_overlap_rejected
+case,promoted_q2_polish_window,window,changed_positions,q1_peak,spill_count,extra_traffic,traffic_delta,traffic_ratio,within_5pct,raw_safe_cycles,raw_official_cycles,safe_variant_safe_cycles,safe_variant_official_cycles,official_variant_safe_cycles,official_variant_official_cycles,safe_accepted_steps,official_accepted_steps,seconds,valid,error
+Matmul_Case0,0,0,0,9216,225,28800,0,1.0,True,195024,135082,160005,133682,160005,133682,2,2,4.803771,True,
+Matmul_Case0,0,8,2229,9216,232,29696,896,1.03111111,True,173908,136214,158495,136214,173908,136214,2,0,3.72474,True,
+Matmul_Case0,0,32,2243,9216,251,32128,3328,1.11555556,False,173373,143928,,,,,,,0.251665,False,strict-valid candidate exceeds the 5% experiment ceiling
+Matmul_Case0,0,128,2531,10112,304,38912,10112,1.35111111,False,174433,165446,,,,,,,0.281614,False,strict-valid candidate exceeds the 5% experiment ceiling
+Matmul_Case0,0,512,4139,10240,342,43776,14976,1.52,False,223508,180452,,,,,,,0.299476,False,strict-valid candidate exceeds the 5% experiment ceiling
+Matmul_Case1,0,0,0,34816,3361,430208,0,1.0,True,1771302,1534618,1669574,1531946,1669574,1531946,2,2,177.365664,True,
+Matmul_Case1,0,8,9797,34816,3376,432128,1920,1.00446296,True,1671074,1537478,1650497,1537478,1671074,1537478,2,0,133.019987,True,
+Matmul_Case1,0,32,9827,34816,3419,437632,7424,1.01725677,True,1670229,1554936,1651103,1554936,1670229,1554936,2,0,132.185149,True,
+Matmul_Case1,0,128,9917,34816,3597,460416,30208,1.0702172,False,1718375,1627204,,,,,,,7.672443,False,strict-valid candidate exceeds the 5% experiment ceiling
+Matmul_Case1,0,512,14554,36864,3841,491648,61440,1.14281464,False,1894060,1725846,,,,,,,8.320374,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case0,1,0,0,26728,316,54016,0,1.0,True,205088,194265,202453,194650,205088,194265,2,0,1.774246,True,
+FlashAttention_Case0,1,8,1599,26728,309,57600,3584,1.06635071,False,207458,195383,,,,,,,0.251306,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case0,1,32,1682,27144,393,77060,23044,1.42661434,False,273069,230009,,,,,,,0.282279,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case0,1,128,1708,28424,522,98660,44644,1.82649585,False,333464,271407,,,,,,,0.290459,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case0,1,512,1711,31240,740,105916,51900,1.96082642,False,397394,333799,,,,,,,0.234379,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case1,0,0,0,106992,1782,242552,0,1.0,True,1026762,962746,1026762,962746,1026762,962746,0,0,11.308768,True,
+FlashAttention_Case1,0,8,6557,106992,1662,250584,8032,1.03311455,True,970684,942667,970684,942667,970684,942667,0,0,13.386524,True,
+FlashAttention_Case1,0,32,6857,107392,1914,301236,58684,1.241944,False,1145328,1040810,,,,,,,3.230982,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case1,0,128,6934,108688,2356,420940,178388,1.73546291,False,1426038,1216264,,,,,,,3.468095,False,strict-valid candidate exceeds the 5% experiment ceiling
+FlashAttention_Case1,0,512,6944,113808,2950,472400,229848,1.9476236,False,1643918,1369597,,,,,,,3.024818,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case0,2,0,0,80170,522,177904,0,1.0,True,774198,636114,774198,636114,786202,606429,0,1,3.260314,True,
+Conv_Case0,2,8,2004,81706,673,343710,165806,1.93199703,False,1053676,818415,,,,,,,0.41352,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case0,2,32,2196,84634,803,431188,253284,2.42371166,False,1214907,871152,,,,,,,0.444108,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case0,2,128,2393,89706,964,444950,267046,2.50106799,False,1250792,900550,,,,,,,0.514715,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case0,2,512,2574,89706,1174,465237,287333,2.6151014,False,1408263,915866,,,,,,,0.569164,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case1,3,0,0,310408,9646,721464,0,1.0,True,4116658,3852543,4116658,3852543,4119420,3784892,0,1,304.417584,True,
+Conv_Case1,3,8,28208,310920,9837,770568,49104,1.06806161,False,4118615,3991826,,,,,,,33.023413,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case1,3,32,29207,311944,9886,739552,18088,1.02507124,True,4078411,3954929,3974692,3844461,3974692,3844461,1,1,359.845979,True,
+Conv_Case1,3,128,30283,315528,11399,883206,161742,1.22418582,False,4550713,4380305,,,,,,,35.286044,False,strict-valid candidate exceeds the 5% experiment ceiling
+Conv_Case1,3,512,33054,324232,15870,1206893,485429,1.67283884,False,6023099,5428785,,,,,,,43.40515,False,strict-valid candidate exceeds the 5% experiment ceiling

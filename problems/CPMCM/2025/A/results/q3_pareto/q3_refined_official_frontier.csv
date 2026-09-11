@@ -1,0 +1,10 @@
+case,variant,sequence,extra_traffic,traffic_delta,traffic_delta_pct,official_cycles,official_improvement_pct,safe_cycles,strict_valid
+Matmul_Case0,zero_traffic,0,28800,0,0.0,133682,1.036408,160005,True
+Matmul_Case1,zero_traffic,0,430208,0,0.0,1531946,0.174115,1669574,True
+FlashAttention_Case0,zero_traffic,0,54016,0,0.0,194265,0.0,205088,True
+FlashAttention_Case0,refined_tradeoff,1,55036,1020,1.888329,191230,1.562299,205617,True
+FlashAttention_Case1,zero_traffic,0,242552,0,0.0,962746,0.0,1026762,True
+FlashAttention_Case1,refined_tradeoff,1>1,244048,1496,0.616775,947002,1.635322,958676,True
+FlashAttention_Case1,refined_tradeoff,2>1,245060,2508,1.034005,912556,5.213213,936070,True
+Conv_Case0,zero_traffic,0,177904,0,0.0,606429,4.666616,786202,True
+Conv_Case1,zero_traffic,0,721464,0,0.0,3784892,1.756009,4119420,True
