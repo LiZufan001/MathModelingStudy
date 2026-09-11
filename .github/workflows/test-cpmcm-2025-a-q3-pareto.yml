@@ -28,7 +28,9 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest \
-            problems/CPMCM/2025/A/tests/test_q3.py \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_reallocator.py \
+            problems/CPMCM/2025/A/tests/test_q3_pipeline_scheduler.py \
             problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py \
             problems/CPMCM/2025/A/tests/test_q3_zero_traffic_optimizer.py \
             -q
