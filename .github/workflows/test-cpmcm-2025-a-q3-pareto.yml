@@ -1,0 +1,46 @@
+name: Test CPMCM 2025 A Q3 Pareto
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/test-cpmcm-2025-a-q3-pareto.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-pareto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused Q3 Pareto regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3.py \
+            problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py \
+            problems/CPMCM/2025/A/tests/test_q3_zero_traffic_optimizer.py \
+            -q
+      - name: Build strict epsilon-constrained Q3 Pareto frontier
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_pareto.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-pareto \
+            --rounds 2
+      - name: Upload Q3 Pareto evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-pareto
+          path: /tmp/q3-pareto
+          if-no-files-found: error
