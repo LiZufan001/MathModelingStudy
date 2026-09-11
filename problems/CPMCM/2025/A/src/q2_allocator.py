@@ -136,12 +136,12 @@ def choose_min_cost_window(
     """Choose a contiguous target window with exact minimum official spill traffic.
 
     For an occupied interval [s,e) and an integer start x, a size-q window
-    [x,x+q) overlaps that interval exactly for x in [s-q+1, e-1].  Therefore the
-    victim set changes only at two events per resident buffer.  Sweeping those
+    [x,x+q) overlaps that interval exactly for x in [s-q+1, e-1]. Therefore the
+    victim set changes only at two events per resident buffer. Sweeping those
     events evaluates every distinct victim set in O(R log R), rather than
     rescanning all R residents for O(R) candidate starts.
 
-    The official extra-DDR traffic is the primary objective.  Deterministic
+    The official extra-DDR traffic is the primary objective. Deterministic
     secondary keys prefer fewer victims, farther next use, then lower offset.
     They never override a lower official traffic cost.
     """
@@ -371,19 +371,91 @@ def allocate_q2_baseline(
             raise AssertionError("selected spill window did not become free")
         return choice.start
 
-    def reload_buffer(buf_id: int, current_index: int, protected: set[int]) -> None:
+    def reload_at(buf_id: int, start: int) -> None:
         spill_index = pending_spill.get(buf_id)
         if spill_index is None:
             raise ValueError(f"buffer {buf_id} is nonresident without pending spill")
         alloc = alloc_nodes[buf_id]
         assert alloc.memory_type is not None and alloc.size is not None
         pool = pools[alloc.memory_type]
-        start = make_space(alloc.memory_type, alloc.size, current_index, protected)
         pool.reserve_at(buf_id, start, alloc.size)
         mutable_spills[spill_index][1] = start
         _, in_id = spill_node_ids(graph, spill_index)
         output_schedule.append(in_id)
         pending_spill.pop(buf_id)
+
+    def reload_buffer(buf_id: int, current_index: int, protected: set[int]) -> None:
+        spill_index = pending_spill.get(buf_id)
+        if spill_index is None:
+            raise ValueError(f"buffer {buf_id} is nonresident without pending spill")
+        alloc = alloc_nodes[buf_id]
+        assert alloc.memory_type is not None and alloc.size is not None
+        start = make_space(alloc.memory_type, alloc.size, current_index, protected)
+        reload_at(buf_id, start)
+
+    def repack_required_group(
+        memory_type: str,
+        group: set[int],
+        current_index: int,
+        node_id: int,
+    ) -> None:
+        """Compact one operation's simultaneous same-pool requirements.
+
+        Sequential reload can fail when already-required buffers are themselves
+        fragmented across the address space. In that case, spill every resident
+        member of the required set, create one contiguous super-window for the
+        whole set, and reload the set compactly. This is a correctness fallback:
+        it may introduce extra traffic, but it never relaxes the official
+        capacity/residency rules and is used only after protected placement has
+        actually failed.
+        """
+
+        pool = pools[memory_type]
+        ordered = sorted(
+            group,
+            key=lambda b: (-(alloc_nodes[b].size or 0), b),
+        )
+        total_size = sum(alloc_nodes[b].size or 0 for b in ordered)
+        if total_size > pool.capacity:
+            raise ValueError(
+                f"node {node_id} simultaneously requires {total_size} bytes in "
+                f"{memory_type}, exceeding capacity {pool.capacity}; "
+                f"buffers={ordered[:12]}"
+            )
+
+        # Capture physical order before mutating placements. Members that were
+        # already pending remain pending; members reloaded during a failed first
+        # attempt are spilled again, yielding a new official spill pair.
+        resident_required = sorted(
+            (
+                pool.placements[buf_id][0],
+                buf_id,
+            )
+            for buf_id in group
+            if buf_id in pool.placements
+        )
+        for _, buf_id in resident_required:
+            spill_out(buf_id)
+
+        not_pending = [buf_id for buf_id in ordered if buf_id not in pending_spill]
+        if not_pending:
+            raise AssertionError(
+                f"required-set repack left resident/nonpending buffers: {not_pending[:8]}"
+            )
+
+        super_start = make_space(memory_type, total_size, current_index, set())
+        cursor = super_start
+        for buf_id in ordered:
+            size = alloc_nodes[buf_id].size
+            assert size is not None
+            reload_at(buf_id, cursor)
+            cursor += size
+
+        for buf_id in group:
+            if buf_id not in pool.placements:
+                raise AssertionError(
+                    f"node {node_id}: repack did not restore required buffer {buf_id}"
+                )
 
     for current_index, node_id in enumerate(base_order):
         node = graph.nodes[node_id]
@@ -418,24 +490,45 @@ def allocate_q2_baseline(
         for buf_id in required:
             if buf_id not in live:
                 raise ValueError(f"node {node_id} requires non-live buffer {buf_id}")
-        protected: set[int] = set()
+
+        groups: dict[str, set[int]] = {}
         for buf_id in required:
             alloc = alloc_nodes[buf_id]
             assert alloc.memory_type is not None
-            if buf_id in pools[alloc.memory_type].placements:
-                protected.add(buf_id)
+            groups.setdefault(alloc.memory_type, set()).add(buf_id)
 
-        missing = [buf_id for buf_id in required if buf_id not in protected]
-        missing.sort(
-            key=lambda b: (
-                -(alloc_nodes[b].size or 0),
-                alloc_nodes[b].memory_type or "",
-                b,
-            )
-        )
-        for buf_id in missing:
-            reload_buffer(buf_id, current_index, protected)
-            protected.add(buf_id)
+        for memory_type in sorted(groups):
+            group = groups[memory_type]
+            pool = pools[memory_type]
+            total_required = sum(alloc_nodes[b].size or 0 for b in group)
+            if total_required > pool.capacity:
+                raise ValueError(
+                    f"node {node_id} simultaneously requires {total_required} bytes in "
+                    f"{memory_type}, exceeding capacity {pool.capacity}; "
+                    f"buffers={sorted(group)[:12]}"
+                )
+
+            protected = {buf_id for buf_id in group if buf_id in pool.placements}
+            missing = [buf_id for buf_id in group if buf_id not in protected]
+            missing.sort(key=lambda b: (-(alloc_nodes[b].size or 0), b))
+
+            try:
+                for buf_id in missing:
+                    reload_buffer(buf_id, current_index, protected)
+                    protected.add(buf_id)
+            except ValueError as exc:
+                prefix = f"cannot make contiguous {memory_type} space"
+                if not str(exc).startswith(prefix):
+                    raise
+                repack_required_group(memory_type, group, current_index, node_id)
+
+            unresolved = [buf_id for buf_id in group if buf_id not in pool.placements]
+            if unresolved:
+                raise AssertionError(
+                    f"node {node_id}: required {memory_type} buffers are not all resident: "
+                    f"{unresolved[:8]}"
+                )
+
         output_schedule.append(node_id)
 
     if live:
