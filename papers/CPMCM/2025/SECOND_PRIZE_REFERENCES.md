@@ -65,9 +65,10 @@
 2. 中原工学院研究生处 2024 级录取通知名单公开列出“张颢震 / 控制理论与控制工程”；原电子信息学院 2024 年调剂四批复试名单也公开列出同名考生，能独立确认张颢震确为中原工学院该方向研究生：
    - <https://yjsc.zut.edu.cn/info/1128/4076.htm>
    - <https://xt.zut.edu.cn/info/1003/1021.htm>
-3. `1357570890/NPU-Operator-Scheduler` 的初始 commit `3024595a4e6f373be82d43c9f02bc8493a141982`，Git author / committer 均为 `haozhen zhang <1357570890@qq.com>`；该 GitHub 账号正是仓库 owner。结合“张颢震 → Haozhen Zhang”的姓名对应、官方学校身份与项目奖项自述，形成第二条独立身份链：
+3. `1357570890/NPU-Operator-Scheduler` 的初始 commit `3024595a4e6f373be82d43c9f02bc8493a141982`，Git author / committer 均为 `haozhen zhang <1357570890@qq.com>`；该 GitHub 账号正是仓库 owner：
    - <https://github.com/1357570890/NPU-Operator-Scheduler/commit/3024595a4e6f373be82d43c9f02bc8493a141982>
-4. 因此本条从 `N2-S` 升级为 `N2-V`。升级依据不是单纯“姓名拼音相似”，而是“官方最终获奖名单 + 学校官方在读/录取身份 + Git commit 作者身份 + 原项目全国二等奖自述”的交叉闭环。
+4. 同一 GitHub 账号的个人主页仓库 [`1357570890/1357570890.github.io`](https://github.com/1357570890/1357570890.github.io) 在 README 首部直接自述 **“Haozhen's Interactive Portfolio”** 和 **“张颢震的个人主页与算法控制系统仿真实验室”**。这给出了账号 owner 对英文名 `Haozhen` 与中文名“张颢震”的直接自我绑定，因此不再需要仅凭拼音对应推断身份。
+5. 因此本条 `N2-V` 的身份链现为“官方最终获奖名单 + 学校官方在读/录取身份 + Git commit 作者身份 + 同账号中英文实名自述 + 原项目全国二等奖自述”的交叉闭环。
 
 #### 可学习内容
 
