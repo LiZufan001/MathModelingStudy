@@ -9,7 +9,7 @@ from pathlib import Path
 from parser import load_case
 from q1_scheduler import schedule_q1_baseline
 from q2_allocator import allocate_q2_baseline
-from q2_optimized import EXPECTED_Q2_OPTIMIZED, schedule_q2_optimized
+from q2_promoted import EXPECTED_Q2_PROMOTED, solve_q2_promoted
 from q2_validator import validate_q2_solution
 
 CASES = (
@@ -53,16 +53,8 @@ def _write_official_outputs(case: str, out_dir: Path, solution) -> None:
     )
 
 
-def _schedule(graph, strategy: str):
-    if strategy == "baseline":
-        return schedule_q1_baseline(graph)
-    if strategy == "optimized":
-        return schedule_q2_optimized(graph)
-    raise ValueError(f"unknown Q2 strategy: {strategy}")
-
-
 def _assert_optimized_regression(case: str, scheduled, replay) -> None:
-    expected = EXPECTED_Q2_OPTIMIZED[case]
+    expected = EXPECTED_Q2_PROMOTED[case]
     actual = (
         scheduled.evaluation.peak_residency,
         replay.spill_count,
@@ -84,7 +76,10 @@ def main() -> int:
         "--strategy",
         choices=STRATEGIES,
         default="baseline",
-        help="baseline keeps the Q1 order; optimized uses the promoted pure-footprint Q2 order",
+        help=(
+            "baseline keeps the Q1 order; optimized uses the promoted footprint "
+            "scheduler plus a strict window-0..3 Q2 polish portfolio"
+        ),
     )
     args = ap.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -102,12 +97,25 @@ def main() -> int:
             )
 
         schedule_start = time.perf_counter()
-        scheduled = _schedule(graph, args.strategy)
-        schedule_seconds = time.perf_counter() - schedule_start
+        if args.strategy == "baseline":
+            scheduled = schedule_q1_baseline(graph)
+            schedule_seconds = time.perf_counter() - schedule_start
 
-        q2_start = time.perf_counter()
-        q2 = allocate_q2_baseline(graph, scheduled.order)
-        q2_seconds = time.perf_counter() - q2_start
+            q2_start = time.perf_counter()
+            q2 = allocate_q2_baseline(graph, scheduled.order)
+            q2_seconds = time.perf_counter() - q2_start
+            polish_window = 0
+            changed_positions = 0
+        else:
+            scheduled = solve_q2_promoted(graph)
+            schedule_seconds = time.perf_counter() - schedule_start
+            # The promoted solver already allocated and strictly replayed every
+            # portfolio candidate; reuse the chosen allocation rather than paying
+            # for a fifth allocation of the same winner.
+            q2 = scheduled.allocation
+            q2_seconds = 0.0
+            polish_window = scheduled.polish_window
+            changed_positions = scheduled.changed_positions
 
         # A second explicit replay here is intentional: batch acceptance must not
         # rely only on the allocator's internal postcondition call.
@@ -134,6 +142,8 @@ def main() -> int:
                 "final_schedule_nodes": len(q2.solution.schedule),
                 "affinity_decisions": getattr(scheduled, "affinity_decisions", 0),
                 "footprint_decisions": getattr(scheduled, "footprint_decisions", 0),
+                "polish_window": polish_window,
+                "changed_positions": changed_positions,
                 "q1_seconds": round(schedule_seconds, 6),
                 "q2_seconds": round(q2_seconds, 6),
                 "valid": replay.ok,
@@ -151,6 +161,8 @@ def main() -> int:
         "final_schedule_nodes",
         "affinity_decisions",
         "footprint_decisions",
+        "polish_window",
+        "changed_positions",
         "q1_seconds",
         "q2_seconds",
         "valid",
