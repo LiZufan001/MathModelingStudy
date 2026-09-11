@@ -17,7 +17,7 @@ permissions:
 jobs:
   q3-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -52,6 +52,12 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-zero-traffic \
             --rounds 2
+      - name: Build strict epsilon-constrained Q3 Pareto frontier
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_pareto.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-pareto \
+            --rounds 2
       - name: Upload Q3 evidence
         uses: actions/upload-artifact@v4
         with:
@@ -61,4 +67,5 @@ jobs:
             /tmp/q3-address-policies
             /tmp/q3-pipeline-critical
             /tmp/q3-zero-traffic
+            /tmp/q3-pareto
           if-no-files-found: error

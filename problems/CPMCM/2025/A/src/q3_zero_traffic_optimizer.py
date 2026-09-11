@@ -43,14 +43,22 @@ def optimize_q3_zero_traffic(
     Each round first chooses the best strictly valid address layout from the
     generic address portfolio, then tries critical-bottom-level pipeline
     rescheduling. A transformation is accepted only when the independent safe Q3
-    evaluator reports strictly fewer cycles. Spill identity/order/count and
-    traffic are immutable throughout the search.
+    evaluator reports strictly fewer cycles. Spill victim identity/order/count and
+    traffic are immutable throughout the search; only reload offsets may change
+    during address recoloring.
     """
 
     if max_rounds <= 0:
         raise ValueError("max_rounds must be positive")
     original_q2 = validate_q2_solution(graph, solution)
     original_q2.require_ok()
+    original_spill_buffers = tuple(spill.buf_id for spill in solution.spills)
+
+    def require_same_spill_decisions(candidate: Q2Solution) -> None:
+        candidate_buffers = tuple(spill.buf_id for spill in candidate.spills)
+        if candidate_buffers != original_spill_buffers:
+            raise AssertionError("zero-traffic Q3 optimization changed spill victim identity/order")
+
     current = solution
     current_timing = evaluate_q3_solution(graph, current, reuse_mode="residency_safe")
     current_timing.require_ok()
@@ -62,6 +70,7 @@ def optimize_q3_zero_traffic(
 
         try:
             address = select_q3_address_portfolio(graph, current)
+            require_same_spill_decisions(address.solution)
             accepted = address.timing.total_cycles < current_timing.total_cycles
             steps.append(
                 Q3ZeroTrafficStep(
@@ -91,6 +100,7 @@ def optimize_q3_zero_traffic(
 
         try:
             critical = reschedule_q3_critical(graph, current)
+            require_same_spill_decisions(critical.solution)
             accepted = critical.timing.total_cycles < current_timing.total_cycles
             steps.append(
                 Q3ZeroTrafficStep(
@@ -121,6 +131,7 @@ def optimize_q3_zero_traffic(
         if current_timing.total_cycles == round_start_cycles:
             break
 
+    require_same_spill_decisions(current)
     final_q2 = validate_q2_solution(graph, current)
     final_q2.require_ok()
     if final_q2.spill_count != original_q2.spill_count:
