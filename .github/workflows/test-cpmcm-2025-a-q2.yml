@@ -1,0 +1,46 @@
+name: Test CPMCM 2025 A Q2
+
+on:
+  push:
+    branches:
+      - "agent/q2-memory-spill-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/src/**"
+      - "problems/CPMCM/2025/A/tests/**"
+      - "problems/CPMCM/2025/A/README.md"
+      - "problems/CPMCM/2025/A/A题：通用神经网络处理器下的核内调度问题.docx"
+      - ".github/workflows/test-cpmcm-2025-a-q2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q2-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Extract authoritative Q2/SPILL statement excerpts
+        run: |
+          python problems/CPMCM/2025/A/src/extract_statement_rules.py \
+            --docx "problems/CPMCM/2025/A/A题：通用神经网络处理器下的核内调度问题.docx" \
+            --window 5 \
+            --json-out /tmp/q2-statement-records.json
+      - name: Existing Q1 regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/tests -q
+      - name: Upload statement extraction evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q2-statement-evidence
+          path: /tmp/q2-statement-records.json
+          if-no-files-found: error
