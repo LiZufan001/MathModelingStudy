@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bisect
+import heapq
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
@@ -106,25 +107,6 @@ class AddressPool:
         return sorted((start, end, buf_id) for buf_id, (start, end) in self.placements.items())
 
 
-def _candidate_window_starts(pool: AddressPool, size: int) -> tuple[int, ...]:
-    """Enumerate one representative on each integer overlap-set boundary.
-
-    For an occupied interval [s,e), a size-q window [x,x+q) overlaps it for
-    integer x in [s-q+1, e-1].  Therefore s-q/s-q+1 and e-1/e are sufficient
-    transition representatives.  Unit tests compare the resulting minimum
-    traffic cost against brute force over every integer x on small pools.
-    """
-
-    if size < 0 or size > pool.capacity:
-        return ()
-    limit = pool.capacity - size
-    starts = {0, limit}
-    for start, end, _ in pool.used_intervals():
-        for candidate in (start - size, start - size + 1, end - 1, end):
-            starts.add(min(limit, max(0, candidate)))
-    return tuple(sorted(starts))
-
-
 def _free_span_after_victims(
     pool: AddressPool,
     window_start: int,
@@ -151,11 +133,17 @@ def choose_min_cost_window(
     next_use_distances: Mapping[int, int],
     protected: frozenset[int] | set[int] = frozenset(),
 ) -> SpillWindowChoice | None:
-    """Choose a contiguous target window with minimum official spill traffic.
+    """Choose a contiguous target window with exact minimum official spill traffic.
 
-    The official traffic objective is the primary key.  Victim count,
-    next-use distance, post-spill free span, and address are deterministic
-    secondary criteria only.
+    For an occupied interval [s,e) and an integer start x, a size-q window
+    [x,x+q) overlaps that interval exactly for x in [s-q+1, e-1].  Therefore the
+    victim set changes only at two events per resident buffer.  Sweeping those
+    events evaluates every distinct victim set in O(R log R), rather than
+    rescanning all R residents for O(R) candidate starts.
+
+    The official extra-DDR traffic is the primary objective.  Deterministic
+    secondary keys prefer fewer victims, farther next use, then lower offset.
+    They never override a lower official traffic cost.
     """
 
     if size < 0 or size > pool.capacity:
@@ -163,52 +151,95 @@ def choose_min_cost_window(
     if size == 0:
         return SpillWindowChoice(0, (), 0, pool.capacity, 10**9, 10**9)
 
-    best: tuple[tuple[object, ...], SpillWindowChoice] | None = None
+    limit = pool.capacity - size
     protected_set = set(protected)
-    used = pool.used_intervals()
-
-    for start in _candidate_window_starts(pool, size):
-        end = start + size
-        victims = tuple(
-            sorted(
-                buf_id
-                for used_start, used_end, buf_id in used
-                if start < used_end and used_start < end
-            )
-        )
-        if protected_set.intersection(victims):
+    # position -> [(+1 enter / -1 leave, buf_id)]
+    events: dict[int, list[tuple[int, int]]] = {0: []}
+    for start, end, buf_id in pool.used_intervals():
+        # Zero-sized placements do not physically overlap any non-empty window.
+        if start >= end:
             continue
-        victim_set = set(victims)
-        cost = sum(traffic_costs[buf_id] for buf_id in victims)
-        if victims:
-            distances = [next_use_distances.get(buf_id, 10**9) for buf_id in victims]
-            min_distance = min(distances)
-            sum_distance = sum(distances)
+        lo = max(0, start - size + 1)
+        hi = min(limit, end - 1)
+        if lo > hi:
+            continue
+        events.setdefault(lo, []).append((1, buf_id))
+        events.setdefault(hi + 1, []).append((-1, buf_id))
+
+    active: set[int] = set()
+    active_cost = 0
+    active_distance_sum = 0
+    active_protected = 0
+    min_distance_heap: list[tuple[int, int]] = []
+
+    best_key: tuple[int, int, int, int, int] | None = None
+    best_start: int | None = None
+    best_victims: tuple[int, ...] = ()
+    best_min_distance = 10**9
+    best_sum_distance = 10**9
+
+    for position in sorted(events):
+        if position > limit:
+            break
+        for delta, buf_id in events[position]:
+            distance = next_use_distances.get(buf_id, 10**9)
+            if delta > 0:
+                if buf_id in active:
+                    raise AssertionError(f"duplicate overlap-enter event for buffer {buf_id}")
+                active.add(buf_id)
+                active_cost += traffic_costs[buf_id]
+                active_distance_sum += distance
+                if buf_id in protected_set:
+                    active_protected += 1
+                heapq.heappush(min_distance_heap, (distance, buf_id))
+            else:
+                if buf_id not in active:
+                    raise AssertionError(f"overlap-leave event without active buffer {buf_id}")
+                active.remove(buf_id)
+                active_cost -= traffic_costs[buf_id]
+                active_distance_sum -= distance
+                if buf_id in protected_set:
+                    active_protected -= 1
+
+        if active_protected:
+            continue
+
+        while min_distance_heap and min_distance_heap[0][1] not in active:
+            heapq.heappop(min_distance_heap)
+
+        if active:
+            min_distance = min_distance_heap[0][0]
+            sum_distance = active_distance_sum
         else:
             min_distance = 10**9
             sum_distance = 10**9
-        free_span = _free_span_after_victims(pool, start, size, victim_set)
-        choice = SpillWindowChoice(
-            start,
-            victims,
-            cost,
-            free_span,
-            min_distance,
-            sum_distance,
-        )
-        key: tuple[object, ...] = (
-            cost,
-            len(victims),
+
+        key = (
+            active_cost,
+            len(active),
             -min_distance,
             -sum_distance,
-            -free_span,
-            start,
-            victims,
+            position,
         )
-        if best is None or key < best[0]:
-            best = (key, choice)
+        if best_key is None or key < best_key:
+            best_key = key
+            best_start = position
+            best_victims = tuple(sorted(active))
+            best_min_distance = min_distance
+            best_sum_distance = sum_distance
 
-    return None if best is None else best[1]
+    if best_key is None or best_start is None:
+        return None
+
+    victim_set = set(best_victims)
+    return SpillWindowChoice(
+        best_start,
+        best_victims,
+        best_key[0],
+        _free_span_after_victims(pool, best_start, size, victim_set),
+        best_min_distance,
+        best_sum_distance,
+    )
 
 
 def _validate_base_order(graph: ComputeGraph, order: Sequence[int]) -> None:
@@ -238,7 +269,6 @@ def allocate_q2_baseline(
     """Best-fit + minimum-traffic-window Q2 baseline on a fixed original order."""
 
     _validate_base_order(graph, base_order)
-    n = graph.node_count
 
     alloc_nodes = {
         node.buf_id: node
@@ -252,9 +282,10 @@ def allocate_q2_baseline(
         if node.size is not None
     }
 
-    pools: dict[str, AddressPool] = {}
-    for memory_type, capacity in capacities.items():
-        pools[memory_type] = AddressPool(capacity)
+    pools: dict[str, AddressPool] = {
+        memory_type: AddressPool(capacity)
+        for memory_type, capacity in capacities.items()
+    }
 
     for buf_id, alloc in alloc_nodes.items():
         if alloc.memory_type not in pools or alloc.size is None:
@@ -387,11 +418,13 @@ def allocate_q2_baseline(
         for buf_id in required:
             if buf_id not in live:
                 raise ValueError(f"node {node_id} requires non-live buffer {buf_id}")
-        protected = {
-            buf_id
-            for buf_id in required
-            if buf_id in pools[alloc_nodes[buf_id].memory_type].placements  # type: ignore[index]
-        }
+        protected: set[int] = set()
+        for buf_id in required:
+            alloc = alloc_nodes[buf_id]
+            assert alloc.memory_type is not None
+            if buf_id in pools[alloc.memory_type].placements:
+                protected.add(buf_id)
+
         missing = [buf_id for buf_id in required if buf_id not in protected]
         missing.sort(
             key=lambda b: (
