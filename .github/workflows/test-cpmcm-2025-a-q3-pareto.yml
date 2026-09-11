@@ -5,6 +5,20 @@ on:
     branches:
       - "agent/q3-pipeline-20260911"
     paths:
+      - "problems/CPMCM/2025/A/src/benchmark_q3_pareto.py"
+      - "problems/CPMCM/2025/A/src/q3_tradeoff_scheduler.py"
+      - "problems/CPMCM/2025/A/src/q3_zero_traffic_optimizer.py"
+      - "problems/CPMCM/2025/A/src/q3_evaluator.py"
+      - "problems/CPMCM/2025/A/src/q3_reallocator.py"
+      - "problems/CPMCM/2025/A/src/q3_pipeline_scheduler.py"
+      - "problems/CPMCM/2025/A/src/q3_address_portfolio.py"
+      - "problems/CPMCM/2025/A/src/q2_allocator.py"
+      - "problems/CPMCM/2025/A/src/q2_optimized.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_evaluator.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_reallocator.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_pipeline_scheduler.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_zero_traffic_optimizer.py"
       - ".github/workflows/test-cpmcm-2025-a-q3-pareto.yml"
   workflow_dispatch:
 
@@ -34,12 +48,15 @@ jobs:
             problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py \
             problems/CPMCM/2025/A/tests/test_q3_zero_traffic_optimizer.py \
             -q
-      - name: Build strict epsilon-constrained Q3 Pareto frontier
+      - name: Build strict epsilon-constrained Q3 Pareto frontiers
         run: |
           python problems/CPMCM/2025/A/src/benchmark_q3_pareto.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-pareto \
             --rounds 2
+          test -s /tmp/q3-pareto/q3_safe_frontier.csv
+          test -s /tmp/q3-pareto/q3_official_frontier.csv
+          test -s /tmp/q3-pareto/q3_epsilon_frontier.csv
       - name: Upload Q3 Pareto evidence
         uses: actions/upload-artifact@v4
         with:
