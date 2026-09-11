@@ -65,13 +65,11 @@ jobs:
             pages=[norm(pg.get_text('text')) for pg in doc]
             lines += [f'## {label}｜{code}', '', f'- PDF: `{path}`', f'- pages: {len(doc)}', '']
 
-            # Abstract/front matter
             for i,t in enumerate(pages[:5]):
               if re.search(r'摘\s*要', t):
                 lines += [f'### ABSTRACT｜p.{i+1}', '', t[:3500], '']
                 break
 
-            # Heading pages: keep first page for each broad category
             used=set()
             for i,t in enumerate(pages):
               for hr in heading_res:
@@ -81,7 +79,6 @@ jobs:
                   used.add(key)
                   lines += [f'### HEADING_PAGE｜p.{i+1}｜`{key}`', '', t[:4200], '']
 
-            # Research transition / failure / result cues with page numbers
             lines += ['### CUE_CONTEXTS', '']
             for term in cue_terms:
               hits=[]
@@ -104,4 +101,6 @@ jobs:
           git config user.email '128899229+LiZufan001@users.noreply.github.com'
           git add papers/CPMCM/study/_tmp_original_narrative_corpus.md
           git commit -m 'study: generate temporary original-paper narrative corpus'
+          git fetch origin main
+          git rebase origin/main
           git push
