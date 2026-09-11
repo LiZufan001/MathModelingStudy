@@ -63,19 +63,39 @@ def audit_physical_time_overlap(
 
     ALLOC acquires at its zero-cycle start. SPILL_IN starts writing the target at
     its start. SPILL_OUT retains the source until its transfer finishes. FREE is
-    zero-cycle. Release events are processed before acquisitions at the same time.
+    zero-cycle. Physical occupancy is treated as a half-open time interval
+    [acquire_start, release_finish): a zero-duration epoch therefore occupies no
+    cache time and must not leave a phantom owner in the timestamp sweep.
+
+    For non-empty epochs, release events are processed before acquisitions at the
+    same timestamp so a later owner may immediately reuse bytes just released by
+    an earlier epoch.
     """
 
     events: list[tuple[int, int, ResidencyEpoch]] = []
+    errors: list[str] = []
     for epoch in epochs:
-        events.append((finish_times[epoch.release_node], 0, epoch))
-        events.append((start_times[epoch.acquire_node], 1, epoch))
+        acquire_time = start_times[epoch.acquire_node]
+        release_time = finish_times[epoch.release_node]
+        if release_time < acquire_time:
+            errors.append(
+                f"negative residency interval for buffer {epoch.buf_id} "
+                f"epoch@{epoch.acquire_node}: acquire={acquire_time}, release={release_time}"
+            )
+            if len(errors) >= max_errors:
+                return tuple(errors)
+            continue
+        if release_time == acquire_time:
+            # Half-open interval [t, t) is empty.  Emitting release-before-acquire
+            # events for it would incorrectly leave the acquire token resident.
+            continue
+        events.append((release_time, 0, epoch))
+        events.append((acquire_time, 1, epoch))
     events.sort(key=lambda item: (item[0], item[1], item[2].acquire_node, item[2].buf_id))
 
     owner: dict[str, list[tuple[int, int] | None]] = {
         memory_type: [None] * capacity for memory_type, capacity in capacities.items()
     }
-    errors: list[str] = []
     seen_pairs: set[tuple[int, int, int, int]] = set()
 
     for time, kind, epoch in events:

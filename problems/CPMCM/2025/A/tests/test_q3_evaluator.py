@@ -124,3 +124,43 @@ def test_residency_safe_mode_catches_spill_reuse_missing_from_literal_rule() -> 
     assert result.residency_safe.total_cycles == 193
     assert result.residency_safe.physical_overlap_errors == ()
     assert result.residency_safe.reuse_edge_count > result.official_literal.reuse_edge_count
+
+
+def test_residency_safe_repeated_spill_serializes_reload_before_next_release() -> None:
+    nodes = [
+        Node(0, "ALLOC", 0, 4, "L1"),
+        Node(1, "COPY_IN", pipe="MTE2", cycles=10, bufs=(0,)),
+        Node(2, "USE_LATE", pipe="VECTOR", cycles=5, bufs=(0,)),
+        Node(3, "FREE", 0, 4, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(nodes, [(0, 1), (1, 2), (2, 3)])
+    # N=4: spill0 OUT/IN = 4/5, spill1 OUT/IN = 6/7.  There is no
+    # business use between IN(5) and OUT(6), so residency safety itself must
+    # preserve the middle epoch's acquire->release lifetime.
+    solution = Q2Solution(
+        (0, 1, 4, 5, 6, 7, 2, 3),
+        {0: 0},
+        (SpillRecord(0, 0), SpillRecord(0, 0)),
+    )
+    result = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
+    result.require_ok()
+    assert result.physical_overlap_errors == ()
+    assert result.start_times[6] >= result.finish_times[5]
+    assert result.start_times[7] >= result.finish_times[6]
+
+
+def test_residency_safe_zero_duration_epoch_has_no_phantom_owner() -> None:
+    nodes = [
+        Node(0, "ALLOC", 0, 4, "L1"),
+        Node(1, "FREE", 0, 4, "L1"),
+        Node(2, "ALLOC", 1, 4, "L1"),
+        Node(3, "USE_B", pipe="CUBE", cycles=10, bufs=(1,)),
+        Node(4, "FREE", 1, 4, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(nodes, [(2, 3), (3, 4)])
+    solution = Q2Solution((0, 1, 2, 3, 4), {0: 0, 1: 0}, ())
+    result = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
+    result.require_ok()
+    assert result.total_cycles == 10
+    assert result.start_times[0] == result.finish_times[1] == result.start_times[2] == 0
+    assert result.physical_overlap_errors == ()
