@@ -1,8 +1,10 @@
-# Q2 optimized：正式提升与六组严格验收
+# Q2 optimized：footprint 基线 + 通用 polish portfolio
 
-## 结论
+## 当前正式结论
 
-2026-09-11 将 pure-footprint `footprint_m8` 调度策略从实验候选提升为正式 Q2 生成路径。正式入口为：
+2026-09-11，正式 Q2 路径已从单一 pure-footprint 调度升级为 `solve_q2_promoted()`：先生成已经验收的 footprint-aware 基础顺序，再对同一顺序尝试一个很小的、图结构通用的 `window = {0,1,2,3}` polish portfolio；每个候选都重新通过严格 Q2 allocator + 独立 validator replay，最后按官方目标择优。
+
+正式入口仍为：
 
 ```bash
 python problems/CPMCM/2025/A/src/batch_q2.py \
@@ -11,91 +13,101 @@ python problems/CPMCM/2025/A/src/batch_q2.py \
   --out-dir /tmp/q2-optimized-results
 ```
 
-该入口执行：Q2-aware schedule → strict allocator → 第二次独立 validator replay → exact promotion metric regression gate → 官方 schedule / memory / spill 文件输出。
+生产实现位于：
 
-## 正式配置
+- `src/q2_optimized.py`：footprint-aware 基础调度；
+- `src/q2_promoted.py`：`POLISH_WINDOWS = (0,1,2,3)`、严格分配、候选择优与 exact regression；
+- `src/q2_allocator.py` / `src/q2_validator.py`：正式分配器与独立重放验证器。
 
-配置定义在 `src/q2_optimized.py`，固定为：
+## 选择规则
+
+对每个 polish window：
+
+1. 先生成合法拓扑顺序；
+2. 要求 `q1_peak` 不高于 footprint 基础顺序；
+3. 完整运行严格 Q2 allocator；
+4. `q2_validator` 独立 replay 必须通过；
+5. 在有效候选中按下列字典序选最优：
 
 ```text
-hot_window=1
-direct_affinity_weight=0
-release_weight=0
-probe_per_buffer=64
-footprint_weight=1
-footprint_min_buffers=8
+extra_traffic
+→ spill_count
+→ q1_peak
+→ changed_positions
+→ smaller window
 ```
 
-这不是按算子名称做 Matmul 特判。scheduler 从 L0 缓冲区的局部使用关系构建到 counted L1/UB buffer 的两跳 footprint；跨 task anchor 只允许由 L0C 建立。L0A/L0B 可以在已有 L0C task anchor 下作为从属资源一起路由，但不得在没有 L0C anchor 时凭自己的历史 footprint 独立跨任务 chaining。
+因此 **SPILL 次数不是主目标**。只要官方额外 DDR traffic 更低，即使发生更多次、但每次更便宜的 SPILL，也可能是更优解。
 
-这一约束来自实际反例：允许输入侧 L0A/L0B 独立建立或追逐 task footprint 时，Conv 会出现 `task_anchor=None` 但某个 L0B 已被独立打开并阻塞后续任务的死锁。收紧为 L0C 主导后，Conv0/1 恢复严格可行，同时 Matmul 的复用收益完整保留。
+## 六组 Appendix-E 正式结果
 
-## 六组 Appendix-E 验收
-
-| case | q1_peak | baseline spills | optimized spills | baseline traffic | optimized traffic | traffic delta | footprint decisions | strict valid |
+| case | q1_peak | raw baseline traffic | footprint-only traffic | promoted traffic | promoted spills | polish window | changed positions | strict valid |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| Matmul_Case0 | 9216 | 272 | **225** | 34816 | **28800** | **-6016 (-17.279%)** | 119 | True |
-| Matmul_Case1 | 34816 | 3600 | **3361** | 460800 | **430208** | **-30592 (-6.639%)** | 495 | True |
-| FlashAttention_Case0 | 26728 | 301 | 301 | 55188 | 55188 | 0 | 0 | True |
-| FlashAttention_Case1 | 106992 | 1782 | 1782 | 242552 | 242552 | 0 | 0 | True |
-| Conv_Case0 | 80170 | 493 | 493 | 178212 | 178212 | 0 | 0 | True |
-| Conv_Case1 | 310408 | 9550 | 9550 | 724630 | 724630 | 0 | 0 | True |
+| Matmul_Case0 | 9,216 | 34,816 | 28,800 | **28,800** | 225 | 0 | 0 | True |
+| Matmul_Case1 | 34,816 | 460,800 | 430,208 | **430,208** | 3,361 | 0 | 0 | True |
+| FlashAttention_Case0 | 26,728 | 55,188 | 55,188 | **54,016** | 316 | **1** | 1,004 | True |
+| FlashAttention_Case1 | 106,992 | 242,552 | 242,552 | **242,552** | 1,782 | 0 | 0 | True |
+| Conv_Case0 | 80,170 | 178,212 | 178,212 | **177,904** | 522 | **2** | 1,318 | True |
+| Conv_Case1 | 310,408 | 724,630 | 724,630 | **721,464** | 9,646 | **3** | 20,976 | True |
 
-Matmul 聚合：
+相对上一版 footprint-only promoted 基线：
 
-- traffic：`495616 → 459008`，减少 `36608`，即 `-7.386%`；
-- spills：`3872 → 3586`，减少 `286`，即 `-7.386%`；
-- q1_peak 聚合保持 `44032`；
-- footprint 决策共 `614` 次。
+- 六组总 traffic：`1,659,590 → 1,654,944`；
+- 进一步减少 `4,646`，即 **-0.279949%**；
+- FA0：`55,188 → 54,016`，减少 `1,172`（**-2.123650%**）；
+- Conv0：`178,212 → 177,904`，减少 `308`（**-0.172828%**）；
+- Conv1：`724,630 → 721,464`，减少 `3,166`（**-0.436913%**）；
+- Matmul0/1 与 FA1 自动选择 `window=0`，没有为追求“统一改动”而退化。
 
-FA / Conv 四组没有 footprint 决策，因此正式 pure-footprint 策略退化为 baseline 行为，不引入 direct-hot heuristic 的随机收益或回退。
+相对原始六组 baseline：
 
-## 验收证据
+- 总 traffic：`1,696,198 → 1,654,944`；
+- 减少 `41,254`，即 **-2.432145%**。
 
-Promotion commit：
+六组 `q1_peak` 均保持不变。
 
-`07a57ee7d576e566680f1621208e8cd2d6265e7a`
+## 一个重要现象：traffic 与 spill count 不等价
 
-GitHub Actions：
+polish 后：
 
+- FA0：spill `301 → 316`，但 traffic `55,188 → 54,016`；
+- Conv0：spill `493 → 522`，但 traffic `178,212 → 177,904`；
+- Conv1：spill `9,550 → 9,646`，但 traffic `724,630 → 721,464`。
+
+这说明“最少 SPILL 次数”不是题目二的正确代理目标。不同 buffer 的 `Size`、COPY_IN 可重载属性不同，一个较多次数但较低字节成本的方案可以严格优于较少次数方案。论文中应直接优化并报告 `ExtraTraffic`，spill count 只作为解释性统计量。
+
+## 正式验收证据
+
+本轮 production acceptance：
+
+- branch：`agent/q3-pipeline-20260911`
+- acceptance head：`9dae83afe64820258c234638dc38a0bba9d77e85`
 - workflow：`Test CPMCM 2025 A Q2`
-- run：`34576610370`
+- run：`34588951162`
 - conclusion：`success`
-- Python：3.12
-- tests：`40 passed`
-- `Run Q2 baseline on all six official Appendix-E cases`：success
-- `Compare Matmul strict allocator with exact uniform-page Belady oracle`：success；baseline Matmul0/1 spill 与 traffic gap 均为 0
-- `Benchmark Q2-aware reuse scheduler and replay winner on all six cases`：success；winner=`footprint_m8`，`six_case_all_valid=true`
 - `Generate promoted Q2 optimized solutions with exact regression gates`：success
-- `Hold Q2 allocator fixed and ablate schedule order`：success
-- `Upload Q2 acceptance evidence`：success
+- Matmul exact uniform-page Belady oracle：success
+- 六组 baseline / optimized strict replay：success
+- archived Problem 2 solution audit：success
+- spill profile / order ablation：success
+- artifact upload：success
 
 Artifact：
 
 - name：`cpmcm-2025-a-q2-validation`
-- artifact id：`10189941551`
-- files：52
-- ZIP size：766635 bytes
-- SHA-256：`e0e0744b07e1df56483b0531f29976ece91098d89dc750e1fbf5c7e3e24bdc0c`
-- run URL：`https://github.com/LiZufan001/MathModelingStudy/actions/runs/34576610370`
+- artifact id：`10194890328`
+- SHA-256：`b0e4b54dc2d3041753eb802e1597842464d1e2888785bf5eb07c9204936c4542`
 
-Artifact 中同时保留 baseline、optimized、Belady oracle、reuse parameter sweep、spill profiles、外部 archived solution 审计以及 order ablation 结果。
-
-## 关于外部 archived 参赛附件
-
-当前 workflow 也继续下载并审计公开仓库 `Zysishuiyears/2025Huaweicup_Cachenpuscheduling` 中归档的 A25100550012 Problem2 附件。其 schedule 使用 `spill_L1_0` / `spill_UB_0` 等非题面要求的纯数字节点 token，且 Conv_Case0 还存在部分 reload 地址超出 L1 容量的问题，因此在我们的严格题面解释下 `strict_valid=False`。
-
-这些归档结果只作为思路/指标研究材料，**不作为正确性 oracle 或正式验收基准**。
+本目录的 `q2_optimized_summary.csv` 保存该 production artifact 的实际六组输出；`q2_optimized_summary.json` 保存机器无关的验收元数据与核心指标。运行时间只用于工程 profiling，不作为算法回归门槛。
 
 ## 后续修改的硬门禁
 
-后续 scheduler / allocator 优化只有同时满足以下条件，才允许替换当前正式策略：
+后续 Q2 改动只有同时满足以下条件，才允许替换当前正式策略：
 
-1. `pytest` 全部通过；
-2. 六组官方 Appendix-E 输出均能生成；
+1. 全部单元 / oracle / regression tests 通过；
+2. 六组 Appendix-E 输出均可生成；
 3. 独立 `q2_validator` strict replay 全部通过；
 4. Matmul uniform-page 场景继续与 exact oracle 对账；
-5. 六组 `q1_peak / spill_count / extra_traffic` 不得无意回退；
-6. 若声称新的性能提升，必须保存相同口径的 baseline 对照、真实 CI 日志和可复现 artifact。
-
-机器无关的核心验收数字另存于 `q2_optimized_summary.csv` / `q2_optimized_summary.json`；运行时间不作为固定回归指标。
+5. 六组 `q1_peak` 不得无意上升；
+6. 以 `extra_traffic` 为主目标，不能以 spill count 偷换目标；
+7. 所有声称的提升必须保存同口径 baseline、CI run 和可复现 artifact。

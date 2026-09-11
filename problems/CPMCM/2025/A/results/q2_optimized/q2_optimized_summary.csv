@@ -1,7 +1,7 @@
-case,strategy,nodes,edges,q1_peak,baseline_spill_count,spill_count,spill_delta,baseline_extra_traffic,extra_traffic,traffic_delta,affinity_decisions,footprint_decisions,valid
-Matmul_Case0,optimized,4160,7104,9216,272,225,-47,34816,28800,-6016,119,119,True
-Matmul_Case1,optimized,30976,55040,34816,3600,3361,-239,460800,430208,-30592,495,495,True
-FlashAttention_Case0,optimized,1716,2712,26728,301,301,0,55188,55188,0,0,0,True
-FlashAttention_Case1,optimized,6952,11184,106992,1782,1782,0,242552,242552,0,0,0,True
-Conv_Case0,optimized,2580,3869,80170,493,493,0,178212,178212,0,0,0,True
-Conv_Case1,optimized,36086,85653,310408,9550,9550,0,724630,724630,0,0,0,True
+case,strategy,nodes,edges,q1_peak,spill_count,extra_traffic,final_schedule_nodes,affinity_decisions,footprint_decisions,polish_window,changed_positions,q1_seconds,q2_seconds,valid
+Matmul_Case0,optimized,4160,7104,9216,225,28800,4610,119,119,0,0,0.406414,0.0,True
+Matmul_Case1,optimized,30976,55040,34816,3361,430208,37698,495,495,0,0,6.087242,0.0,True
+FlashAttention_Case0,optimized,1716,2712,26728,316,54016,2348,0,0,1,1004,0.548192,0.0,True
+FlashAttention_Case1,optimized,6952,11184,106992,1782,242552,10516,0,0,0,0,7.733363,0.0,True
+Conv_Case0,optimized,2580,3869,80170,522,177904,3624,0,0,2,1318,0.444325,0.0,True
+Conv_Case1,optimized,36086,85653,310408,9646,721464,55378,0,0,3,20976,40.978906,0.0,True
