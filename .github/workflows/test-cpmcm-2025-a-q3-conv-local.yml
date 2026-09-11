@@ -10,6 +10,7 @@ on:
       - "problems/CPMCM/2025/A/experiments/q3_conv_greedy_recolor.py"
       - "problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_recolor.py"
       - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor_case.py"
       - ".github/workflows/test-cpmcm-2025-a-q3-conv-local.yml"
   workflow_dispatch:
 
@@ -18,8 +19,15 @@ permissions:
 
 jobs:
   q3-conv-local:
+    name: q3-conv-local-${{ matrix.case }}
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - Conv_Case0
+          - Conv_Case1
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -40,18 +48,20 @@ jobs:
             -q
       - name: Search Conv greedy critical-reuse local recolor moves
         run: |
-          python problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py \
+          OUT_DIR="/tmp/q3-conv-local-${{ matrix.case }}"
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor_case.py \
+            --case "${{ matrix.case }}" \
             --data-dir problems/CPMCM/2025/A/data/csv \
-            --out-dir /tmp/q3-conv-local \
-            --max-rounds 3 \
+            --out-dir "$OUT_DIR" \
+            --max-rounds 6 \
             --max-targets 6 \
             --max-starts 12
-          test -s /tmp/q3-conv-local/conv_local_recolor_summary.csv
-          test -s /tmp/q3-conv-local/conv_local_recolor_trials.csv
-          test -s /tmp/q3-conv-local/conv_local_recolor_summary.json
+          test -s "$OUT_DIR/conv_local_recolor_summary.csv"
+          test -s "$OUT_DIR/conv_local_recolor_trials.csv"
+          test -s "$OUT_DIR/conv_local_recolor_summary.json"
       - name: Upload Conv local-recolor evidence
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv-local-recolor
-          path: /tmp/q3-conv-local
+          name: cpmcm-2025-a-q3-conv-local-recolor-${{ matrix.case }}
+          path: /tmp/q3-conv-local-${{ matrix.case }}
           if-no-files-found: error
