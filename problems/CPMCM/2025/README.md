@@ -30,6 +30,7 @@ https://www.newsdata.uestc.edu.cn/?Id=98642&n=UestcNews.Front.DocumentV2.Article
 - A–F 六题均收录题面
 - 每题同时保留 `DOCX` 与 `PDF` 两种格式
 - A 题已新增面向模拟写题的系统精读、三问建模路线、验证计划和论文建议，见 [`A/study/`](A/study/README.md)
+- A 题新增全国二等奖公开算法工程索引，与国一全文统计分开管理，见 [`SECOND_PRIZE_REFERENCES.md`](../../../papers/CPMCM/2025/SECOND_PRIZE_REFERENCES.md)
 - F 题额外整理了录屏课完整 ASR 字幕、系统讲解分析和自学训练资料，见 [`F/study/`](F/study/README.md)
 - A 题已补齐附录 E 的示例计算图数据：6 个 JSON + 12 个 CSV，见 [`A/data/`](A/data/README.md)
 
