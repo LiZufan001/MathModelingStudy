@@ -36,9 +36,16 @@ jobs:
           python problems/CPMCM/2025/A/src/batch_q3.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-baseline
-      - name: Upload Q3 baseline evidence
+      - name: Benchmark fixed-traffic Q3 address recoloring policies
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_address_policies.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-address-policies
+      - name: Upload Q3 evidence
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-baseline
-          path: /tmp/q3-baseline
+          name: cpmcm-2025-a-q3-validation
+          path: |
+            /tmp/q3-baseline
+            /tmp/q3-address-policies
           if-no-files-found: error
