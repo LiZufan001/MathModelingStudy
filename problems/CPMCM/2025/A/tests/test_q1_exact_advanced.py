@@ -18,10 +18,10 @@ def strategic_l0_graph() -> ComputeGraph:
     # Buffer P (100) is live first. Choosing L0 buffer A first forces X (80) to
     # overlap P, while choosing L0 buffer B first unlocks FREE(P) before X is allocated.
     nodes = [
-        Node(0, "ALLOC", 0, 100, "L1"),      # P
-        Node(1, "ALLOC", 1, 8, "L0A"),       # A: baseline chooses this by id
-        Node(2, "ALLOC", 2, 8, "L0A"),       # B: strategically better
-        Node(3, "ALLOC", 3, 80, "L1"),       # X
+        Node(0, "ALLOC", 0, 100, "L1"),
+        Node(1, "ALLOC", 1, 8, "L0A"),
+        Node(2, "ALLOC", 2, 8, "L0A"),
+        Node(3, "ALLOC", 3, 80, "L1"),
         Node(4, "FREE", 1, 8, "L0A"),
         Node(5, "FREE", 0, 100, "L1"),
         Node(6, "FREE", 2, 8, "L0A"),
@@ -36,15 +36,30 @@ def strategic_l0_graph() -> ComputeGraph:
 
 
 def l0_deadlock_trap_graph() -> ComputeGraph:
-    # If A is allocated first, FREE(A) cannot become ready until B is allocated,
-    # but B cannot be allocated while A occupies L0A. B-first is feasible.
+    # A's FREE depends transitively on B's ALLOC. A-first therefore occupies L0A
+    # forever: B cannot allocate, so the neutral node cannot run, so FREE(A) never
+    # becomes ready. The prerequisite analysis must discover B through the neutral node.
+    nodes = [
+        Node(0, "ALLOC", 0, 8, "L0A"),
+        Node(1, "ALLOC", 1, 8, "L0A"),
+        Node(2, "OP", pipe="VECTOR", cycles=1),
+        Node(3, "FREE", 0, 8, "L0A"),
+        Node(4, "FREE", 1, 8, "L0A"),
+    ]
+    edges = [(0, 3), (1, 2), (2, 3), (1, 4)]
+    return ComputeGraph.from_edges(nodes, edges)
+
+
+def impossible_l0_cycle_under_resource_graph() -> ComputeGraph:
+    # The DAG itself is acyclic, but its two L0 lifetimes mutually require the other
+    # allocation before either FREE can execute. No schedule can satisfy one-live-L0A.
     nodes = [
         Node(0, "ALLOC", 0, 8, "L0A"),
         Node(1, "ALLOC", 1, 8, "L0A"),
         Node(2, "FREE", 0, 8, "L0A"),
         Node(3, "FREE", 1, 8, "L0A"),
     ]
-    edges = [(0, 2), (1, 2), (1, 3)]
+    edges = [(0, 3), (1, 2)]
     return ComputeGraph.from_edges(nodes, edges)
 
 
@@ -68,7 +83,7 @@ def test_pressure_matches_exact_and_beats_baseline_on_strategic_l0_choice() -> N
     assert pressure.order.index(2) < pressure.order.index(1)
 
 
-def test_exact_and_pressure_escape_l0_deadlock_trap() -> None:
+def test_pressure_escapes_transitive_l0_deadlock_trap() -> None:
     graph = l0_deadlock_trap_graph()
     with pytest.raises(ValueError, match="unschedulable|no Q1-feasible"):
         schedule_q1_baseline(graph)
@@ -79,6 +94,14 @@ def test_exact_and_pressure_escape_l0_deadlock_trap() -> None:
     assert exact.evaluation.valid
     assert pressure.order[0] == 1
     assert exact.evaluation.peak_residency == 0
+
+
+def test_pressure_rejects_resource_infeasible_acyclic_graph() -> None:
+    graph = impossible_l0_cycle_under_resource_graph()
+    with pytest.raises(ValueError, match="unschedulable|no Q1-feasible"):
+        schedule_q1_pressure(graph)
+    with pytest.raises(ValueError, match="no schedule"):
+        solve_q1_exact(graph)
 
 
 def test_exact_solver_has_explicit_size_guard() -> None:

@@ -22,6 +22,60 @@ class Q1PressureResult:
     evaluation: Q1Evaluation
 
 
+class _L0PrerequisiteAnalyzer:
+    """Find same-L0 allocations that must finish before a candidate can start.
+
+    For an L0 allocation A, walk backward from FREE(A). Whenever the walk first hits
+    another allocation B of the same L0 type on a predecessor path, B is a hard
+    prerequisite: if A were allocated before B had completed, B could never acquire
+    the single slot needed to make FREE(A) reachable. We stop that path at B because
+    B's own prerequisites are handled when B itself is scheduled.
+
+    The result is static for a graph and cached per allocation. This is a correctness
+    guard, not a heuristic score.
+    """
+
+    def __init__(self, graph: ComputeGraph) -> None:
+        self.graph = graph
+        self._cache: dict[int, frozenset[int]] = {}
+
+    def prerequisites(self, alloc_node_id: int) -> frozenset[int]:
+        cached = self._cache.get(alloc_node_id)
+        if cached is not None:
+            return cached
+
+        alloc = self.graph.nodes[alloc_node_id]
+        if not alloc.is_alloc or alloc.memory_type not in L0_TYPES or alloc.buf_id is None:
+            raise ValueError(f"node {alloc_node_id} is not a valid L0 ALLOC")
+        free = self.graph.free_node_for_buffer(alloc.buf_id)
+        if free is None:
+            raise ValueError(f"L0 buffer {alloc.buf_id} has no matching FREE node")
+
+        required: set[int] = set()
+        seen: set[int] = set()
+        stack = list(self.graph.predecessors[free.id])
+        while stack:
+            node_id = stack.pop()
+            if node_id in seen:
+                continue
+            seen.add(node_id)
+            if node_id == alloc_node_id:
+                # This predecessor path is already rooted in the candidate's own
+                # lifetime and therefore introduces no competing L0 allocation.
+                continue
+
+            node = self.graph.nodes[node_id]
+            if node.is_alloc and node.memory_type == alloc.memory_type:
+                required.add(node_id)
+                # Stop this predecessor path at the nearest same-type L0 ALLOC.
+                continue
+            stack.extend(self.graph.predecessors[node_id])
+
+        result = frozenset(required)
+        self._cache[alloc_node_id] = result
+        return result
+
+
 def _memory_delta(graph: ComputeGraph, node_id: int) -> int:
     node = graph.nodes[node_id]
     if node.memory_type not in Q1_COUNTED_TYPES or node.size is None:
@@ -55,8 +109,6 @@ def _choose_hint(a: ReleaseHint | None, b: ReleaseHint | None) -> ReleaseHint | 
         return b
     if b is None:
         return a
-    # Prefer a release that is topologically nearer; for equal distance prefer the
-    # larger counted-memory release, then smaller node id for determinism.
     if (b.distance, -b.size, b.free_node_id) < (a.distance, -a.size, a.free_node_id):
         return b
     return a
@@ -114,14 +166,10 @@ def _build_priority_keys(graph: ComputeGraph) -> dict[int, tuple[int, ...]]:
         delta = _memory_delta(graph, node_id)
 
         if node.is_free:
-            # Ready FREE nodes are dominance-safe for Q1: executing them immediately
-            # cannot raise peak residency and can only release memory/resource state.
             counted_release = -delta if delta < 0 else 0
             l0_release = 1 if node.memory_type in L0_TYPES else 0
             keys[node_id] = (0, -counted_release, -l0_release, node.id)
         elif not node.is_alloc:
-            # Neutral operations do not alter residency. Prefer work that lies closer
-            # to a counted-memory FREE, with L0 release and direct unlocks as tie-breakers.
             keys[node_id] = (
                 1,
                 hint_distance,
@@ -132,9 +180,8 @@ def _build_priority_keys(graph: ComputeGraph) -> dict[int, tuple[int, ...]]:
                 node.id,
             )
         else:
-            # All ALLOCs are delayed until no FREE/neutral work is available. Among
-            # allocations, immediate L1/UB pressure remains the primary criterion;
-            # downstream release hints only break ties, so this policy stays conservative.
+            # ALLOCs remain below all ready FREE/neutral work. Immediate L1/UB
+            # pressure is primary; static release information is only a tie-breaker.
             keys[node_id] = (
                 2,
                 max(delta, 0),
@@ -150,28 +197,83 @@ def _build_priority_keys(graph: ComputeGraph) -> dict[int, tuple[int, ...]]:
 
 
 def schedule_q1_pressure(graph: ComputeGraph) -> Q1PressureResult:
-    """Deterministic Q1 heuristic with downstream release pressure.
+    """Deterministic Q1 heuristic with hard L0 prerequisite safety.
 
-    This is deliberately not presented as an exact algorithm. It preserves the hard
-    DAG/L0 constraints, delays all ALLOCs behind ready FREE/neutral work, and uses only
-    static, explainable downstream-release features for allocation tie-breaking.
-    Every emitted order is independently revalidated by ``evaluate_q1``.
+    The ranking is heuristic, but feasibility is not: DAG dependencies, buffer
+    liveness, one-live-buffer-per-L0-type, and transitive same-L0 prerequisites are
+    enforced explicitly. The completed schedule is independently checked again by
+    ``evaluate_q1``.
     """
 
     keys = _build_priority_keys(graph)
+    l0_prereqs = _L0PrerequisiteAnalyzer(graph)
     indegree = graph.indegrees()
+
     ready: list[tuple[tuple[int, ...], int]] = []
-    l0_alloc_ready: dict[str, list[tuple[tuple[int, ...], int]]] = {kind: [] for kind in L0_TYPES}
+    l0_safe_ready: dict[str, list[tuple[tuple[int, ...], int]]] = {
+        kind: [] for kind in L0_TYPES
+    }
     l0_live: dict[str, int] = {kind: 0 for kind in L0_TYPES}
+    active_l0_alloc: dict[str, int | None] = {kind: None for kind in L0_TYPES}
+    completed_l0_allocs: dict[str, set[int]] = {kind: set() for kind in L0_TYPES}
+
+    # A ready L0 ALLOC whose hard prerequisites are incomplete waits here. Each
+    # prerequisite completion decrements its counter exactly once, so blocked nodes
+    # are not repeatedly scanned on every scheduling step.
+    remaining_prereqs: dict[int, int] = {}
+    waiting_by_prereq: dict[int, list[int]] = {}
+    blocked_type: dict[int, str] = {}
+
     live_buffers: set[int] = set()
+
+    def register_l0_ready(node_id: int) -> None:
+        node = graph.nodes[node_id]
+        if not node.is_alloc or node.memory_type not in L0_TYPES:
+            raise AssertionError("register_l0_ready called for non-L0 ALLOC")
+        memory_type = node.memory_type
+        required = l0_prereqs.prerequisites(node_id)
+        missing = [
+            prerequisite
+            for prerequisite in required
+            if prerequisite not in completed_l0_allocs[memory_type]
+        ]
+        if not missing:
+            heapq.heappush(l0_safe_ready[memory_type], (keys[node_id], node_id))
+            return
+
+        remaining_prereqs[node_id] = len(missing)
+        blocked_type[node_id] = memory_type
+        for prerequisite in missing:
+            waiting_by_prereq.setdefault(prerequisite, []).append(node_id)
 
     def enqueue(node_id: int) -> None:
         node = graph.nodes[node_id]
-        entry = (keys[node_id], node_id)
         if node.is_alloc and node.memory_type in L0_TYPES:
-            heapq.heappush(l0_alloc_ready[node.memory_type], entry)
+            register_l0_ready(node_id)
         else:
-            heapq.heappush(ready, entry)
+            heapq.heappush(ready, (keys[node_id], node_id))
+
+    def mark_l0_completed(alloc_node_id: int, memory_type: str) -> None:
+        if alloc_node_id in completed_l0_allocs[memory_type]:
+            raise AssertionError(f"L0 allocation {alloc_node_id} completed twice")
+        completed_l0_allocs[memory_type].add(alloc_node_id)
+
+        for blocked_id in waiting_by_prereq.pop(alloc_node_id, []):
+            remaining = remaining_prereqs.get(blocked_id)
+            if remaining is None:
+                raise AssertionError(f"missing prerequisite counter for blocked node {blocked_id}")
+            remaining -= 1
+            if remaining < 0:
+                raise AssertionError(f"negative prerequisite counter for blocked node {blocked_id}")
+            if remaining == 0:
+                remaining_prereqs.pop(blocked_id)
+                blocked_memory_type = blocked_type.pop(blocked_id)
+                heapq.heappush(
+                    l0_safe_ready[blocked_memory_type],
+                    (keys[blocked_id], blocked_id),
+                )
+            else:
+                remaining_prereqs[blocked_id] = remaining
 
     for node_id, degree in indegree.items():
         if degree == 0:
@@ -183,21 +285,23 @@ def schedule_q1_pressure(graph: ComputeGraph) -> Q1PressureResult:
         if ready:
             key, node_id = ready[0]
             candidates.append((key, None, node_id))
-        for memory_type, heap in l0_alloc_ready.items():
+        for memory_type, heap in l0_safe_ready.items():
             if heap and l0_live[memory_type] == 0:
                 key, node_id = heap[0]
                 candidates.append((key, memory_type, node_id))
 
         if not candidates:
             unresolved = [node_id for node_id, degree in indegree.items() if degree > 0]
-            blocked = {
-                memory_type: [node_id for _, node_id in heap[:8]]
-                for memory_type, heap in l0_alloc_ready.items()
-                if heap
-            }
+            blocked = sorted(remaining_prereqs.items(), key=lambda item: item[0])[:8]
             if unresolved:
-                raise ValueError(f"graph is cyclic or Q1-unschedulable; unresolved={unresolved[:8]}")
-            raise ValueError(f"no Q1-feasible ready node under L0 constraint; blocked={blocked}")
+                raise ValueError(
+                    "graph is cyclic or Q1-unschedulable after L0 prerequisite analysis; "
+                    f"unresolved={unresolved[:8]}, blocked_l0={blocked}"
+                )
+            raise ValueError(
+                "no Q1-feasible ready node under L0 constraint; "
+                f"blocked_l0={blocked}"
+            )
 
         _, l0_type, chosen = min(candidates, key=lambda item: item[0])
         if l0_type is None:
@@ -205,7 +309,7 @@ def schedule_q1_pressure(graph: ComputeGraph) -> Q1PressureResult:
             if popped != chosen:
                 raise AssertionError("ready heap corruption")
         else:
-            _, popped = heapq.heappop(l0_alloc_ready[l0_type])
+            _, popped = heapq.heappop(l0_safe_ready[l0_type])
             if popped != chosen:
                 raise AssertionError("L0 ready heap corruption")
 
@@ -217,17 +321,28 @@ def schedule_q1_pressure(graph: ComputeGraph) -> Q1PressureResult:
                 raise ValueError(f"buffer {node.buf_id} allocated twice before FREE")
             live_buffers.add(node.buf_id)
             if node.memory_type in L0_TYPES:
-                l0_live[node.memory_type] += 1
-                if l0_live[node.memory_type] > 1:
-                    raise AssertionError(f"{node.memory_type} occupancy exceeded one")
+                if l0_live[node.memory_type] != 0 or active_l0_alloc[node.memory_type] is not None:
+                    raise AssertionError(f"{node.memory_type} allocated while already occupied")
+                l0_live[node.memory_type] = 1
+                active_l0_alloc[node.memory_type] = chosen
+
         elif node.is_free:
             if node.buf_id is None or node.memory_type is None or node.buf_id not in live_buffers:
                 raise ValueError(f"ready FREE node {chosen} has no live buffer")
             live_buffers.remove(node.buf_id)
             if node.memory_type in L0_TYPES:
-                l0_live[node.memory_type] -= 1
-                if l0_live[node.memory_type] < 0:
-                    raise AssertionError(f"{node.memory_type} occupancy became negative")
+                alloc = graph.alloc_node_for_buffer(node.buf_id)
+                if alloc is None:
+                    raise ValueError(f"L0 FREE node {chosen} has no matching ALLOC")
+                if active_l0_alloc[node.memory_type] != alloc.id:
+                    raise AssertionError(
+                        f"{node.memory_type} FREE {chosen} does not match active ALLOC "
+                        f"{active_l0_alloc[node.memory_type]}"
+                    )
+                l0_live[node.memory_type] = 0
+                active_l0_alloc[node.memory_type] = None
+                mark_l0_completed(alloc.id, node.memory_type)
+
         else:
             missing = [buf_id for buf_id in node.bufs if buf_id not in live_buffers]
             if missing:
@@ -239,6 +354,8 @@ def schedule_q1_pressure(graph: ComputeGraph) -> Q1PressureResult:
         order.append(chosen)
         for nxt in graph.successors[chosen]:
             indegree[nxt] -= 1
+            if indegree[nxt] < 0:
+                raise AssertionError(f"negative indegree for node {nxt}")
             if indegree[nxt] == 0:
                 enqueue(nxt)
 
