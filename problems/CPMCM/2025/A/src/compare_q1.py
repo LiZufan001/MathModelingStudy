@@ -7,6 +7,7 @@ from pathlib import Path
 
 from parser import load_case
 from q1_advanced import schedule_q1_pressure
+from q1_frontier import schedule_q1_frontier
 from q1_scheduler import schedule_q1_baseline
 
 EXPECTED = {
@@ -27,7 +28,7 @@ def _write_schedule(path: Path, order: tuple[int, ...]) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Compare deterministic Q1 baseline and pressure heuristic")
+    ap = argparse.ArgumentParser(description="Compare deterministic Q1 greedy policies")
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
     args = ap.parse_args()
@@ -41,24 +42,26 @@ def main() -> int:
                 f"{case}: expected nodes/edges {expected}, got {(graph.node_count, graph.edge_count)}"
             )
 
-        baseline = schedule_q1_baseline(graph)
-        pressure = schedule_q1_pressure(graph)
-        baseline_peak = baseline.evaluation.peak_residency
-        pressure_peak = pressure.evaluation.peak_residency
-        if baseline_peak is None or pressure_peak is None:
-            raise SystemExit(f"{case}: missing Q1 peak from a supposedly valid schedule")
+        results = {
+            "q1_baseline": schedule_q1_baseline(graph),
+            "q1_pressure": schedule_q1_pressure(graph),
+            "q1_frontier": schedule_q1_frontier(graph),
+        }
+        peaks: dict[str, int] = {}
+        for method, result in results.items():
+            peak = result.evaluation.peak_residency
+            if not result.evaluation.valid or peak is None:
+                raise SystemExit(f"{case}: {method} did not produce a valid Q1 evaluation")
+            peaks[method] = peak
+            _write_schedule(args.out_dir / f"{case}_{method}_schedule.csv", result.order)
 
-        if pressure_peak < baseline_peak:
-            best_method = "q1_pressure"
-            best_order = pressure.order
-            best_peak = pressure_peak
-        else:
-            best_method = "q1_baseline"
-            best_order = baseline.order
-            best_peak = baseline_peak
-
-        _write_schedule(args.out_dir / f"{case}_q1_pressure_schedule.csv", pressure.order)
-        _write_schedule(args.out_dir / f"{case}_q1_best_greedy_schedule.csv", best_order)
+        best_method = min(peaks, key=lambda method: (peaks[method], method))
+        best_peak = peaks[best_method]
+        baseline_peak = peaks["q1_baseline"]
+        _write_schedule(
+            args.out_dir / f"{case}_q1_best_greedy_schedule.csv",
+            results[best_method].order,
+        )
 
         rows.append(
             {
@@ -66,7 +69,8 @@ def main() -> int:
                 "nodes": graph.node_count,
                 "edges": graph.edge_count,
                 "baseline_peak": baseline_peak,
-                "pressure_peak": pressure_peak,
+                "pressure_peak": peaks["q1_pressure"],
+                "frontier_peak": peaks["q1_frontier"],
                 "best_greedy_peak": best_peak,
                 "best_method": best_method,
                 "absolute_reduction_vs_baseline": baseline_peak - best_peak,
@@ -81,6 +85,7 @@ def main() -> int:
         "edges",
         "baseline_peak",
         "pressure_peak",
+        "frontier_peak",
         "best_greedy_peak",
         "best_method",
         "absolute_reduction_vs_baseline",
