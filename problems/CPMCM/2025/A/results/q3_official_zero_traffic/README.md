@@ -1,53 +1,82 @@
-# Q3 official-oriented zero-traffic baseline
+# Q3 official-oriented zero-traffic：修正 evaluator 后的六组正式结果
 
-This directory freezes the validated zero-extra-traffic Q3 result where **Appendix-C `official_literal` cycles are the primary objective** and `residency_safe` is retained as a hard physical-safety gate.
+本目录冻结问题 3 在 **不增加 Q2 extra traffic、不改变 SPILL victim identity/order/count** 前提下的 official-oriented 优化结果。
 
-## Method
+## 方法
 
-Starting from the promoted Q2 solution, the optimizer alternates:
+从 promoted Q2 解出发，每轮依次尝试：
 
-1. a generic fixed-traffic physical-address portfolio; and
-2. critical-bottom-level pipeline rescheduling.
+1. fixed-traffic 物理地址 portfolio；
+2. critical-bottom-level pipeline reschedule。
 
-A candidate is accepted only if:
+候选只有同时满足以下条件才允许接受：
 
-- the independent Q2 replay remains valid;
-- SPILL victim identity/order/count and extra traffic are unchanged;
-- the `residency_safe` evaluator remains valid; and
-- Appendix-C `official_literal` total cycles strictly decrease.
+- 独立 Q2 strict replay 合法；
+- SPILL victim identity/order/count 与 extra traffic 不变；
+- `residency_safe` evaluator 合法、物理 overlap 为 0；
+- Appendix-C `official_literal` cycles **严格下降**。
 
-This is intentionally different from the earlier safe-oriented experiment: `residency_safe` is a feasibility constraint, not the competition objective.
+因此 `residency_safe` 是硬安全门禁，不是比赛目标；允许 safe cycles 上升，只要候选依旧物理安全且 official cycles 真实下降。
 
-## Six-case result
+## 六组结果
 
-| Case | Baseline official cycles | Optimized official cycles | Improvement | Extra traffic |
-|---|---:|---:|---:|---:|
-| Matmul_Case0 | 135082 | **133682** | **1.036408%** | 28800 |
-| Matmul_Case1 | 1534618 | **1531946** | **0.174115%** | 430208 |
-| FlashAttention_Case0 | 197374 | 197374 | 0% | 55188 |
-| FlashAttention_Case1 | 962746 | 962746 | 0% | 242552 |
-| Conv_Case0 | 631915 | **616478** | **2.442892%** | 178212 |
-| Conv_Case1 | 3798753 | **3650628** | **3.899306%** | 724630 |
+| Case | Q2 polish | Baseline official | Optimized official | Improvement | Extra traffic | Optimized safe |
+|---|---:|---:|---:|---:|---:|---:|
+| Matmul_Case0 | 0 | 135,082 | **133,682** | **1.036408%** | 28,800 | 160,005 |
+| Matmul_Case1 | 0 | 1,534,618 | **1,531,946** | **0.174115%** | 430,208 | 1,669,574 |
+| FlashAttention_Case0 | 1 | 194,265 | 194,265 | 0 | 54,016 | 205,088 |
+| FlashAttention_Case1 | 0 | 962,746 | 962,746 | 0 | 242,552 | 1,026,762 |
+| Conv_Case0 | 2 | 636,114 | **606,429** | **4.666616%** | 177,904 | 786,202 |
+| Conv_Case1 | 3 | 3,852,543 | **3,784,892** | **1.756009%** | 721,464 | 4,119,420 |
 
-Across all six cases, official cycles decrease from **7,260,488** to **7,092,854**, a reduction of **167,634 cycles (2.308853%)**, with **zero increase in extra DDR traffic**.
+六组 official cycles 合计：
 
-A useful objective-separation example is `Conv_Case0`: its accepted critical reorder improves official cycles from 631915 to 616478 while conservative safe cycles rise from 798190 to 808899. The candidate is still `residency_safe`-valid with zero physical-overlap errors. Therefore the conservative timing view should remain a safety audit rather than replace the official objective.
+- baseline：`7,315,368`
+- optimized：`7,213,960`
+- 减少：`101,408 cycles`
+- 聚合下降：`1.386232%`
 
-## Evidence
+这些数字不能和旧版结果直接混用：Q2 promoted polish 已改变 FA0 / Conv0 / Conv1 的 schedule、SPILL 与 traffic；同时 `residency_safe` 已补上每个 residency epoch 的 `acquire -> release` lifetime 约束。
 
-Validated code commit: `4a794401e1b8e47c5d5988c6657cf8635d0c4108`.
+## 目标分离案例
 
-Focused official-objective CI:
+Conv 最能说明为什么必须分开“安全门禁”和“官方目标”。
 
-- run: `34584707296`
-- conclusion: `success`
-- focused tests: `12 passed`
-- artifact: `10193218781`
-- artifact SHA-256: `896da01364419529d9b25503155844c49fb5ee38ae686e1e68b7bbad65f8ee70`
+- Conv0：official `636,114 -> 606,429`，下降 `4.666616%`；safe `774,198 -> 786,202`，上升 `1.5505%`。
+- Conv1：official `3,852,543 -> 3,784,892`，下降 `1.756009%`；safe `4,116,658 -> 4,119,420`，小幅上升 `0.0671%`。
 
-Independent full Q3 integration CI:
+两者最终 `safe_overlap_errors=0`，所以 candidate 仍严格物理合法。若用 safe cycles 直接替代官方目标，这两次真实 official 改善都会被错误拒绝。
 
-- run: `34584652383`
-- conclusion: `success`
+## Conv 诊断
 
-The exact machine-readable six-case snapshot is stored in `q3_official_zero_traffic_summary.csv`. Full per-step traces remain available in the CI artifact.
+本轮 core artifact 同时显示：
+
+- Conv0 原布局 safe reuse edges：`1,489`；
+- Conv1 原布局 safe reuse edges：`24,504`；
+- Conv0 / Conv1 的全局 address portfolio 中，只有 `best_fit` 能完整重着色，而且得到的 timing 与原 Q2 地址完全相同；`first_fit_low/high/next_fit` 都因连续空间不足失败；
+- 单独 critical reschedule 的 safe cycles 分别退化到 `786,202` / `4,119,420`，但同一 reorder 在 official objective 下分别改善到 `606,429` / `3,784,892`；
+- 第二轮 critical reschedule 均 `changed_positions=0`，说明当前 bottom-level rule 一轮即到固定点。
+
+因此继续“增加 optimizer rounds”没有意义。Conv 下一步若继续优化，应改变 move/operator，例如围绕 critical path 与高压 MTE2 的局部 address-reuse / pipeline 联合变换，而不是再加全局重排轮数。
+
+## 验收证据
+
+Evaluator lifetime 修复：
+
+- `1dae6f00825493bf4da32178642769766b4695a2`
+- `457c94af80c38f7f92ed1447353bdf6f773cacf7`
+
+CI 拆分：
+
+- commit：`d07aaeb8d05d7ac7e15cd096b75d07f88b4e345d`
+- main core workflow：`Test CPMCM 2025 A Q3`
+- run：`34592734824`
+- conclusion：`success`
+- tests：58 passed
+- 六组 baseline / address portfolio / critical reschedule / safe optimizer / official optimizer：全部 success
+- artifact：`10260687417`
+- digest：`sha256:6bd8cc9de178c32902d0d27ef31ac08c40663fc22267209106f06cc5536e1b06`
+
+完整 per-step trace、address policy grid、pipeline critical 结果及官方输出保存在该 Actions artifact；仓库仅保留稳定的六组摘要。
+
+更进一步的 traffic–cycles refined 结果见 [`../q3_pareto/README.md`](../q3_pareto/README.md)。

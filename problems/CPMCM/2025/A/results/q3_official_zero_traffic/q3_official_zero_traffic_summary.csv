@@ -1,7 +1,7 @@
-case,baseline_official_cycles,optimized_official_cycles,official_cycle_delta,official_cycle_ratio,official_improvement_pct,baseline_safe_cycles,optimized_safe_cycles,safe_cycle_delta,safe_cycle_ratio,spill_count,extra_traffic,accepted_steps,steps,safe_overlap_errors,literal_overlap_errors,seconds,valid
-Matmul_Case0,135082,133682,-1400,0.989636,1.036408,195024,160005,-35019,0.820437,225,28800,2,4,0,20,2.368284,True
-Matmul_Case1,1534618,1531946,-2672,0.998259,0.174115,1771302,1669574,-101728,0.942569,3361,430208,2,4,0,20,82.887839,True
-FlashAttention_Case0,197374,197374,0,1.0,0.0,212425,212425,0,1.0,301,55188,0,2,0,20,0.711207,True
-FlashAttention_Case1,962746,962746,0,1.0,0.0,1026762,1026762,0,1.0,1782,242552,0,2,0,20,5.277381,True
-Conv_Case0,631915,616478,-15437,0.975571,2.442892,798190,808899,10709,1.013417,493,178212,1,4,0,20,1.670358,True
-Conv_Case1,3798753,3650628,-148125,0.961007,3.899306,4214554,4083189,-131365,0.968831,9550,724630,1,4,0,20,149.130326,True
+case,polish_window,baseline_official_cycles,optimized_official_cycles,official_cycle_delta,official_cycle_ratio,official_improvement_pct,baseline_safe_cycles,optimized_safe_cycles,safe_cycle_delta,safe_cycle_ratio,spill_count,extra_traffic,accepted_steps,steps,safe_overlap_errors,literal_overlap_errors,seconds,valid
+Matmul_Case0,0,135082,133682,-1400,0.989636,1.036408,195024,160005,-35019,0.820437,225,28800,2,4,0,20,2.878846,True
+Matmul_Case1,0,1534618,1531946,-2672,0.998259,0.174115,1771302,1669574,-101728,0.942569,3361,430208,2,4,0,20,102.667409,True
+FlashAttention_Case0,1,194265,194265,0,1.0,0.0,205088,205088,0,1.0,316,54016,0,2,0,20,0.864058,True
+FlashAttention_Case1,0,962746,962746,0,1.0,0.0,1026762,1026762,0,1.0,1782,242552,0,2,0,20,5.993881,True
+Conv_Case0,2,636114,606429,-29685,0.953334,4.666616,774198,786202,12004,1.015505,522,177904,1,4,0,20,1.983044,True
+Conv_Case1,3,3852543,3784892,-67651,0.98244,1.756009,4116658,4119420,2762,1.000671,9646,721464,1,4,0,20,190.331253,True
