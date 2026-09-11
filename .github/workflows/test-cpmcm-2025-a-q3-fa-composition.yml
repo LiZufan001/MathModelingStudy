@@ -1,0 +1,55 @@
+name: Test CPMCM 2025 A Q3 FA Composition Search
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_fa_composition.py"
+      - "problems/CPMCM/2025/A/src/model.py"
+      - "problems/CPMCM/2025/A/src/parser.py"
+      - "problems/CPMCM/2025/A/src/q2_*.py"
+      - "problems/CPMCM/2025/A/src/q3_*.py"
+      - "problems/CPMCM/2025/A/data/csv/**"
+      - ".github/workflows/test-cpmcm-2025-a-q3-fa-composition.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-fa-composition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused strict regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_tradeoff_scheduler.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            -q
+      - name: Search two-stage FlashAttention window compositions
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_fa_composition.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-fa-composition \
+            --rounds 2
+          test -s /tmp/q3-fa-composition/fa_composition_candidates.csv
+          test -s /tmp/q3-fa-composition/fa_composition_frontier.csv
+          test -s /tmp/q3-fa-composition/fa_composition_summary.json
+      - name: Upload FA composition evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-fa-composition
+          path: /tmp/q3-fa-composition
+          if-no-files-found: error
