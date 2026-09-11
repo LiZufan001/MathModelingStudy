@@ -93,41 +93,45 @@ def load_external_solution(directory: Path, case: str) -> Q2Solution:
     )
 
 
-def _independent_spill_metrics(graph, spills: tuple[SpillRecord, ...]) -> tuple[int, int]:
-    """Recompute official traffic from spill rows without trusting external scores.
-
-    This deliberately does *not* establish schedule feasibility.  It is a
-    secondary benchmark for preserved outputs whose schedule syntax may be
-    non-official.  Each spill target and reload offset is still checked against
-    the authoritative buffer metadata and cache capacity before its traffic is
-    counted.
-    """
+def _independent_traffic(graph, spills: tuple[SpillRecord, ...]) -> tuple[int, int]:
+    """Recompute official traffic from spill rows without trusting external scores."""
 
     extra_traffic = 0
     for index, spill in enumerate(spills):
+        try:
+            extra_traffic += spill_traffic_cost(graph, spill.buf_id)
+        except ValueError as exc:
+            raise ValueError(f"spill[{index}] {exc}") from exc
+    return len(spills), extra_traffic
+
+
+def _spill_offset_errors(graph, spills: tuple[SpillRecord, ...]) -> list[str]:
+    errors: list[str] = []
+    for index, spill in enumerate(spills):
         alloc = graph.alloc_node_for_buffer(spill.buf_id)
         if alloc is None or alloc.size is None or alloc.memory_type is None:
-            raise ValueError(f"spill[{index}] references unknown buffer {spill.buf_id}")
+            errors.append(f"spill[{index}] references unknown buffer {spill.buf_id}")
+            continue
         capacity = CACHE_CAPACITIES.get(alloc.memory_type)
         if capacity is None:
-            raise ValueError(
+            errors.append(
                 f"spill[{index}] buffer {spill.buf_id} has unsupported pool {alloc.memory_type!r}"
             )
+            continue
         if spill.new_offset < 0 or spill.new_offset + alloc.size > capacity:
-            raise ValueError(
+            errors.append(
                 f"spill[{index}] buffer {spill.buf_id} reload range "
                 f"[{spill.new_offset},{spill.new_offset + alloc.size}) exceeds "
                 f"{alloc.memory_type} capacity {capacity}"
             )
-        extra_traffic += spill_traffic_cost(graph, spill.buf_id)
-    return len(spills), extra_traffic
+    return errors
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=(
-            "Benchmark external Q2 outputs with strict feasibility replay plus an "
-            "independent spill-file traffic recomputation"
+            "Benchmark external Q2 outputs with strict feasibility replay, independent "
+            "traffic recomputation, and separate reload-offset checks"
         )
     )
     ap.add_argument("--data-dir", type=Path, required=True)
@@ -136,7 +140,7 @@ def main() -> int:
     args = ap.parse_args()
 
     rows: list[dict[str, object]] = []
-    all_metric_rows_ok = True
+    all_traffic_rows_ok = True
     for case in CASES:
         graph = load_case(args.data_dir, case)
         schedule_path = args.solution_dir / f"{case}_schedule.txt"
@@ -144,17 +148,22 @@ def main() -> int:
         spill_path = args.solution_dir / f"{case}_spill.txt"
         present = all(path.exists() for path in (schedule_path, memory_path, spill_path))
 
-        metric_ok = False
+        traffic_ok = False
         spill_count: int | str = ""
         extra_traffic: int | str = ""
-        metric_errors = ""
+        traffic_errors = ""
+        offsets_valid = False
+        offset_errors = ""
         try:
             spills = _read_spills(spill_path)
-            spill_count, extra_traffic = _independent_spill_metrics(graph, spills)
-            metric_ok = True
+            spill_count, extra_traffic = _independent_traffic(graph, spills)
+            traffic_ok = True
+            offset_error_list = _spill_offset_errors(graph, spills)
+            offsets_valid = not offset_error_list
+            offset_errors = " | ".join(offset_error_list)
         except (FileNotFoundError, ValueError) as exc:
-            metric_errors = str(exc)
-            all_metric_rows_ok = False
+            traffic_errors = str(exc)
+            all_traffic_rows_ok = False
 
         strict_valid = False
         schedule_length: int | str = ""
@@ -173,12 +182,14 @@ def main() -> int:
                 "case": case,
                 "present": present,
                 "strict_valid": strict_valid,
-                "metric_ok": metric_ok,
+                "traffic_ok": traffic_ok,
+                "spill_offsets_valid": offsets_valid,
                 "spill_count": spill_count,
                 "extra_traffic": extra_traffic,
                 "schedule_length": schedule_length,
                 "strict_errors": strict_errors,
-                "metric_errors": metric_errors,
+                "offset_errors": offset_errors,
+                "traffic_errors": traffic_errors,
             }
         )
 
@@ -187,12 +198,14 @@ def main() -> int:
         "case",
         "present",
         "strict_valid",
-        "metric_ok",
+        "traffic_ok",
+        "spill_offsets_valid",
         "spill_count",
         "extra_traffic",
         "schedule_length",
         "strict_errors",
-        "metric_errors",
+        "offset_errors",
+        "traffic_errors",
     ]
     with args.out.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
@@ -203,7 +216,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(args.out.read_text(encoding="utf-8"))
-    return 0 if all_metric_rows_ok else 2
+    return 0 if all_traffic_rows_ok else 2
 
 
 if __name__ == "__main__":
