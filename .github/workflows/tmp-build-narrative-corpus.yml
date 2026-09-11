@@ -1,0 +1,107 @@
+name: Build temporary original narrative corpus
+on:
+  push:
+    paths:
+      - '.github/workflows/tmp-build-narrative-corpus.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract candidate narrative passages from exact-match PDFs
+        shell: bash
+        run: |
+          python -m pip install --quiet pymupdf pypdf
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, re
+
+          papers = [
+            ('2022 C', 'C22106140003', 'papers/CPMCM/2022/fulltext/C/C22106140003.pdf'),
+            ('2020 F', 'F20102840100', 'papers/CPMCM/2020/fulltext/F/F20102840100.pdf'),
+            ('2024 B', 'B24102860287', 'papers/CPMCM/2024/fulltext/B/B24102860287.pdf'),
+            ('2023 B', 'B23104860044', 'papers/CPMCM/2023/fulltext/B/B23104860044.pdf'),
+            ('2022 B', 'B22106140009', 'papers/CPMCM/2022/fulltext/B/B22106140009.pdf'),
+            ('2020 C', 'C20102860127', 'papers/CPMCM/2020/fulltext/C/C20102860127.pdf'),
+            ('2024 F', 'F24104860143', 'papers/CPMCM/2024/fulltext/F/F24104860143.pdf'),
+            ('2024 E', 'E24102910005', 'papers/CPMCM/2024/fulltext/E/E24102910005.pdf'),
+          ]
+
+          heading_res = [
+            re.compile(x) for x in [
+              r'摘\s*要', r'问题分析', r'问题[一二三四五六123456].{0,8}分析',
+              r'模型.{0,8}(建立|构建|求解|改进|评价|检验)', r'结果.{0,8}(分析|讨论)',
+              r'结\s*论', r'总结', r'模型的优缺点', r'模型评价', r'模型推广'
+            ]
+          ]
+          cue_terms = ['由于','因此','针对','考虑到','根据','为了','进一步','在问题一','在问题二','在问题三',
+                       '在此基础上','观察','发现','结果表明','结果显示','无法','失败','误差','不足','改进','相比','相较']
+
+          def norm(s):
+            s = s.replace('\u3000',' ').replace('\xa0',' ')
+            s = re.sub(r'[ \t]+',' ',s)
+            s = re.sub(r'\n{3,}','\n\n',s)
+            return s.strip()
+
+          def sent_context(text, term, width=180):
+            out=[]
+            for m in re.finditer(re.escape(term), text):
+              a=max(0,m.start()-width); b=min(len(text),m.end()+width)
+              frag=re.sub(r'\s+',' ',text[a:b]).strip()
+              if len(frag)>50 and frag not in out:
+                out.append(frag)
+            return out[:4]
+
+          lines=['# Temporary original-paper narrative corpus','',
+                 '> AUTO-EXTRACTED FROM ORIGINAL PDFs. Candidate passages only; not interpretation.','']
+          for label, code, path in papers:
+            p=Path(path)
+            if not p.exists():
+              lines += [f'## {label}｜{code}', '', f'**MISSING:** `{path}`', '']
+              continue
+            doc=fitz.open(path)
+            pages=[norm(pg.get_text('text')) for pg in doc]
+            lines += [f'## {label}｜{code}', '', f'- PDF: `{path}`', f'- pages: {len(doc)}', '']
+
+            # Abstract/front matter
+            for i,t in enumerate(pages[:5]):
+              if re.search(r'摘\s*要', t):
+                lines += [f'### ABSTRACT｜p.{i+1}', '', t[:3500], '']
+                break
+
+            # Heading pages: keep first page for each broad category
+            used=set()
+            for i,t in enumerate(pages):
+              for hr in heading_res:
+                if hr.search(t):
+                  key=hr.pattern
+                  if key in used: continue
+                  used.add(key)
+                  lines += [f'### HEADING_PAGE｜p.{i+1}｜`{key}`', '', t[:4200], '']
+
+            # Research transition / failure / result cues with page numbers
+            lines += ['### CUE_CONTEXTS', '']
+            for term in cue_terms:
+              hits=[]
+              for i,t in enumerate(pages):
+                if term in t:
+                  for frag in sent_context(t,term):
+                    hits.append((i+1,frag))
+                    if len(hits)>=3: break
+                if len(hits)>=3: break
+              if hits:
+                lines.append(f'#### `{term}`')
+                for pg,frag in hits:
+                  lines.append(f'- p.{pg}: {frag}')
+                lines.append('')
+
+          out=Path('papers/CPMCM/study/_tmp_original_narrative_corpus.md')
+          out.write_text('\n'.join(lines), encoding='utf-8')
+          PY
+          git config user.name 'LiZufan001'
+          git config user.email '128899229+LiZufan001@users.noreply.github.com'
+          git add papers/CPMCM/study/_tmp_original_narrative_corpus.md
+          git commit -m 'study: generate temporary original-paper narrative corpus'
+          git push
