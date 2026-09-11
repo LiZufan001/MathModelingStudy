@@ -210,3 +210,48 @@ def test_l0b_footprint_does_not_become_global_task_anchor() -> None:
     assert result.order.index(1) < result.order.index(2)
     validation = validate_buffer_lifetimes(graph, result.order)
     assert validation.ok, validation.errors
+
+
+def test_l0b_has_no_standalone_footprint_chaining_without_l0c_anchor() -> None:
+    # Three independent input-side L0B tasks are ready. Task 0 and task 2 share
+    # counted L1=100, while task 1 uses L1=101. Without an active L0C task,
+    # finishing task 0 must not use its last footprint to jump from task 1 to
+    # task 2; standalone cross-task chaining is reserved for L0C.
+    nodes = [
+        Node(0, "ALLOC", 10, 1, "L0B"),
+        Node(1, "ALLOC", 11, 1, "L0B"),
+        Node(2, "ALLOC", 12, 1, "L0B"),
+        Node(3, "ALLOC", 100, 1, "L1"),
+        Node(4, "ALLOC", 101, 1, "L1"),
+        Node(5, "MOVE", pipe="MTE1", cycles=1, bufs=(10, 100)),
+        Node(6, "FREE", 10, 1, "L0B"),
+        Node(7, "MOVE", pipe="MTE1", cycles=1, bufs=(11, 101)),
+        Node(8, "FREE", 11, 1, "L0B"),
+        Node(9, "MOVE", pipe="MTE1", cycles=1, bufs=(12, 100)),
+        Node(10, "FREE", 12, 1, "L0B"),
+        Node(11, "FREE", 100, 1, "L1"),
+        Node(12, "FREE", 101, 1, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(
+        nodes,
+        [
+            (0, 5), (3, 5), (5, 6),
+            (1, 7), (4, 7), (7, 8),
+            (2, 9), (3, 9), (9, 10),
+            (5, 11), (9, 11), (7, 12),
+        ],
+    )
+    result = schedule_q2_reuse_aware(
+        graph,
+        Q2ReuseScheduleConfig(
+            hot_window=1,
+            release_weight=0,
+            probe_per_buffer=8,
+            footprint_weight=1,
+            footprint_min_buffers=1,
+        ),
+    )
+    assert result.order.index(1) < result.order.index(2)
+    assert result.footprint_decisions == 0
+    validation = validate_buffer_lifetimes(graph, result.order)
+    assert validation.ok, validation.errors

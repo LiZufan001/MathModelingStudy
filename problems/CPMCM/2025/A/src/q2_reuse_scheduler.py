@@ -217,7 +217,9 @@ def schedule_q2_reuse_aware(
     def routing_anchor_for_l0(memory_type: str) -> frozenset[int]:
         if task_anchor_alloc is not None:
             return task_anchor_footprint
-        return last_l0_footprint[memory_type]
+        if memory_type == "L0C":
+            return last_l0_footprint[memory_type]
+        return frozenset()
 
     def footprint_overlap_bytes(node_id: int) -> int:
         node = graph.nodes[node_id]
