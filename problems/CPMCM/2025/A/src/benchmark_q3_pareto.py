@@ -39,9 +39,70 @@ def _within_budget(traffic: int, baseline: int, epsilon_bps: int) -> bool:
     return traffic * BPS_DENOMINATOR <= baseline * (BPS_DENOMINATOR + epsilon_bps)
 
 
+def _winner(
+    eligible: list[dict[str, object]],
+    *,
+    metric: str,
+) -> dict[str, object]:
+    if metric not in {"optimized_safe_cycles", "official_literal_cycles"}:
+        raise ValueError(f"unsupported Pareto metric: {metric}")
+    return min(
+        eligible,
+        key=lambda row: (
+            int(row[metric]),
+            int(row["extra_traffic"]),
+            int(row["window"]),
+        ),
+    )
+
+
+def _frontier_row(
+    *,
+    case: str,
+    epsilon_bps: int,
+    winner: dict[str, object],
+    baseline_traffic: int,
+    baseline_safe_cycles: int,
+    baseline_official_cycles: int,
+    objective: str,
+) -> dict[str, object]:
+    official_cycles = int(winner["official_literal_cycles"])
+    safe_cycles = int(winner["optimized_safe_cycles"])
+    return {
+        "case": case,
+        "objective": objective,
+        "epsilon_pct": epsilon_bps / 100.0,
+        "window": winner["window"],
+        "baseline_traffic": baseline_traffic,
+        "extra_traffic": winner["extra_traffic"],
+        "traffic_delta": winner["traffic_delta"],
+        "traffic_ratio": winner["traffic_ratio"],
+        "baseline_safe_cycles": baseline_safe_cycles,
+        "safe_cycles": safe_cycles,
+        "safe_improvement_pct": round(
+            100.0 * (baseline_safe_cycles - safe_cycles) / baseline_safe_cycles,
+            6,
+        ),
+        "baseline_official_literal_cycles": baseline_official_cycles,
+        "official_literal_cycles": official_cycles,
+        "official_improvement_pct": round(
+            100.0
+            * (baseline_official_cycles - official_cycles)
+            / baseline_official_cycles,
+            6,
+        ),
+        "literal_overlap_errors": winner["literal_overlap_errors"],
+        "spill_count": winner["spill_count"],
+        "changed_positions": winner["changed_positions"],
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Build strict Q3 traffic/cycles Pareto candidates with controlled critical windows"
+        description=(
+            "Build strict Q3 traffic/cycles Pareto candidates with controlled critical windows; "
+            "emit both conservative-safe and Appendix-C official-literal views"
+        )
     )
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
@@ -50,7 +111,8 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     candidate_rows: list[dict[str, object]] = []
-    frontier_rows: list[dict[str, object]] = []
+    safe_frontier_rows: list[dict[str, object]] = []
+    official_frontier_rows: list[dict[str, object]] = []
     traces: dict[str, dict[str, object]] = {}
 
     for case in CASES:
@@ -91,6 +153,7 @@ def main() -> int:
                 "safe_cycle_delta_vs_q2": None,
                 "safe_improvement_pct": None,
                 "official_literal_cycles": None,
+                "official_improvement_pct": None,
                 "literal_overlap_errors": None,
                 "accepted_zero_traffic_steps": None,
                 "seconds": None,
@@ -123,6 +186,10 @@ def main() -> int:
                         q2.solution,
                         max_rounds=args.rounds,
                     )
+                    # Official-literal is the Appendix-C objective view.  The
+                    # candidate is nevertheless required to have passed the
+                    # stronger residency-safe evaluator above and after the
+                    # zero-traffic optimizer.
                     literal = evaluate_q3_solution(
                         graph,
                         optimized.solution,
@@ -140,6 +207,12 @@ def main() -> int:
                         6,
                     )
                     row["official_literal_cycles"] = literal.total_cycles
+                    row["official_improvement_pct"] = round(
+                        100.0
+                        * (baseline_literal.total_cycles - literal.total_cycles)
+                        / baseline_literal.total_cycles,
+                        6,
+                    )
                     row["literal_overlap_errors"] = len(literal.physical_overlap_errors)
                     row["accepted_zero_traffic_steps"] = sum(
                         1 for step in optimized.steps if step.accepted
@@ -170,7 +243,9 @@ def main() -> int:
         usable = [
             row
             for row in case_candidates
-            if row["valid"] and row["optimized_safe_cycles"] is not None
+            if row["valid"]
+            and row["optimized_safe_cycles"] is not None
+            and row["official_literal_cycles"] is not None
         ]
         if not usable:
             raise RuntimeError(f"{case}: no strict Q3 Pareto candidate survived")
@@ -187,45 +262,52 @@ def main() -> int:
             ]
             if not eligible:
                 raise RuntimeError(f"{case}: no candidate satisfies epsilon={epsilon_bps} bps")
-            winner = min(
-                eligible,
-                key=lambda row: (
-                    int(row["optimized_safe_cycles"]),
-                    int(row["extra_traffic"]),
-                    int(row["window"]),
-                ),
+
+            safe_winner = _winner(eligible, metric="optimized_safe_cycles")
+            official_winner = _winner(eligible, metric="official_literal_cycles")
+            safe_frontier_rows.append(
+                _frontier_row(
+                    case=case,
+                    epsilon_bps=epsilon_bps,
+                    winner=safe_winner,
+                    baseline_traffic=baseline_traffic,
+                    baseline_safe_cycles=baseline_safe.total_cycles,
+                    baseline_official_cycles=baseline_literal.total_cycles,
+                    objective="residency_safe",
+                )
             )
-            frontier_rows.append(
-                {
-                    "case": case,
-                    "epsilon_pct": epsilon_bps / 100.0,
-                    "window": winner["window"],
-                    "baseline_traffic": baseline_traffic,
-                    "extra_traffic": winner["extra_traffic"],
-                    "traffic_delta": winner["traffic_delta"],
-                    "traffic_ratio": winner["traffic_ratio"],
-                    "baseline_safe_cycles": baseline_safe.total_cycles,
-                    "safe_cycles": winner["optimized_safe_cycles"],
-                    "safe_improvement_pct": winner["safe_improvement_pct"],
-                    "baseline_official_literal_cycles": baseline_literal.total_cycles,
-                    "official_literal_cycles": winner["official_literal_cycles"],
-                    "literal_overlap_errors": winner["literal_overlap_errors"],
-                    "spill_count": winner["spill_count"],
-                    "changed_positions": winner["changed_positions"],
-                }
+            official_frontier_rows.append(
+                _frontier_row(
+                    case=case,
+                    epsilon_bps=epsilon_bps,
+                    winner=official_winner,
+                    baseline_traffic=baseline_traffic,
+                    baseline_safe_cycles=baseline_safe.total_cycles,
+                    baseline_official_cycles=baseline_literal.total_cycles,
+                    objective="official_literal",
+                )
             )
         traces[case] = case_trace
 
     candidate_path = args.out_dir / "q3_pareto_candidates.csv"
-    frontier_path = args.out_dir / "q3_epsilon_frontier.csv"
+    safe_frontier_path = args.out_dir / "q3_safe_frontier.csv"
+    official_frontier_path = args.out_dir / "q3_official_frontier.csv"
+    compatibility_path = args.out_dir / "q3_epsilon_frontier.csv"
     _write_csv(candidate_path, candidate_rows)
-    _write_csv(frontier_path, frontier_rows)
+    _write_csv(safe_frontier_path, safe_frontier_rows)
+    _write_csv(official_frontier_path, official_frontier_rows)
+    # Preserve the old filename as an explicit safe-frontier compatibility alias.
+    _write_csv(compatibility_path, safe_frontier_rows)
     (args.out_dir / "q3_pareto_candidates.json").write_text(
         json.dumps(candidate_rows, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    (args.out_dir / "q3_epsilon_frontier.json").write_text(
-        json.dumps(frontier_rows, ensure_ascii=False, indent=2) + "\n",
+    (args.out_dir / "q3_safe_frontier.json").write_text(
+        json.dumps(safe_frontier_rows, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (args.out_dir / "q3_official_frontier.json").write_text(
+        json.dumps(official_frontier_rows, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     (args.out_dir / "q3_pareto_trace.json").write_text(
@@ -233,7 +315,8 @@ def main() -> int:
         encoding="utf-8",
     )
     print(candidate_path.read_text(encoding="utf-8"))
-    print(frontier_path.read_text(encoding="utf-8"))
+    print(safe_frontier_path.read_text(encoding="utf-8"))
+    print(official_frontier_path.read_text(encoding="utf-8"))
     return 0
 
 
