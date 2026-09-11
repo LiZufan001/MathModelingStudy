@@ -108,12 +108,13 @@ def schedule_q2_reuse_aware(
     """Generate a Q1-valid order biased toward Q2 cache reuse.
 
     FREE-first and the single-live-buffer rule for each L0 type remain hard.
-    Footprint routing is task-coherent: a sufficiently large L0 footprint becomes
-    an active task anchor; while it is active, subordinate L0 allocations and
+    Footprint routing is task-coherent: a sufficiently large L0C footprint becomes
+    an active task anchor; while it is active, subordinate L0A/L0B allocations and
     counted L1/UB allocations are steered toward that same footprint.  After the
-    anchor is freed, the next same-type task is chosen for maximum overlap with
-    the just-completed footprint.  This prevents the deadlock caused by reordering
-    an outer L0 task while leaving its inner L0A/L0B choices on the old id order.
+    anchor is freed, the next L0C task is chosen for maximum overlap with the
+    just-completed footprint.  Restricting outer anchors to L0C follows the
+    architecture's result-buffer role and prevents input-side L0A/L0B buffers from
+    incorrectly taking ownership of an unrelated task.
     """
 
     indegree = graph.indegrees()
@@ -360,7 +361,11 @@ def schedule_q2_reuse_aware(
             l0_live[memory_type] = 1
             active_l0_alloc[memory_type] = chosen
             footprint = l0_footprints.get(chosen, ())
-            if task_anchor_alloc is None and len(footprint) >= config.footprint_min_buffers:
+            if (
+                memory_type == "L0C"
+                and task_anchor_alloc is None
+                and len(footprint) >= config.footprint_min_buffers
+            ):
                 task_anchor_alloc = chosen
                 task_anchor_footprint = frozenset(footprint)
         else:

@@ -176,3 +176,37 @@ def test_task_anchor_routes_subordinate_l0_and_counted_allocs_together() -> None
     assert result.footprint_decisions >= 2
     validation = validate_buffer_lifetimes(graph, result.order)
     assert validation.ok, validation.errors
+
+
+def test_l0b_footprint_does_not_become_global_task_anchor() -> None:
+    # L0B=10 has a counted footprint through L1=101.  If input-side L0B were
+    # allowed to become the global task anchor, it would pull ALLOC 2 ahead of
+    # the unrelated lower-id ALLOC 1.  L0C-only anchoring must leave that order
+    # unchanged while still treating L0B as an ordinary single-live L0 buffer.
+    nodes = [
+        Node(0, "ALLOC", 10, 1, "L0B"),
+        Node(1, "ALLOC", 100, 1, "L1"),
+        Node(2, "ALLOC", 101, 1, "L1"),
+        Node(3, "MOVE", pipe="MTE1", cycles=1, bufs=(10, 101)),
+        Node(4, "USE", pipe="VECTOR", cycles=1, bufs=(100,)),
+        Node(5, "FREE", 10, 1, "L0B"),
+        Node(6, "FREE", 100, 1, "L1"),
+        Node(7, "FREE", 101, 1, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(
+        nodes,
+        [(0, 3), (2, 3), (3, 5), (3, 7), (1, 4), (4, 6)],
+    )
+    result = schedule_q2_reuse_aware(
+        graph,
+        Q2ReuseScheduleConfig(
+            hot_window=1,
+            release_weight=0,
+            probe_per_buffer=8,
+            footprint_weight=1,
+            footprint_min_buffers=1,
+        ),
+    )
+    assert result.order.index(1) < result.order.index(2)
+    validation = validate_buffer_lifetimes(graph, result.order)
+    assert validation.ok, validation.errors
