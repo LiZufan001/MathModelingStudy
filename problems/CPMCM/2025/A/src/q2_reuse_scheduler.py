@@ -14,6 +14,7 @@ class Q2ReuseScheduleConfig:
     """Configuration for the experimental Q2-aware topological scheduler."""
 
     hot_window: int = 8
+    direct_affinity_weight: int = 1
     release_weight: int = 1
     probe_per_buffer: int = 8
     footprint_weight: int = 0
@@ -22,6 +23,8 @@ class Q2ReuseScheduleConfig:
     def __post_init__(self) -> None:
         if self.hot_window <= 0:
             raise ValueError("hot_window must be positive")
+        if self.direct_affinity_weight < 0:
+            raise ValueError("direct_affinity_weight must be non-negative")
         if self.release_weight < 0:
             raise ValueError("release_weight must be non-negative")
         if self.probe_per_buffer <= 0:
@@ -335,7 +338,7 @@ def schedule_q2_reuse_aware(
                 candidates.update(heapq.nsmallest(config.probe_per_buffer, ready))
 
             def candidate_key(node_id: int) -> tuple[int, tuple[int, int, int]]:
-                direct_affinity = sum(
+                direct_affinity = config.direct_affinity_weight * sum(
                     counted_sizes[buf_id] * scores.get(buf_id, 0)
                     for buf_id in touched_by_node.get(node_id, ())
                 )

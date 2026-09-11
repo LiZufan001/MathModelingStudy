@@ -28,6 +28,7 @@ CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
         "direct_h16_r1",
         Q2ReuseScheduleConfig(
             hot_window=16,
+            direct_affinity_weight=1,
             release_weight=1,
             probe_per_buffer=8,
             footprint_weight=0,
@@ -37,6 +38,7 @@ CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
         "footprint_m4",
         Q2ReuseScheduleConfig(
             hot_window=1,
+            direct_affinity_weight=0,
             release_weight=0,
             probe_per_buffer=64,
             footprint_weight=1,
@@ -47,6 +49,7 @@ CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
         "footprint_m8",
         Q2ReuseScheduleConfig(
             hot_window=1,
+            direct_affinity_weight=0,
             release_weight=0,
             probe_per_buffer=64,
             footprint_weight=1,
@@ -57,6 +60,7 @@ CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
         "footprint_hot_m4",
         Q2ReuseScheduleConfig(
             hot_window=16,
+            direct_affinity_weight=1,
             release_weight=1,
             probe_per_buffer=64,
             footprint_weight=1,
@@ -98,6 +102,7 @@ def _empty_experiment_row(
         "case": case,
         "config": name,
         "hot_window": config.hot_window,
+        "direct_affinity_weight": config.direct_affinity_weight,
         "release_weight": config.release_weight,
         "footprint_weight": config.footprint_weight,
         "footprint_min_buffers": config.footprint_min_buffers,
@@ -190,6 +195,7 @@ def main() -> int:
                 "case": case,
                 "config": "baseline",
                 "hot_window": 0,
+                "direct_affinity_weight": 0,
                 "release_weight": 0,
                 "footprint_weight": 0,
                 "footprint_min_buffers": 0,
@@ -248,6 +254,7 @@ def main() -> int:
                     "case": case,
                     "config": name,
                     "hot_window": config.hot_window,
+                    "direct_affinity_weight": config.direct_affinity_weight,
                     "release_weight": config.release_weight,
                     "footprint_weight": config.footprint_weight,
                     "footprint_min_buffers": config.footprint_min_buffers,
@@ -273,8 +280,6 @@ def main() -> int:
         and int(aggregate[name]["valid_cases"]) == len(MATMUL_CASES)
     ]
     if not eligible:
-        # Persist the rejected parameter sweep before failing so the artifact/log
-        # still explains why no candidate survived.
         _write_csv(args.out_dir / "q2_reuse_grid.csv", grid_rows)
         _write_json(
             args.out_dir / "q2_reuse_selection.json",
@@ -293,6 +298,7 @@ def main() -> int:
             int(aggregate[item[0]]["traffic"]),
             int(aggregate[item[0]]["peak"]),
             -item[1].footprint_min_buffers,
+            item[1].direct_affinity_weight,
             item[1].hot_window,
             item[1].release_weight,
             item[0],
@@ -304,6 +310,7 @@ def main() -> int:
         "winner": winner_name,
         "winner_config": {
             "hot_window": winner_config.hot_window,
+            "direct_affinity_weight": winner_config.direct_affinity_weight,
             "release_weight": winner_config.release_weight,
             "probe_per_buffer": winner_config.probe_per_buffer,
             "footprint_weight": winner_config.footprint_weight,
@@ -317,8 +324,6 @@ def main() -> int:
         "six_case_rejected": [],
     }
 
-    # Matmul is the experiment-selection objective.  Persist it immediately so a
-    # later cross-family rejection cannot erase the already-computed evidence.
     _write_csv(args.out_dir / "q2_reuse_grid.csv", grid_rows)
     _write_json(args.out_dir / "q2_reuse_selection.json", selection)
     print("MATMUL_SELECTION")
