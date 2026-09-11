@@ -22,18 +22,31 @@ CASES = (
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Benchmark official-literal objective Q3 optimizer at fixed promoted-Q2 traffic"
+        description=(
+            "Benchmark official-literal objective Q3 optimizer at fixed "
+            "promoted-Q2 traffic"
+        )
     )
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
+    ap.add_argument("--case", choices=CASES)
     ap.add_argument("--rounds", type=int, default=2)
+    ap.add_argument(
+        "--recolor-rounds",
+        type=int,
+        default=0,
+        help="generic critical-reuse recolor rounds after the address/pipeline optimizer",
+    )
+    ap.add_argument("--recolor-targets", type=int, default=6)
+    ap.add_argument("--recolor-starts", type=int, default=12)
     args = ap.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, object]] = []
     trace: dict[str, list[dict[str, object]]] = {}
+    cases = (args.case,) if args.case is not None else CASES
 
-    for case in CASES:
+    for case in cases:
         graph = load_case(args.data_dir, case)
         promoted = solve_q2_promoted(graph)
         q2 = promoted.allocation
@@ -44,11 +57,20 @@ def main() -> int:
             graph,
             q2.solution,
             max_rounds=args.rounds,
+            recolor_max_rounds=args.recolor_rounds,
+            recolor_max_targets=args.recolor_targets,
+            recolor_max_starts=args.recolor_starts,
         )
         seconds = time.perf_counter() - t0
 
-        official_delta = result.official_timing.total_cycles - result.original_official_cycles
+        official_delta = (
+            result.official_timing.total_cycles - result.original_official_cycles
+        )
         safe_delta = result.safe_timing.total_cycles - result.original_safe_cycles
+        recolor_steps = [
+            step for step in result.steps
+            if step.transformation == "critical_reuse_recolor"
+        ]
         rows.append(
             {
                 "case": case,
@@ -57,7 +79,8 @@ def main() -> int:
                 "optimized_official_cycles": result.official_timing.total_cycles,
                 "official_cycle_delta": official_delta,
                 "official_cycle_ratio": round(
-                    result.official_timing.total_cycles / result.original_official_cycles,
+                    result.official_timing.total_cycles
+                    / result.original_official_cycles,
                     6,
                 ),
                 "official_improvement_pct": round(
@@ -73,10 +96,20 @@ def main() -> int:
                 ),
                 "spill_count": result.spill_count,
                 "extra_traffic": result.extra_traffic,
-                "accepted_steps": sum(1 for step in result.steps if step.accepted),
+                "accepted_steps": sum(
+                    1 for step in result.steps if step.accepted
+                ),
                 "steps": len(result.steps),
-                "safe_overlap_errors": len(result.safe_timing.physical_overlap_errors),
-                "literal_overlap_errors": len(result.official_timing.physical_overlap_errors),
+                "recolor_steps": len(recolor_steps),
+                "accepted_recolor_steps": sum(
+                    1 for step in recolor_steps if step.accepted
+                ),
+                "safe_overlap_errors": len(
+                    result.safe_timing.physical_overlap_errors
+                ),
+                "literal_overlap_errors": len(
+                    result.official_timing.physical_overlap_errors
+                ),
                 "seconds": round(seconds, 6),
                 "valid": result.safe_timing.ok and result.official_timing.ok,
             }

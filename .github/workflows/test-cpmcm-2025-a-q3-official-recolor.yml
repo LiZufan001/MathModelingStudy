@@ -1,0 +1,80 @@
+name: Test CPMCM 2025 A Q3 Official Recolor
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/src/**"
+      - "problems/CPMCM/2025/A/tests/**"
+      - ".github/workflows/test-cpmcm-2025-a-q3-official-recolor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recolor-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused production recolor tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_conv_local_recolor.py \
+            problems/CPMCM/2025/A/tests/test_q3_conv_greedy_recolor.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            -q
+
+  recolor-case:
+    needs: recolor-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - Matmul_Case0
+          - Matmul_Case1
+          - FlashAttention_Case0
+          - FlashAttention_Case1
+          - Conv_Case0
+          - Conv_Case1
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Strict official recolor acceptance
+        run: |
+          OUT_DIR="/tmp/q3-official-recolor-${{ matrix.case }}"
+          python problems/CPMCM/2025/A/src/benchmark_q3_official_zero_traffic.py \
+            --case "${{ matrix.case }}" \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir "$OUT_DIR" \
+            --rounds 2 \
+            --recolor-rounds 24 \
+            --recolor-targets 6 \
+            --recolor-starts 12
+          test -s "$OUT_DIR/q3_official_zero_traffic_summary.csv"
+          test -s "$OUT_DIR/q3_official_zero_traffic_summary.json"
+          test -s "$OUT_DIR/q3_official_zero_traffic_trace.json"
+      - name: Upload strict recolor evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-official-recolor-${{ matrix.case }}
+          path: /tmp/q3-official-recolor-${{ matrix.case }}
+          if-no-files-found: error

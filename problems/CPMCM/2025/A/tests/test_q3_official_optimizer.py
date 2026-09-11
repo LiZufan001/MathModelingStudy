@@ -57,7 +57,50 @@ def test_official_optimizer_is_monotone_on_official_and_preserves_q2() -> None:
     )
 
 
+def test_official_optimizer_can_run_optional_generic_recolor_stage() -> None:
+    graph, solution = _fixture()
+    before = validate_q2_solution(graph, solution)
+    before.require_ok()
+
+    result = optimize_q3_official_zero_traffic(
+        graph,
+        solution,
+        max_rounds=2,
+        recolor_max_rounds=3,
+        recolor_max_targets=2,
+        recolor_max_starts=4,
+    )
+    after = validate_q2_solution(graph, result.solution)
+    after.require_ok()
+
+    assert any(step.transformation == "critical_reuse_recolor" for step in result.steps)
+    assert result.official_timing.total_cycles <= result.original_official_cycles
+    assert result.safe_timing.ok
+    assert after.spill_count == before.spill_count
+    assert after.extra_traffic == before.extra_traffic
+
+
 def test_official_optimizer_rejects_nonpositive_round_count() -> None:
     graph, solution = _fixture()
     with pytest.raises(ValueError, match="max_rounds must be positive"):
         optimize_q3_official_zero_traffic(graph, solution, max_rounds=0)
+
+
+def test_official_optimizer_rejects_invalid_recolor_limits() -> None:
+    graph, solution = _fixture()
+    with pytest.raises(ValueError, match="recolor_max_rounds must be nonnegative"):
+        optimize_q3_official_zero_traffic(graph, solution, recolor_max_rounds=-1)
+    with pytest.raises(ValueError, match="recolor_max_targets must be positive"):
+        optimize_q3_official_zero_traffic(
+            graph,
+            solution,
+            recolor_max_rounds=1,
+            recolor_max_targets=0,
+        )
+    with pytest.raises(ValueError, match="recolor_max_starts must be positive"):
+        optimize_q3_official_zero_traffic(
+            graph,
+            solution,
+            recolor_max_rounds=1,
+            recolor_max_starts=0,
+        )
