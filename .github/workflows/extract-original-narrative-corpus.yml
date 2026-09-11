@@ -1,0 +1,101 @@
+name: Extract original narrative corpus
+on:
+  push:
+    paths:
+      - '.github/workflows/extract-original-narrative-corpus.yml'
+permissions:
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract narrative sections from exact-match papers
+        shell: bash
+        run: |
+          python -m pip install --quiet pypdf
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          from collections import Counter
+          import re
+
+          papers = [
+              ('2022-C-C22106140003', 'papers/CPMCM/2022/fulltext/C/C22106140003.pdf'),
+              ('2020-F-F20102840100', 'papers/CPMCM/2020/fulltext/F/F20102840100.pdf'),
+              ('2021-A-A21102480004', 'papers/CPMCM/2021/fulltext/A/A21102480004.pdf'),
+              ('2024-B-B24102860287', 'papers/CPMCM/2024/fulltext/B/B24102860287.pdf'),
+              ('2023-B-B23104860044', 'papers/CPMCM/2023/fulltext/B/B23104860044.pdf'),
+              ('2022-B-B22106140009', 'papers/CPMCM/2022/fulltext/B/B22106140009.pdf'),
+              ('2020-C-C20102860127', 'papers/CPMCM/2020/fulltext/C/C20102860127.pdf'),
+              ('2024-F-F24104860143', 'papers/CPMCM/2024/fulltext/F/F24104860143.pdf'),
+              ('2024-E-E24102910005', 'papers/CPMCM/2024/fulltext/E/E24102910005.pdf'),
+          ]
+
+          heading_patterns = [
+              r'摘\s*要', r'问题[一二三四五12345].{0,8}分析', r'问题分析',
+              r'结果分析', r'实验结果', r'模型.{0,6}(评价|评估|总结|优点|缺点)',
+              r'总结与评价', r'结\s*论', r'模型的推广', r'模型推广'
+          ]
+          connector_terms = [
+              '考虑到','由于','因此','故','由此','在此基础上','进一步','为了','针对',
+              '根据','结合','首先','其次','最后','结果表明','结果显示','由表','由图','可见',
+              '说明','相比','然而','但是','同时','从而','进而','综上','不是','而是'
+          ]
+
+          all_rows=[]
+          for pid, path in papers:
+              p=Path(path)
+              if not p.exists():
+                  print(f'@@MISSING {pid} {path}')
+                  continue
+              r=PdfReader(str(p))
+              pages=[]
+              full=[]
+              for i,page in enumerate(r.pages):
+                  try:
+                      txt=page.extract_text() or ''
+                  except Exception as e:
+                      txt=f'[EXTRACT_ERROR {e}]'
+                  txt=txt.replace('\x00','')
+                  full.append(txt)
+                  if i in (1,2):
+                      pages.append((i+1,'ABSTRACT_OR_FRONT',txt))
+                      continue
+                  hits=[pat for pat in heading_patterns if re.search(pat, txt)]
+                  if hits:
+                      pages.append((i+1,'|'.join(hits),txt))
+              # dedupe / cap while keeping order
+              seen=set(); chosen=[]
+              for x in pages:
+                  if x[0] not in seen:
+                      seen.add(x[0]); chosen.append(x)
+              chosen=chosen[:14]
+              whole='\n'.join(full)
+              counts={t:whole.count(t) for t in connector_terms}
+              contrast=[]
+              for m in re.finditer(r'[^。！？\n]{0,70}不是[^。！？\n]{0,80}而是[^。！？\n]{0,100}[。！？]?', whole):
+                  contrast.append(m.group(0).strip())
+              print('\n'+'='*100)
+              print(f'@@PAPER {pid} pages={len(r.pages)} chars={len(whole)}')
+              print('@@CONNECTOR_COUNTS ' + ' '.join(f'{k}={v}' for k,v in counts.items()))
+              print(f'@@NOT_BUT_COUNT {len(contrast)}')
+              for s in contrast[:8]:
+                  print('@@NOT_BUT_EXAMPLE ' + s[:320])
+              for pg,why,txt in chosen:
+                  txt=re.sub(r'\s+',' ',txt).strip()
+                  print(f'@@SECTION page={pg} reason={why}')
+                  print(txt[:7000])
+                  print('@@END_SECTION')
+              all_rows.append((pid,len(whole),counts,len(contrast)))
+
+          print('\n'+'#'*100)
+          print('@@CORPUS_SUMMARY')
+          totals=Counter()
+          total_chars=0; total_nb=0
+          for pid,n,c,nb in all_rows:
+              total_chars+=n; total_nb+=nb; totals.update(c)
+          print(f'papers={len(all_rows)} chars={total_chars} not_but={total_nb}')
+          for t in connector_terms:
+              print(f'{t}\t{totals[t]}\tper10k={totals[t]/max(total_chars,1)*10000:.3f}')
+          PY
