@@ -11,6 +11,7 @@ from q3_dependencies import (
     official_literal_reuse_edges,
     original_edges,
     pipe_edges,
+    residency_epoch_edges,
     residency_safe_reuse_edges,
     spill_edges,
 )
@@ -48,7 +49,9 @@ def evaluate_q3_solution(
     The submitted global sequence fixes instruction order *within each Pipe*.
     Different Pipes remain parallel. Timing edges are the union of original DAG
     dependencies, Appendix-B SPILL dependencies, address-reuse dependencies, and
-    same-Pipe serialization.
+    same-Pipe serialization. Residency-safe mode additionally preserves each
+    physical epoch's acquire->release lifetime; those safety edges are deliberately
+    excluded from reuse-edge statistics.
     """
 
     q2 = validate_q2_solution(graph, solution, capacities)
@@ -66,12 +69,14 @@ def evaluate_q3_solution(
         s_edges = spill_edges(graph, solution, nodes, pos)
         if reuse_mode == "official_literal":
             r_edges = official_literal_reuse_edges(graph, solution, pos, capacities)
+            lifetime_edges: set[tuple[int, int]] = set()
         elif reuse_mode == "residency_safe":
             r_edges = residency_safe_reuse_edges(graph, solution, capacities)
+            lifetime_edges = residency_epoch_edges(graph, solution)
         else:
             raise ValueError(f"unknown reuse_mode {reuse_mode!r}")
         p_edges = pipe_edges(solution, nodes)
-        all_edges = base_edges | s_edges | r_edges | p_edges
+        all_edges = base_edges | s_edges | r_edges | lifetime_edges | p_edges
 
         predecessors: dict[int, set[int]] = {node_id: set() for node_id in nodes}
         errors: list[str] = []

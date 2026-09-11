@@ -109,21 +109,68 @@ def official_literal_reuse_edges(
     return edges
 
 
+def residency_epoch_edges(
+    graph: ComputeGraph,
+    solution: Q2Solution,
+) -> set[tuple[int, int]]:
+    """Preserve acquire->release order for every physical residency epoch.
+
+    Q2 is validated as a sequential event stream, but Q3 executes different
+    Pipes in parallel.  A SPILL_IN epoch with no intervening business use can
+    otherwise have its next SPILL_OUT race ahead of the reload.  These lifetime
+    edges are timing-safety constraints, not address-reuse edges, so callers keep
+    them separate from reuse-edge statistics.
+    """
+
+    edges: set[tuple[int, int]] = set()
+    active_acquire: dict[int, int] = {}
+    n = graph.node_count
+
+    def acquire(buf_id: int, node_id: int) -> None:
+        if buf_id in active_acquire:
+            raise ValueError(f"acquire {node_id}: buffer {buf_id} already has active epoch")
+        active_acquire[buf_id] = node_id
+
+    def release(buf_id: int, node_id: int) -> None:
+        acquire_node = active_acquire.pop(buf_id, None)
+        if acquire_node is None:
+            raise ValueError(f"release {node_id}: buffer {buf_id} has no active epoch")
+        if acquire_node != node_id:
+            edges.add((acquire_node, node_id))
+
+    for node_id in solution.schedule:
+        if node_id < n:
+            node = graph.nodes[node_id]
+            if node.is_alloc:
+                assert node.buf_id is not None
+                acquire(node.buf_id, node_id)
+            elif node.is_free:
+                assert node.buf_id is not None
+                release(node.buf_id, node_id)
+        else:
+            relative = node_id - n
+            spill = solution.spills[relative // 2]
+            if relative % 2 == 0:
+                release(spill.buf_id, node_id)
+            else:
+                acquire(spill.buf_id, node_id)
+
+    if active_acquire:
+        raise ValueError(f"residency lifetime replay ended with buffers {sorted(active_acquire)[:8]}")
+    return edges
+
+
 def residency_safe_reuse_edges(
     graph: ComputeGraph,
     solution: Q2Solution,
     capacities: Mapping[str, int] = CACHE_CAPACITIES,
 ) -> set[tuple[int, int]]:
-    """Residency-safety edges for every actual physical residency epoch.
+    """Release->acquire edges between actual physical residency epochs.
 
-    Besides release->acquire edges between address owners, every epoch receives
-    its own acquire->release edge.  The latter is essential for SPILL_IN epochs
-    with no intervening business use: otherwise ASAP timing could execute the
-    next SPILL_OUT before the reload has actually acquired/written the buffer.
-
-    Together these constraints strengthen literal FREE/ALLOC reuse when SPILL
-    temporarily releases an address: an epoch must first exist, then release,
-    before a later ALLOC/SPILL_IN may start using any of the same bytes.
+    This strengthens literal FREE/ALLOC reuse when SPILL temporarily releases an
+    address: SPILL_OUT/FREE must finish before a later ALLOC/SPILL_IN starts using
+    any of the same bytes.  Epoch-internal acquire->release ordering is handled
+    separately by :func:`residency_epoch_edges` so reuse statistics stay stable.
     """
 
     current_owner: dict[str, list[int | None]] = {
@@ -132,8 +179,7 @@ def residency_safe_reuse_edges(
     last_release: dict[str, list[int | None]] = {
         memory_type: [None] * capacity for memory_type, capacity in capacities.items()
     }
-    # buf -> (memory_type, start, end, acquire_node)
-    placement: dict[int, tuple[str, int, int, int]] = {}
+    placement: dict[int, tuple[str, int, int]] = {}
     edges: set[tuple[int, int]] = set()
     n = graph.node_count
     alloc_by_buf = {
@@ -159,17 +205,12 @@ def residency_safe_reuse_edges(
                     f"acquire {node_id}: {memory_type}[{address}] still owned by {owners[address]}"
                 )
             owners[address] = buf_id
-        placement[buf_id] = (memory_type, start, end, node_id)
+        placement[buf_id] = (memory_type, start, end)
 
     def release(buf_id: int, node_id: int) -> None:
         if buf_id not in placement:
             raise ValueError(f"release {node_id}: buffer {buf_id} not resident")
-        memory_type, start, end, acquire_node = placement.pop(buf_id)
-        # A submitted Q2 sequence guarantees acquire precedes release in schedule
-        # order, but Q3 runs different Pipes in parallel.  Preserve the lifetime
-        # itself explicitly so the release cannot race ahead of its own acquire.
-        if acquire_node != node_id:
-            edges.add((acquire_node, node_id))
+        memory_type, start, end = placement.pop(buf_id)
         owners = current_owner[memory_type]
         releases = last_release[memory_type]
         for address in range(start, end):
