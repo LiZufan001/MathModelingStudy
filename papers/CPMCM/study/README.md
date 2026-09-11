@@ -4,6 +4,18 @@
 
 ---
 
+## ⭐ 正赛总手册入口
+
+> 单篇精读用于学习案例；真正比赛时优先从下面三个文件进入。
+
+- [`COMPETITION_MASTER_PLAYBOOK.md`](COMPETITION_MASTER_PLAYBOOK.md)：**主手册**。拿题→选题→evaluator→baseline→模型选型→验证→代码→图表→论文→团队协作的完整统一框架。
+- [`QUICK_REFERENCE_CARD.md`](QUICK_REFERENCE_CARD.md)：**速查卡**。按“症状→第一动作”组织，正赛卡住时直接翻。
+- [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)：**赛末审计表**。冻结模型后逐项打勾，优先排除 evaluator、硬约束、泄漏、单位、结果版本等一票否决错误。
+
+核心纪律：**先证明结果是真的，再证明方法很强。**
+
+---
+
 # 当前进度：9 / 13
 
 ## 第一阶段：五类核心能力样本（5/5 完成）
