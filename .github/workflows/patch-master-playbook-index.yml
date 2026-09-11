@@ -1,0 +1,33 @@
+name: Patch CPMCM master playbook index
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-master-playbook-index.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add master playbook entry
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('papers/CPMCM/study/README.md')
+          s = p.read_text(encoding='utf-8')
+          block = '''\n## ⭐ 正赛总手册入口\n\n> 单篇精读用于学习案例；真正比赛时优先从下面三个文件进入。\n\n- [`COMPETITION_MASTER_PLAYBOOK.md`](COMPETITION_MASTER_PLAYBOOK.md)：**主手册**。拿题→选题→evaluator→baseline→模型选型→验证→代码→图表→论文→团队协作的完整统一框架。\n- [`QUICK_REFERENCE_CARD.md`](QUICK_REFERENCE_CARD.md)：**速查卡**。按“症状→第一动作”组织，正赛卡住时直接翻。\n- [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)：**赛末审计表**。冻结模型后逐项打勾，优先排除 evaluator、硬约束、泄漏、单位、结果版本等一票否决错误。\n\n核心纪律：**先证明结果是真的，再证明方法很强。**\n\n---\n'''
+          if '## ⭐ 正赛总手册入口' not in s:
+              anchor = '---\n\n# 当前进度：'
+              if anchor not in s:
+                  raise SystemExit('anchor not found')
+              s = s.replace(anchor, '---\n' + block + '\n# 当前进度：', 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'LiZufan001'
+          git config user.email '128899229+LiZufan001@users.noreply.github.com'
+          git add papers/CPMCM/study/README.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'study: add competition master playbook entrypoints'
+          git push
