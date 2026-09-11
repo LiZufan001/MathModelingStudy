@@ -27,7 +27,7 @@
 | 8 | 2024 F | `F24104860143` 武汉大学 | 轨道机理、参考系/时间尺度、相对论时延、NHPP 仿真 | ✅ |
 | 9 | 2024 E | `E24102910005` 南京工业大学；另保留广西大学目标队官方方法对照 | 视频标定→交通状态→时序预测→滞回控制→反事实评估 | ✅ |
 | 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | ⏳ 待确认全文 |
-| 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | ⏳ 待确认全文 |
+| 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | 🟡 证据重构，待封面核验 |
 | 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | ⏳ 待确认全文 |
 | 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | ⏳ 待确认全文 |
 
@@ -182,3 +182,15 @@ baseline + lower bound / sanity bound
 10. 仿真题把 self-consistency 与 independent validation 分开，不用生成器输入本身冒充独立验证。
 11. 视频/传感器题必须维护 measurement calibration 与 uncertainty；像素检测正确不等于物理量正确。
 12. 控制题把 counterfactual assumption 与 empirical effect 分开，安全类条件优先写成 hard constraints。
+
+
+## 11. 2025 D｜ac2d33da18fa 候选（证据级深读）
+
+> **身份边界：**60 页候选《低空湍流监测及最优航路规划研究》与辽宁工程技术大学石彤彤/赵其伟/安雪菱团队国一作品《低空湍流监测与最优航路规划研究》仅“及/与”一字差异，对应国一候选编号 `D25101470116`；但尚未看到候选 PDF 封面队号，所以不计为 exact-match 全文。
+
+- [`2025-D-ac2d33da18fa/README.md`](2025-D-ac2d33da18fa/README.md)：a→b→c→d/e→route 证据级深读
+- [`2025-D-ac2d33da18fa/MODEL_RECONSTRUCTION.md`](2025-D-ac2d33da18fa/MODEL_RECONSTRUCTION.md)：probabilistic turbulence state → forecast → chance/CVaR route 重构
+- [`2025-D-ac2d33da18fa/TURBULENCE_TO_ROUTE_AUDIT.md`](2025-D-ac2d33da18fa/TURBULENCE_TO_ROUTE_AUDIT.md)：量纲、伪分辨率、验证、NWP、路径最优性专项审计
+- [`2025-D-ac2d33da18fa/REVIEWER_REPORT.md`](2025-D-ac2d33da18fa/REVIEWER_REPORT.md)：模拟评审与 16 个答辩问题
+- [`2025-D-ac2d33da18fa/COMPETITION_PLAYBOOK.md`](2025-D-ac2d33da18fa/COMPETITION_PLAYBOOK.md)：多源监测→三维场→短临→风险航路速查
+- [`2025-D-ac2d33da18fa/SOURCE_PROVENANCE.md`](2025-D-ac2d33da18fa/SOURCE_PROVENANCE.md)：候选身份、SHA 与全文恢复核查
