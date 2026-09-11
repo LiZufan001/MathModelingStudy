@@ -1,0 +1,24 @@
+{
+  "acceptance_snapshot": {
+    "commit": "69b20415fe1cbaaa8e571ffcb254e4c17ef932a2",
+    "workflow_run": 34580011246,
+    "tests_passed": 51,
+    "artifact_id": 10191430523,
+    "artifact_sha256": "c74a66434bdf927aec3a4c2684d65bdffb0651fccd670dc23a23d0a9c9023cc6"
+  },
+  "aggregate": {
+    "baseline_safe_cycles": 8218257,
+    "optimized_safe_cycles": 7950145,
+    "cycle_delta": -268112,
+    "improvement_pct": 3.262395,
+    "extra_traffic_delta": 0
+  },
+  "cases": [
+    {"case":"Matmul_Case0","baseline_cycles":195024,"optimized_cycles":160005,"cycle_delta":-35019,"improvement_pct":17.956252,"spill_count":225,"extra_traffic":28800},
+    {"case":"Matmul_Case1","baseline_cycles":1771302,"optimized_cycles":1669574,"cycle_delta":-101728,"improvement_pct":5.743120,"spill_count":3361,"extra_traffic":430208},
+    {"case":"FlashAttention_Case0","baseline_cycles":212425,"optimized_cycles":212425,"cycle_delta":0,"improvement_pct":0.0,"spill_count":301,"extra_traffic":55188},
+    {"case":"FlashAttention_Case1","baseline_cycles":1026762,"optimized_cycles":1026762,"cycle_delta":0,"improvement_pct":0.0,"spill_count":1782,"extra_traffic":242552},
+    {"case":"Conv_Case0","baseline_cycles":798190,"optimized_cycles":798190,"cycle_delta":0,"improvement_pct":0.0,"spill_count":493,"extra_traffic":178212},
+    {"case":"Conv_Case1","baseline_cycles":4214554,"optimized_cycles":4083189,"cycle_delta":-131365,"improvement_pct":3.116937,"spill_count":9550,"extra_traffic":724630}
+  ]
+}
