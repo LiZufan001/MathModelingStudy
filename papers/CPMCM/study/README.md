@@ -26,9 +26,9 @@
 | 7 | 2020 C | `C20102860127` 东南大学；另保留电子科大目标队方法对照 | 信号处理→通道选择→监督/半监督→资源受限验证 | ✅ |
 | 8 | 2024 F | `F24104860143` 武汉大学 | 轨道机理、参考系/时间尺度、相对论时延、NHPP 仿真 | ✅ |
 | 9 | 2024 E | `E24102910005` 南京工业大学；另保留广西大学目标队官方方法对照 | 视频标定→交通状态→时序预测→滞回控制→反事实评估 | ✅ |
-| 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | ⏳ 待确认全文 |
+| 10 | 2025 C | 中国矿业大学 周缘/牛敏学/王聪 | Frangi、几何特征、Monte Carlo、三维概率重构 | 🟡 证据重构，待封面核验 |
 | 11 | 2025 D | 辽宁工程技术大学 石彤彤/赵其伟/安雪菱 | 环境场估计、风险量化、航路优化 | 🟡 证据重构，待封面核验 |
-| 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | ⏳ 待确认全文 |
+| 12 | 2025 D | 辽宁工程技术大学 关昊岩/谢卓毅/杨骞 | 多源融合、数值预报校正、同题异解 | 🟡 同题候选证据重构；目标队全文未找到 |
 | 13 | 2025 F | 湖州师范学院 周萌团队 | 主观美学→可计算指标、图模型、路径规划 | ⏳ 待确认全文 |
 
 > **2020 C 来源说明：**原路线点名电子科技大学贾召钱、殷康宁、王文超团队。校方可核验其一等奖身份和方法链，但当前公开优秀论文包中未找到与该队成员精确对应的完整 PDF。为避免冒充全文，本轮实际逐页精读 exact-match 国一 `C20102860127`（东南大学李典泽、付银、程鑫），并另建 UESTC 方法对照。若日后获得可核验全文，再新增独立目录。
@@ -194,3 +194,28 @@ baseline + lower bound / sanity bound
 - [`2025-D-ac2d33da18fa/REVIEWER_REPORT.md`](2025-D-ac2d33da18fa/REVIEWER_REPORT.md)：模拟评审与 16 个答辩问题
 - [`2025-D-ac2d33da18fa/COMPETITION_PLAYBOOK.md`](2025-D-ac2d33da18fa/COMPETITION_PLAYBOOK.md)：多源监测→三维场→短临→风险航路速查
 - [`2025-D-ac2d33da18fa/SOURCE_PROVENANCE.md`](2025-D-ac2d33da18fa/SOURCE_PROVENANCE.md)：候选身份、SHA 与全文恢复核查
+
+
+## 10. 2025 C｜eaf6375148b2 候选（证据级深读）
+
+> **身份边界：**91 页候选《基于Frangi滤波的钻孔裂隙识别与三维概率重构》与中国矿业大学数模之星冠军论文题名/方法链高度吻合，但尚未看到 PDF 封面队号，不能绑定 `C25102900037`。
+
+- [`2025-C-eaf6375148b2/README.md`](2025-C-eaf6375148b2/README.md)：像素→几何→JRC→3D→不确定性→补钻证据级深读
+- [`2025-C-eaf6375148b2/MODEL_RECONSTRUCTION.md`](2025-C-eaf6375148b2/MODEL_RECONSTRUCTION.md)：统一 fracture posterior 重构
+- [`2025-C-eaf6375148b2/IMAGE_TO_3D_UNCERTAINTY_AUDIT.md`](2025-C-eaf6375148b2/IMAGE_TO_3D_UNCERTAINTY_AUDIT.md)：采样测度、JRC、球面方向、连通概率、补钻专项审计
+- [`2025-C-eaf6375148b2/REVIEWER_REPORT.md`](2025-C-eaf6375148b2/REVIEWER_REPORT.md)：模拟评审与答辩问题
+- [`2025-C-eaf6375148b2/COMPETITION_PLAYBOOK.md`](2025-C-eaf6375148b2/COMPETITION_PLAYBOOK.md)：图像→三维不确定性题速查
+- [`2025-C-eaf6375148b2/SOURCE_PROVENANCE.md`](2025-C-eaf6375148b2/SOURCE_PROVENANCE.md)：候选身份与来源边界
+
+
+## 12. 2025 D｜95743f6ef8d6 候选（同题证据级深读）
+
+> **身份边界：**110 页候选《基于多源数据融合的低空湍流监测与航路优化》是 2025 D 同题优秀论文，但与关昊岩/谢卓毅/杨骞队官方题名《多源观测融合与数值预报校正的低空湍流监测及航路规划》不同，当前不能绑定 `D25101470007`。本目录用于同题异解训练。
+
+- [`2025-D-95743f6ef8d6/README.md`](2025-D-95743f6ef8d6/README.md)：多源融合→NWP校正→风险航路证据级深读
+- [`2025-D-95743f6ef8d6/MODEL_RECONSTRUCTION.md`](2025-D-95743f6ef8d6/MODEL_RECONSTRUCTION.md)：probabilistic state → forecast distribution → CVaR/chance route 重构
+- [`2025-D-95743f6ef8d6/MULTISOURCE_NWP_ROUTE_AUDIT.md`](2025-D-95743f6ef8d6/MULTISOURCE_NWP_ROUTE_AUDIT.md)：量纲、验证、分辨率、NWP与A*专项审计
+- [`2025-D-95743f6ef8d6/SAME_PROBLEM_COMPARISON.md`](2025-D-95743f6ef8d6/SAME_PROBLEM_COMPARISON.md)：与 `ac2d33da18fa` 的逐问同题异解
+- [`2025-D-95743f6ef8d6/REVIEWER_REPORT.md`](2025-D-95743f6ef8d6/REVIEWER_REPORT.md)：模拟评审与16个答辩问题
+- [`2025-D-95743f6ef8d6/COMPETITION_PLAYBOOK.md`](2025-D-95743f6ef8d6/COMPETITION_PLAYBOOK.md)：多源融合+NWP校正+风险航路速查
+- [`2025-D-95743f6ef8d6/SOURCE_PROVENANCE.md`](2025-D-95743f6ef8d6/SOURCE_PROVENANCE.md)：目标队与候选身份边界
