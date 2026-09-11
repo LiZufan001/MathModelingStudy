@@ -46,13 +46,19 @@ jobs:
           python problems/CPMCM/2025/A/src/benchmark_q3_pipeline_critical.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-pipeline-critical
-      - name: Benchmark monotone alternating zero-traffic Q3 optimizer
+      - name: Benchmark safe-objective zero-traffic Q3 optimizer
         run: |
           python problems/CPMCM/2025/A/src/benchmark_q3_zero_traffic.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-zero-traffic \
             --rounds 2
-      - name: Build strict epsilon-constrained Q3 Pareto frontier
+      - name: Benchmark official-objective zero-traffic Q3 optimizer
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_official_zero_traffic.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-official-zero-traffic \
+            --rounds 2
+      - name: Build strict epsilon-constrained Q3 Pareto frontiers
         run: |
           python problems/CPMCM/2025/A/src/benchmark_q3_pareto.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
@@ -67,5 +73,6 @@ jobs:
             /tmp/q3-address-policies
             /tmp/q3-pipeline-critical
             /tmp/q3-zero-traffic
+            /tmp/q3-official-zero-traffic
             /tmp/q3-pareto
           if-no-files-found: error
