@@ -32,27 +32,28 @@ def select_q3_address_portfolio(
 
     Selection is graph-generic and evaluator-driven: there are no case/operator
     names in the decision. Invalid recolorings are retained as rejection evidence.
+    Exact ties prefer the supplied layout, avoiding gratuitous address changes.
     """
 
     baseline = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
     baseline.require_ok()
-    candidates: list[tuple[int, str, Q2Solution, Q3TimingResult]] = [
-        (baseline.total_cycles, "original_q2_addresses", solution, baseline)
+    candidates: list[tuple[int, int, str, Q2Solution, Q3TimingResult]] = [
+        (baseline.total_cycles, 0, "original_q2_addresses", solution, baseline)
     ]
     rejected: list[tuple[str, str]] = []
 
-    for policy in PORTFOLIO_POLICIES:
+    for rank, policy in enumerate(PORTFOLIO_POLICIES, start=1):
         try:
             repacked = repack_q3_addresses(graph, solution, policy).solution
             timing = evaluate_q3_solution(graph, repacked, reuse_mode="residency_safe")
             timing.require_ok()
-            candidates.append((timing.total_cycles, policy, repacked, timing))
+            candidates.append((timing.total_cycles, rank, policy, repacked, timing))
         except Exception as exc:
             rejected.append((policy, f"{type(exc).__name__}: {exc}"))
 
-    _, policy, best_solution, best_timing = min(
+    _, _, policy, best_solution, best_timing = min(
         candidates,
-        key=lambda item: (item[0], item[1]),
+        key=lambda item: (item[0], item[1], item[2]),
     )
     return Q3AddressPortfolioResult(
         best_solution,
