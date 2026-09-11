@@ -1,0 +1,287 @@
+name: Patch master research narrative
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-master-research-narrative.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch master handbook and study index
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('papers/CPMCM/study/COMPETITION_MASTER_PLAYBOOK.md')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace(
+              '> 原则：**历史论文里的阈值、权重、超参数不直接迁移；只迁移方法结构、验证纪律和建模接口。**',
+              '> **最高原则：数模的核心不是求一个标准答案，也不是把模型做得高级，而是在开放问题上建立一条可审计、可追问、证据与结论匹配的研究链。**  \n'
+              '> **说服力是结果，不是方法。** 只有当问题理解、假设、模型选择、实验和结论都能被追溯时，评委的信服才有科学基础。  \n'
+              '> 工作原则：**历史论文里的阈值、权重、超参数不直接迁移；只迁移研究结构、方法选择逻辑、验证纪律和建模接口。**  \n'
+              '> 叙事专项见 [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)。'
+          )
+
+          old0 = '# 0. 总纲：先把这 12 句话背下来\n'
+          new0 = '''# 0. 最高原则：先形成研究判断，再组织计算工具\n\n在这一版手册中，`evaluator-first` 仍然是极重要的执行纪律，但它不再被视为最高层原则。最高层先问四件事：\n\n```text\n我们观察到了什么？\n→ 因此怎样理解这个问题？\n→ 为什么这个方法正好解决这个困难？\n→ 什么证据足以支持这个结论？\n```\n\n也就是：\n\n\\[\n\\boxed{\n\\text{Observation}\n\\rightarrow\\text{Judgment}\n\\rightarrow\\text{Model}\n\\rightarrow\\text{Evidence}\n\\rightarrow\\text{Boundary}\n}\n\\]\n\n`official_score()`、baseline、lower bound、GroupKFold、量纲检查、敏感性分析等，都属于让这条研究链**可审计**的工具。\n\n因此正赛最危险的两种极端都要避免：\n\n1. **只有想法，没有验证**：故事很好听，但证据不足；\n2. **只有验收，没有洞察**：代码很严谨，但没有解释为什么问题应该这样研究。\n\n真正强的论文同时具备：\n\n> **有洞察的问题抽象 + 有针对性的方法 + 有区分力的证据 + 不越界的结论。**\n\n## 0.1 执行层总纲：先把这 12 句话背下来\n'''
+          if old0 in s:
+              s = s.replace(old0, new0, 1)
+          elif '# 0. 最高原则：先形成研究判断，再组织计算工具' not in s:
+              raise SystemExit('section 0 anchor not found')
+
+          a = s.index('# 15. 论文写法：')
+          b = s.index('# 16. 模型停止规则：', a)
+          new15 = r'''# 15. 论文叙事与科学论证：按“研究判断”组织，不按算法名组织
+
+> 完整专项见 [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)。
+
+## 15.1 叙事不是包装，而是暴露方法选择的因果关系
+
+每一个重要方法尽量形成五步链：
+
+```text
+观察 / 困难
+   ↓
+建模判断
+   ↓
+方法选择
+   ↓
+证据
+   ↓
+边界 / 下一问
+```
+
+记作：
+
+\[
+O\rightarrow J\rightarrow M\rightarrow E\rightarrow B.
+\]
+
+差的写法：
+
+```text
+为提高精度，采用 XGBoost。
+```
+
+好的写法：
+
+```text
+线性基线在高值区持续低估，残差呈明显非线性；
+因此使用树提升模型拟合剩余非线性关系；
+高值区 MAE 下降，而普通区间变化有限；
+说明改进主要针对该失败模式。
+```
+
+方法是研究判断的结果，而不是段落主角。
+
+## 15.2 每一问建议写成七段研究链
+
+1. **核心矛盾**：本问真正难在哪里；
+2. **数据 / 机理诊断**：什么事实支持我们的理解；
+3. **建模判断**：因此把问题抽象成什么；
+4. **数学模型**：变量、状态、关系；
+5. **求解方法**：怎样算，而不是为什么研究；
+6. **验证 / 反例 / 边界**：为什么相信；
+7. **本问输出 → 下一问接口**：这一问研究对象如何继续升级。
+
+不要写成：
+
+```text
+RF 原理
+→ XGBoost 原理
+→ LSTM 原理
+→ GA 原理
+```
+
+## 15.3 四问必须有桥
+
+常见桥接方式：
+
+- **输出桥**：Q1 得到状态，Q2 使用该状态；
+- **限制桥**：Q1 在假设 A 下求解，Q2 放宽/取消 A；
+- **资源桥**：Q1 高精度但昂贵，Q2 构造低成本代理；
+- **决策桥**：Q1/Q2 预测，Q3 研究如何据此行动；
+- **不确定性桥**：前问估计误差，后问把它传播到决策。
+
+如果各问之间只能靠“针对问题二”连接，优先重新找统一主线。
+
+## 15.4 公式前后必须各说一件事
+
+公式前：
+
+> **为什么需要这个量？它对应什么现实机制？**
+
+公式后：
+
+> **这个量增大/减小时意味着什么？它怎样进入下一步？**
+
+公式不是装饰，也不是“数学味”的来源；它应当是论证链中的一个节点。
+
+## 15.5 失败实验可以成为高质量叙事证据
+
+只要失败实验满足：
+
+1. 揭示了一个数据/机制事实；
+2. 改变了后续模型选择；
+3. 有严格验证，而不是简单“没调好”。
+
+就应该保留关键结果。
+
+推荐表述：
+
+> “首先尝试 A，因为……；但在严格验证下 B 场景明显失效，说明假设 C 不成立，因此转向 D，并用 E 验证该调整确实针对原失效模式。”
+
+## 15.6 创新优先写在“研究表示”而不是算法名
+
+优先级：
+
+```text
+新的问题表示
+> 新状态 / 新变量
+> 新结构利用
+> 新模型接口
+> 新验证设计
+> 针对性组合
+> 改进某算法
+```
+
+“改进遗传算法 / 改进随机森林”通常不是最容易让评委记住的创新。
+
+## 15.7 摘要是压缩研究故事
+
+每问尽量形成：
+
+```text
+任务
+→ 核心判断
+→ 方法
+→ 最关键证据
+```
+
+摘要整体顺序：
+
+```text
+现实问题与关键困难
+→ 核心建模洞察
+→ 各问沿同一主线如何推进
+→ 最重要的结果与验证
+→ 决策意义 / 适用边界
+```
+
+**30 秒测试：把摘要里的算法名全部删掉。**
+
+如果评委仍然能看懂你认为问题本质是什么、各问怎么连接、做出了什么研究判断，摘要才真正有建模思想。
+
+## 15.8 结果必须从“数字”继续走到“认识”
+
+不要停在：
+
+> “模型 A 的 R² 高于模型 B。”
+
+继续回答：
+
+> “提升集中发生在哪类样本？为什么？它说明原模型漏掉了什么关系？”
+
+结果只有被解释后，才成为研究结论。
+
+## 15.9 结论强度必须和证据强度一致
+
+例如：
+
+- self-consistency → 只能说内部一致；
+- baseline comparison → 当前协议下更好；
+- external test → 才能谈外部泛化；
+- assumed capacity + simulation → 只能说“在该假设下模型预测”；
+- normalized score → 没校准前不要叫 probability。
+
+论文的可信度很大程度来自：**知道自己能说到哪里。**
+
+---
+
+'''
+          s = s[:a] + new15 + s[b:]
+
+          a = s.index('# 20. 最终评分观：')
+          b = s.index('# 21. 比赛现场最简流程', a)
+          new20 = r'''# 20. 最终评价观：评委真正评价的是研究判断力
+
+“让评委信服”不能被理解为修辞目标。真正应该追求的是：
+
+> **让评委沿着你的研究链检查以后，找不到关键步骤需要靠脑补。**
+
+评委最终在判断五件事：
+
+### 1. 问题理解有没有洞察
+
+你是否识别了真正关键的机制、结构、资源矛盾，而不是按表面题型套模型。
+
+### 2. 每个建模选择是否有依据
+
+假设、变量、特征、指标、算法和参数为什么这样设，都能追溯到题意、数据、机理、文献或实验。
+
+### 3. 证据是否真的能支持判断
+
+不是“画出来像”，而是有 baseline、反例、下界、严格切分、独立验证、敏感性或不确定性。
+
+### 4. 研究链是否连续
+
+前一问的输出是否成为后一问的状态、reference、特征、约束或 evaluator；整篇是否在研究同一个问题，而不是展示多套算法。
+
+### 5. 是否知道结论边界
+
+能区分：假设、预测、评分、概率、因果、最优、近似和工程建议。
+
+所以真正的获奖核心不是：
+
+```text
+模型高级 + 数字漂亮
+```
+
+而是：
+
+\[
+\boxed{
+\text{研究判断}
+\rightarrow
+\text{数学化}
+\rightarrow
+\text{证据}
+\rightarrow
+\text{解释}
+\rightarrow
+\text{边界}
+}
+\]
+
+高级算法只是其中可能用到的工具。
+
+---
+
+'''
+          s = s[:a] + new20 + s[b:]
+
+          s = s.replace(
+              '> **模型可以近似，验证不能含糊；算法可以简单，证据必须完整。**',
+              '> **模型可以近似，算法可以简单；研究判断必须有依据，证据必须完整，结论必须不过界。**'
+          )
+          p.write_text(s, encoding='utf-8')
+
+          idx = Path('papers/CPMCM/study/README.md')
+          t = idx.read_text(encoding='utf-8')
+          old = '- [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)：**赛末审计表**。冻结模型后逐项打勾，优先排除 evaluator、硬约束、泄漏、单位、结果版本等一票否决错误。'
+          new = old + '\n- [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)：**研究叙事与科学论证**。回顾代表论文如何提出判断、组织各问、解释模型选择、使用失败实验与校准结论边界。'
+          if old in t and 'NARRATIVE_AND_ARGUMENTATION_GUIDE.md' not in t:
+              t = t.replace(old, new, 1)
+              idx.write_text(t, encoding='utf-8')
+          PY
+          git config user.name 'LiZufan001'
+          git config user.email '128899229+LiZufan001@users.noreply.github.com'
+          git add papers/CPMCM/study/COMPETITION_MASTER_PLAYBOOK.md papers/CPMCM/study/README.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'study: center master playbook on scientific research narrative'
+          git push
