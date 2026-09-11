@@ -49,6 +49,12 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --baseline-summary /tmp/q2-baseline-results/q2_baseline_summary.csv \
             --out /tmp/q2-matmul-belady-oracle.csv
+      - name: Benchmark Q2-aware reuse scheduler and replay winner on all six cases
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_reuse_scheduler.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --baseline-summary /tmp/q2-baseline-results/q2_baseline_summary.csv \
+            --out-dir /tmp/q2-reuse
       - name: Download archived 2025-09-25 competition Problem 2 attachment
         run: |
           mkdir -p /tmp/public-q2
@@ -98,6 +104,7 @@ jobs:
             /tmp/q2-baseline-results
             /tmp/q2-matmul-belady-oracle.csv
             /tmp/q2-matmul-belady-oracle.json
+            /tmp/q2-reuse
             /tmp/q2-public-benchmark.csv
             /tmp/q2-public-benchmark.json
             /tmp/q2-spill-profiles.csv
