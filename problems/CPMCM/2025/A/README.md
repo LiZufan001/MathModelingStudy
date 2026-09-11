@@ -15,6 +15,10 @@
 
 > 这里的 `q1_baseline` 只是可复现基线，不是最终 Q1 算法。下一阶段将在 evaluator 不变的前提下加入 unlock-FREE、critical path、lookahead / beam search，并通过小图精确解报告 optimality gap。
 
+## 已验收结果
+
+六组附录 E 完整数据已经在 GitHub Runner 上通过真实运行验收；聚合结果、运行证据和当前限制见 [`results/q1_baseline/README.md`](results/q1_baseline/README.md)。
+
 ## 本地运行
 
 从仓库根目录执行：

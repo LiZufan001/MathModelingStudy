@@ -1,0 +1,7 @@
+case,nodes,edges,valid,peak_residency,peak_position,original_order_valid,original_peak_residency,absolute_peak_reduction
+Matmul_Case0,4160,7104,True,9216,691,False,,
+Matmul_Case1,30976,55040,True,34816,2539,False,,
+FlashAttention_Case0,1716,2712,True,26728,434,False,,
+FlashAttention_Case1,6952,11184,True,106992,1590,False,,
+Conv_Case0,2580,3869,True,80170,884,False,,
+Conv_Case1,36086,85653,True,310408,7478,False,,
