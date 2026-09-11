@@ -32,14 +32,21 @@ jobs:
         run: python -m pip install --disable-pip-version-check pytest
       - name: Unit and oracle tests
         run: python -m pytest problems/CPMCM/2025/A/tests -q
-      - name: Run all six Appendix-E cases
+      - name: Run all six Appendix-E baseline cases
         run: |
           python problems/CPMCM/2025/A/src/batch_q1.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q1-baseline-results
-      - name: Upload reproducible baseline outputs
+      - name: Compare baseline and pressure heuristic on all six cases
+        run: |
+          python problems/CPMCM/2025/A/src/compare_q1.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q1-greedy-results
+      - name: Upload reproducible Q1 outputs
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q1-baseline
-          path: /tmp/q1-baseline-results
+          name: cpmcm-2025-a-q1-validation
+          path: |
+            /tmp/q1-baseline-results
+            /tmp/q1-greedy-results
           if-no-files-found: error
