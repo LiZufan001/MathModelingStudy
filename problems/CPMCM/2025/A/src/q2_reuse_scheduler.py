@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import heapq
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass
 
 from evaluator import Q1Evaluation, evaluate_q1
@@ -13,14 +13,16 @@ from q1_scheduler import _ready_key
 class Q2ReuseScheduleConfig:
     """Configuration for the experimental Q2-aware topological scheduler.
 
-    The scheduler remains operator-agnostic: it never inspects Matmul/Conv/FA
-    structure.  It only uses DAG readiness, official buffer metadata, recent
-    L1/UB reuse, and bytes that become immediately releasable.
+    The scheduler is operator-agnostic.  It uses only DAG readiness, official
+    buffer metadata, recent direct L1/UB touches, immediately releasable bytes,
+    and short-range buffer co-occurrence footprints around L0 task anchors.
     """
 
     hot_window: int = 8
     release_weight: int = 1
     probe_per_buffer: int = 8
+    footprint_weight: int = 0
+    footprint_min_buffers: int = 4
 
     def __post_init__(self) -> None:
         if self.hot_window <= 0:
@@ -29,6 +31,10 @@ class Q2ReuseScheduleConfig:
             raise ValueError("release_weight must be non-negative")
         if self.probe_per_buffer <= 0:
             raise ValueError("probe_per_buffer must be positive")
+        if self.footprint_weight < 0:
+            raise ValueError("footprint_weight must be non-negative")
+        if self.footprint_min_buffers <= 0:
+            raise ValueError("footprint_min_buffers must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +43,7 @@ class Q2ReuseScheduleResult:
     evaluation: Q1Evaluation
     config: Q2ReuseScheduleConfig
     affinity_decisions: int
+    footprint_decisions: int
 
 
 def _counted_buffer_sizes(graph: ComputeGraph) -> dict[int, int]:
@@ -53,34 +60,91 @@ def _counted_buffer_sizes(graph: ComputeGraph) -> dict[int, int]:
     return result
 
 
+def _build_l0_counted_footprints(
+    graph: ComputeGraph,
+    counted_sizes: dict[int, int],
+) -> dict[int, tuple[int, ...]]:
+    """Return a two-hop counted-buffer footprint for every L0 ALLOC node.
+
+    Each operation's ``Bufs`` list forms a small undirected co-occurrence
+    hyperedge.  Two hops are enough to express patterns such as
+
+        L0C --(compute)-- L0A/L0B --(move)-- L1
+
+    without naming any operator or matrix dimension.  The same construction is
+    valid for arbitrary graphs that connect a local working buffer to counted
+    L1/UB buffers through one intermediate buffer.
+    """
+
+    adjacency: dict[int, set[int]] = defaultdict(set)
+    for node in graph.nodes.values():
+        if node.is_memory_event:
+            continue
+        bufs = tuple(dict.fromkeys(node.bufs))
+        for i, left in enumerate(bufs):
+            for right in bufs[i + 1 :]:
+                if left == right:
+                    continue
+                adjacency[left].add(right)
+                adjacency[right].add(left)
+
+    footprints: dict[int, tuple[int, ...]] = {}
+    for node in graph.nodes.values():
+        if not (node.is_alloc and node.memory_type in L0_TYPES and node.buf_id is not None):
+            continue
+        seen = {node.buf_id}
+        frontier = {node.buf_id}
+        counted: set[int] = set()
+        for _depth in range(2):
+            nxt: set[int] = set()
+            for buf_id in frontier:
+                for neighbor in adjacency.get(buf_id, ()):
+                    if neighbor in counted_sizes:
+                        counted.add(neighbor)
+                    if neighbor not in seen:
+                        seen.add(neighbor)
+                        nxt.add(neighbor)
+            frontier = nxt
+            if not frontier:
+                break
+        footprints[node.id] = tuple(sorted(counted))
+    return footprints
+
+
 def schedule_q2_reuse_aware(
     graph: ComputeGraph,
     config: Q2ReuseScheduleConfig = Q2ReuseScheduleConfig(),
 ) -> Q2ReuseScheduleResult:
     """Generate a Q1-valid order biased toward Q2 cache reuse.
 
-    This is deliberately an experimental companion to ``schedule_q1_baseline``.
-    It preserves the same hard L0 single-live-buffer rule and the same FREE-first
-    fallback ordering.  When several neutral ready operations are available, it
-    prefers operations that touch recently used L1/UB buffers and operations that
-    make a counted-buffer FREE immediately ready.
+    Hard semantics are unchanged from the stable Q1 baseline: FREE remains the
+    first priority once ready and each L0 type may have at most one live buffer.
+    Two soft signals can only choose among already legal ready nodes:
 
-    Candidate probing is bounded by ``hot_window * probe_per_buffer`` rather than
-    scanning the whole ready frontier on every node, which keeps the large official
-    graphs practical.
+    1. direct recency affinity for operations touching recently used L1/UB data;
+    2. when the baseline is ready to open another L0 task of a given type, prefer
+       a ready L0 ALLOC whose two-hop counted-buffer footprint overlaps the task
+       of that same L0 type that just completed.
+
+    The second signal deliberately does not open an L0 task earlier than the
+    baseline would.  It only changes *which* same-type L0 task is opened, keeping
+    the experiment isolated from broader Q1 residency policy.
     """
 
     indegree = graph.indegrees()
     counted_sizes = _counted_buffer_sizes(graph)
+    l0_footprints = _build_l0_counted_footprints(graph, counted_sizes)
 
     regular_ready: set[int] = set()
     regular_heap: list[tuple[tuple[int, int, int], int]] = []
-    l0_ready: dict[str, list[int]] = {kind: [] for kind in L0_TYPES}
+    l0_ready_heap: dict[str, list[int]] = {kind: [] for kind in L0_TYPES}
+    l0_ready_set: dict[str, set[int]] = {kind: set() for kind in L0_TYPES}
     l0_live: dict[str, int] = {kind: 0 for kind in L0_TYPES}
+    active_l0_alloc: dict[str, int | None] = {kind: None for kind in L0_TYPES}
+    last_l0_footprint: dict[str, frozenset[int]] = {kind: frozenset() for kind in L0_TYPES}
 
-    # Only currently-ready non-memory operations are indexed here.  Removing a
-    # selected node from the sets avoids stale affinity candidates.
     ready_by_buf: dict[int, set[int]] = {buf_id: set() for buf_id in counted_sizes}
+    ready_l0_by_footprint_buf: dict[int, set[int]] = defaultdict(set)
     touched_by_node: dict[int, tuple[int, ...]] = {}
     for node_id, node in graph.nodes.items():
         if node.is_memory_event:
@@ -92,7 +156,12 @@ def schedule_q2_reuse_aware(
     def enqueue(node_id: int) -> None:
         node = graph.nodes[node_id]
         if node.is_alloc and node.memory_type in L0_TYPES:
-            heapq.heappush(l0_ready[node.memory_type], node_id)
+            memory_type = node.memory_type
+            assert memory_type is not None
+            heapq.heappush(l0_ready_heap[memory_type], node_id)
+            l0_ready_set[memory_type].add(node_id)
+            for buf_id in l0_footprints.get(node_id, ()):
+                ready_l0_by_footprint_buf[buf_id].add(node_id)
             return
         regular_ready.add(node_id)
         heapq.heappush(regular_heap, (_ready_key(graph, node_id), node_id))
@@ -106,17 +175,26 @@ def schedule_q2_reuse_aware(
     hot_history: deque[tuple[int, ...]] = deque(maxlen=config.hot_window)
     order: list[int] = []
     affinity_decisions = 0
+    footprint_decisions = 0
 
     def clean_regular_heap() -> None:
         while regular_heap and regular_heap[0][1] not in regular_ready:
             heapq.heappop(regular_heap)
+
+    def clean_l0_heap(memory_type: str) -> None:
+        heap = l0_ready_heap[memory_type]
+        ready = l0_ready_set[memory_type]
+        while heap and heap[0] not in ready:
+            heapq.heappop(heap)
 
     def fallback_candidate() -> int | None:
         clean_regular_heap()
         candidates: list[tuple[tuple[int, int, int], int]] = []
         if regular_heap:
             candidates.append(regular_heap[0])
-        for memory_type, heap in l0_ready.items():
+        for memory_type in L0_TYPES:
+            clean_l0_heap(memory_type)
+            heap = l0_ready_heap[memory_type]
             if heap and l0_live[memory_type] == 0:
                 node_id = heap[0]
                 candidates.append((_ready_key(graph, node_id), node_id))
@@ -126,8 +204,6 @@ def schedule_q2_reuse_aware(
 
     def hot_scores() -> dict[int, int]:
         scores: dict[int, int] = {}
-        # A buffer's most recent touch determines its recency score.  Repeated old
-        # touches do not multiply the reward indefinitely.
         for age, touched in enumerate(reversed(hot_history), start=1):
             weight = config.hot_window - age + 1
             for buf_id in touched:
@@ -140,31 +216,78 @@ def schedule_q2_reuse_aware(
             if indegree[succ] != 1:
                 continue
             node = graph.nodes[succ]
-            if (
-                node.is_free
-                and node.buf_id in counted_sizes
-                and node.size is not None
-            ):
+            if node.is_free and node.buf_id in counted_sizes and node.size is not None:
                 total += node.size
         return total
 
+    def footprint_overlap_bytes(node_id: int) -> int:
+        node = graph.nodes[node_id]
+        if not (node.is_alloc and node.memory_type in L0_TYPES):
+            return 0
+        memory_type = node.memory_type
+        assert memory_type is not None
+        footprint = l0_footprints.get(node_id, ())
+        anchor = last_l0_footprint[memory_type]
+        if (
+            len(footprint) < config.footprint_min_buffers
+            or len(anchor) < config.footprint_min_buffers
+        ):
+            return 0
+        return sum(counted_sizes[buf_id] for buf_id in footprint if buf_id in anchor)
+
+    def footprint_preferred(fallback: int) -> int:
+        nonlocal footprint_decisions, affinity_decisions
+        if config.footprint_weight <= 0:
+            return fallback
+        node = graph.nodes[fallback]
+        if not (node.is_alloc and node.memory_type in L0_TYPES):
+            return fallback
+        memory_type = node.memory_type
+        assert memory_type is not None
+        anchor = last_l0_footprint[memory_type]
+        if len(anchor) < config.footprint_min_buffers:
+            return fallback
+
+        candidates: set[int] = {fallback}
+        ready_same_type = l0_ready_set[memory_type]
+        for buf_id in anchor:
+            overlapping = ready_l0_by_footprint_buf.get(buf_id)
+            if not overlapping:
+                continue
+            eligible = overlapping & ready_same_type
+            candidates.update(heapq.nsmallest(config.probe_per_buffer, eligible))
+
+        def key(node_id: int) -> tuple[int, tuple[int, int, int]]:
+            return (
+                -config.footprint_weight * footprint_overlap_bytes(node_id),
+                _ready_key(graph, node_id),
+            )
+
+        chosen = min(candidates, key=key)
+        if chosen != fallback and footprint_overlap_bytes(chosen) > footprint_overlap_bytes(fallback):
+            footprint_decisions += 1
+            affinity_decisions += 1
+        return chosen
+
     while len(order) < graph.node_count:
-        fallback = fallback_candidate()
-        if fallback is None:
+        baseline_fallback = fallback_candidate()
+        if baseline_fallback is None:
             unresolved = [node_id for node_id, degree in indegree.items() if degree > 0]
-            blocked = {kind: heap[:8] for kind, heap in l0_ready.items() if heap}
+            blocked = {
+                kind: sorted(l0_ready_set[kind])[:8]
+                for kind in L0_TYPES
+                if l0_ready_set[kind]
+            }
             if unresolved:
                 raise ValueError(f"graph is cyclic or unschedulable; unresolved={unresolved[:8]}")
             raise ValueError(f"no Q1-feasible ready node under L0 constraint; blocked={blocked}")
 
-        # FREE remains a hard first priority, matching the stable Q1 baseline and
-        # ensuring reuse scoring cannot artificially lengthen a lifetime once FREE
-        # is already executable.
-        if graph.nodes[fallback].is_free:
-            chosen = fallback
+        if graph.nodes[baseline_fallback].is_free:
+            chosen = baseline_fallback
         else:
+            preferred = footprint_preferred(baseline_fallback)
             scores = hot_scores()
-            candidates: set[int] = {fallback}
+            candidates: set[int] = {preferred}
             for buf_id in scores:
                 ready = ready_by_buf.get(buf_id)
                 if not ready:
@@ -172,30 +295,32 @@ def schedule_q2_reuse_aware(
                 candidates.update(heapq.nsmallest(config.probe_per_buffer, ready))
 
             def candidate_key(node_id: int) -> tuple[int, tuple[int, int, int]]:
-                affinity = sum(
+                direct_affinity = sum(
                     counted_sizes[buf_id] * scores.get(buf_id, 0)
                     for buf_id in touched_by_node.get(node_id, ())
                 )
                 release = release_bytes(node_id)
-                value = affinity + config.release_weight * release
-                # Higher Q2-locality value wins; exact baseline key breaks ties so
-                # the experiment is deterministic and degrades gracefully.
+                footprint = config.footprint_weight * footprint_overlap_bytes(node_id)
+                value = direct_affinity + config.release_weight * release + footprint
                 return (-value, _ready_key(graph, node_id))
 
             chosen = min(candidates, key=candidate_key)
-            if chosen != fallback:
+            if chosen != preferred:
                 affinity_decisions += 1
 
         node = graph.nodes[chosen]
         if node.is_alloc and node.memory_type in L0_TYPES:
             memory_type = node.memory_type
             assert memory_type is not None
-            popped = heapq.heappop(l0_ready[memory_type])
-            if popped != chosen:
-                raise AssertionError("L0 ready heap lost deterministic head")
+            if chosen not in l0_ready_set[memory_type]:
+                raise AssertionError(f"chosen L0 node {chosen} is not ready")
             if l0_live[memory_type] != 0:
                 raise ValueError(f"{memory_type} ALLOC chosen while another buffer is live")
+            l0_ready_set[memory_type].remove(chosen)
+            for buf_id in l0_footprints.get(chosen, ()):
+                ready_l0_by_footprint_buf[buf_id].discard(chosen)
             l0_live[memory_type] = 1
+            active_l0_alloc[memory_type] = chosen
         else:
             if chosen not in regular_ready:
                 raise AssertionError(f"chosen node {chosen} is not regular-ready")
@@ -205,9 +330,21 @@ def schedule_q2_reuse_aware(
             if node.is_free and node.memory_type in L0_TYPES:
                 memory_type = node.memory_type
                 assert memory_type is not None
+                alloc = graph.alloc_node_for_buffer(node.buf_id) if node.buf_id is not None else None
+                if alloc is None or active_l0_alloc[memory_type] != alloc.id:
+                    raise ValueError(
+                        f"FREE for {memory_type} buffer {node.buf_id} does not match active allocation"
+                    )
                 l0_live[memory_type] -= 1
                 if l0_live[memory_type] < 0:
                     raise ValueError(f"FREE for {memory_type} before a live allocation at node {chosen}")
+                active_l0_alloc[memory_type] = None
+                footprint = l0_footprints.get(alloc.id, ())
+                last_l0_footprint[memory_type] = (
+                    frozenset(footprint)
+                    if len(footprint) >= config.footprint_min_buffers
+                    else frozenset()
+                )
 
         order.append(chosen)
         touched = touched_by_node.get(chosen)
@@ -224,4 +361,10 @@ def schedule_q2_reuse_aware(
     evaluation = evaluate_q1(graph, order)
     if not evaluation.valid:
         raise ValueError(f"reuse-aware scheduler emitted invalid order: {evaluation.errors}")
-    return Q2ReuseScheduleResult(tuple(order), evaluation, config, affinity_decisions)
+    return Q2ReuseScheduleResult(
+        tuple(order),
+        evaluation,
+        config,
+        affinity_decisions,
+        footprint_decisions,
+    )

@@ -23,12 +23,49 @@ ALL_CASES = (
     "Conv_Case1",
 )
 
+# Keep one first-generation direct-reuse configuration as a control, then vary
+# only the generic L0 two-hop footprint gate.  Larger min_buffers is the more
+# conservative setting when Matmul scores tie.
 CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
-    ("reuse_h1_r0", Q2ReuseScheduleConfig(hot_window=1, release_weight=0, probe_per_buffer=8)),
-    ("reuse_h4_r0", Q2ReuseScheduleConfig(hot_window=4, release_weight=0, probe_per_buffer=8)),
-    ("reuse_h8_r1", Q2ReuseScheduleConfig(hot_window=8, release_weight=1, probe_per_buffer=8)),
-    ("reuse_h16_r1", Q2ReuseScheduleConfig(hot_window=16, release_weight=1, probe_per_buffer=8)),
-    ("reuse_h32_r2", Q2ReuseScheduleConfig(hot_window=32, release_weight=2, probe_per_buffer=8)),
+    (
+        "direct_h16_r1",
+        Q2ReuseScheduleConfig(
+            hot_window=16,
+            release_weight=1,
+            probe_per_buffer=8,
+            footprint_weight=0,
+        ),
+    ),
+    (
+        "footprint_m4",
+        Q2ReuseScheduleConfig(
+            hot_window=1,
+            release_weight=0,
+            probe_per_buffer=64,
+            footprint_weight=1,
+            footprint_min_buffers=4,
+        ),
+    ),
+    (
+        "footprint_m8",
+        Q2ReuseScheduleConfig(
+            hot_window=1,
+            release_weight=0,
+            probe_per_buffer=64,
+            footprint_weight=1,
+            footprint_min_buffers=8,
+        ),
+    ),
+    (
+        "footprint_hot_m4",
+        Q2ReuseScheduleConfig(
+            hot_window=16,
+            release_weight=1,
+            probe_per_buffer=64,
+            footprint_weight=1,
+            footprint_min_buffers=4,
+        ),
+    ),
 )
 
 
@@ -58,7 +95,7 @@ def main() -> int:
     baseline_summary = _read_baseline_summary(args.baseline_summary)
     grid_rows: list[dict[str, object]] = []
     aggregate: dict[str, dict[str, int]] = {
-        name: {"traffic": 0, "peak": 0, "spills": 0}
+        name: {"traffic": 0, "peak": 0, "spills": 0, "footprint_decisions": 0}
         for name, _ in CONFIGS
     }
     baseline_aggregate = {"traffic": 0, "peak": 0, "spills": 0}
@@ -89,7 +126,10 @@ def main() -> int:
                 "config": "baseline",
                 "hot_window": 0,
                 "release_weight": 0,
+                "footprint_weight": 0,
+                "footprint_min_buffers": 0,
                 "affinity_decisions": 0,
+                "footprint_decisions": 0,
                 "q1_peak": baseline.evaluation.peak_residency,
                 "belady_spills": baseline_oracle.spill_count,
                 "belady_traffic": baseline_oracle.extra_traffic,
@@ -127,13 +167,17 @@ def main() -> int:
             aggregate[name]["traffic"] += oracle.extra_traffic
             aggregate[name]["peak"] += scheduled.evaluation.peak_residency or 0
             aggregate[name]["spills"] += oracle.spill_count
+            aggregate[name]["footprint_decisions"] += scheduled.footprint_decisions
             grid_rows.append(
                 {
                     "case": case,
                     "config": name,
                     "hot_window": config.hot_window,
                     "release_weight": config.release_weight,
+                    "footprint_weight": config.footprint_weight,
+                    "footprint_min_buffers": config.footprint_min_buffers,
                     "affinity_decisions": scheduled.affinity_decisions,
+                    "footprint_decisions": scheduled.footprint_decisions,
                     "q1_peak": scheduled.evaluation.peak_residency,
                     "belady_spills": oracle.spill_count,
                     "belady_traffic": oracle.extra_traffic,
@@ -151,6 +195,9 @@ def main() -> int:
         key=lambda item: (
             aggregate[item[0]]["traffic"],
             aggregate[item[0]]["peak"],
+            -item[1].footprint_min_buffers,
+            item[1].hot_window,
+            item[1].release_weight,
             item[0],
         ),
     )
@@ -161,6 +208,8 @@ def main() -> int:
             "hot_window": winner_config.hot_window,
             "release_weight": winner_config.release_weight,
             "probe_per_buffer": winner_config.probe_per_buffer,
+            "footprint_weight": winner_config.footprint_weight,
+            "footprint_min_buffers": winner_config.footprint_min_buffers,
         },
         "winner_matmul": aggregate[winner_name],
         "matmul_traffic_delta": aggregate[winner_name]["traffic"] - baseline_aggregate["traffic"],
@@ -195,6 +244,7 @@ def main() -> int:
                 if baseline_traffic
                 else None,
                 "affinity_decisions": scheduled.affinity_decisions,
+                "footprint_decisions": scheduled.footprint_decisions,
                 "schedule_seconds": round(schedule_seconds, 6),
                 "q2_seconds": round(q2_seconds, 6),
                 "q2_valid": q2.validation.ok,
