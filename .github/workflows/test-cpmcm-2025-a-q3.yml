@@ -46,6 +46,12 @@ jobs:
           python problems/CPMCM/2025/A/src/benchmark_q3_pipeline_critical.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-pipeline-critical
+      - name: Benchmark monotone alternating zero-traffic Q3 optimizer
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_zero_traffic.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-zero-traffic \
+            --rounds 2
       - name: Upload Q3 evidence
         uses: actions/upload-artifact@v4
         with:
@@ -54,4 +60,5 @@ jobs:
             /tmp/q3-baseline
             /tmp/q3-address-policies
             /tmp/q3-pipeline-critical
+            /tmp/q3-zero-traffic
           if-no-files-found: error
