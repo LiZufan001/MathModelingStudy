@@ -41,6 +41,11 @@ jobs:
           python problems/CPMCM/2025/A/src/benchmark_q3_address_policies.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-address-policies
+      - name: Benchmark zero-traffic critical pipeline rescheduling
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q3_pipeline_critical.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-pipeline-critical
       - name: Upload Q3 evidence
         uses: actions/upload-artifact@v4
         with:
@@ -48,4 +53,5 @@ jobs:
           path: |
             /tmp/q3-baseline
             /tmp/q3-address-policies
+            /tmp/q3-pipeline-critical
           if-no-files-found: error
