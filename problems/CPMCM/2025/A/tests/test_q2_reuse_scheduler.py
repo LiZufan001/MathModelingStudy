@@ -82,9 +82,6 @@ def test_two_hop_l0_footprint_reaches_counted_buffer_through_local_buffer() -> N
 
 
 def test_footprint_affinity_changes_which_ready_l0_task_opens_next() -> None:
-    # Three independent L0C tasks are ready from the start.  Task 0 and task 2
-    # share L1 buffer 100; task 1 uses L1 buffer 101.  Node-id order would open
-    # task 1 after task 0, while footprint affinity should choose task 2.
     nodes = [
         Node(0, "ALLOC", 10, 1, "L0C"),
         Node(1, "ALLOC", 11, 1, "L0C"),
@@ -122,5 +119,60 @@ def test_footprint_affinity_changes_which_ready_l0_task_opens_next() -> None:
     )
     assert result.order.index(2) < result.order.index(1)
     assert result.footprint_decisions >= 1
+    validation = validate_buffer_lifetimes(graph, result.order)
+    assert validation.ok, validation.errors
+
+
+def test_task_anchor_routes_subordinate_l0_and_counted_allocs_together() -> None:
+    # Task 0 and task 2 share L1=100.  Task 1 has smaller ids for both its L0C
+    # and L0A roots, so changing only the outer L0C order would pick L0A=21 from
+    # task 1, which cannot complete while task 2's L0C is live.  Coherent routing
+    # must instead pick task 2's L0A=22 and keep the schedule feasible.
+    nodes = [
+        Node(0, "ALLOC", 10, 1, "L0C"),
+        Node(1, "ALLOC", 11, 1, "L0C"),
+        Node(2, "ALLOC", 12, 1, "L0C"),
+        Node(3, "ALLOC", 20, 1, "L0A"),
+        Node(4, "ALLOC", 21, 1, "L0A"),
+        Node(5, "ALLOC", 22, 1, "L0A"),
+        Node(6, "ALLOC", 100, 1, "L1"),
+        Node(7, "ALLOC", 101, 1, "L1"),
+        Node(8, "MOVE", pipe="MTE1", cycles=1, bufs=(20, 100)),
+        Node(9, "MATMUL", pipe="CUBE", cycles=1, bufs=(10, 20)),
+        Node(10, "FREE", 20, 1, "L0A"),
+        Node(11, "FREE", 10, 1, "L0C"),
+        Node(12, "MOVE", pipe="MTE1", cycles=1, bufs=(21, 101)),
+        Node(13, "MATMUL", pipe="CUBE", cycles=1, bufs=(11, 21)),
+        Node(14, "FREE", 21, 1, "L0A"),
+        Node(15, "FREE", 11, 1, "L0C"),
+        Node(16, "MOVE", pipe="MTE1", cycles=1, bufs=(22, 100)),
+        Node(17, "MATMUL", pipe="CUBE", cycles=1, bufs=(12, 22)),
+        Node(18, "FREE", 22, 1, "L0A"),
+        Node(19, "FREE", 12, 1, "L0C"),
+        Node(20, "FREE", 100, 1, "L1"),
+        Node(21, "FREE", 101, 1, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(
+        nodes,
+        [
+            (3, 8), (6, 8), (8, 9), (0, 9), (9, 10), (9, 11),
+            (4, 12), (7, 12), (12, 13), (1, 13), (13, 14), (13, 15),
+            (5, 16), (6, 16), (16, 17), (2, 17), (17, 18), (17, 19),
+            (8, 20), (16, 20), (12, 21),
+        ],
+    )
+    result = schedule_q2_reuse_aware(
+        graph,
+        Q2ReuseScheduleConfig(
+            hot_window=1,
+            release_weight=0,
+            probe_per_buffer=16,
+            footprint_weight=1,
+            footprint_min_buffers=1,
+        ),
+    )
+    assert result.order.index(2) < result.order.index(1)
+    assert result.order.index(5) < result.order.index(4)
+    assert result.footprint_decisions >= 2
     validation = validate_buffer_lifetimes(graph, result.order)
     assert validation.ok, validation.errors

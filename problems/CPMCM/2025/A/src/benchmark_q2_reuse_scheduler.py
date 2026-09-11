@@ -23,9 +23,6 @@ ALL_CASES = (
     "Conv_Case1",
 )
 
-# Keep one first-generation direct-reuse configuration as a control, then vary
-# only the generic L0 two-hop footprint gate.  Larger min_buffers is the more
-# conservative setting when Matmul scores tie.
 CONFIGS: tuple[tuple[str, Q2ReuseScheduleConfig], ...] = (
     (
         "direct_h16_r1",
@@ -84,6 +81,29 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     print(path.read_text(encoding="utf-8"))
 
 
+def _empty_experiment_row(case: str, name: str, config: Q2ReuseScheduleConfig, error: str) -> dict[str, object]:
+    return {
+        "case": case,
+        "config": name,
+        "hot_window": config.hot_window,
+        "release_weight": config.release_weight,
+        "footprint_weight": config.footprint_weight,
+        "footprint_min_buffers": config.footprint_min_buffers,
+        "affinity_decisions": None,
+        "footprint_decisions": None,
+        "q1_peak": None,
+        "belady_spills": None,
+        "belady_traffic": None,
+        "strict_spills": None,
+        "strict_traffic": None,
+        "strict_matches_oracle": False,
+        "schedule_seconds": None,
+        "q2_seconds": None,
+        "q2_valid": False,
+        "error": error,
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Benchmark experimental Q2-aware reuse scheduling")
     ap.add_argument("--data-dir", type=Path, required=True)
@@ -94,8 +114,15 @@ def main() -> int:
 
     baseline_summary = _read_baseline_summary(args.baseline_summary)
     grid_rows: list[dict[str, object]] = []
-    aggregate: dict[str, dict[str, int]] = {
-        name: {"traffic": 0, "peak": 0, "spills": 0, "footprint_decisions": 0}
+    aggregate: dict[str, dict[str, object]] = {
+        name: {
+            "traffic": 0,
+            "peak": 0,
+            "spills": 0,
+            "footprint_decisions": 0,
+            "valid_cases": 0,
+            "failed": False,
+        }
         for name, _ in CONFIGS
     }
     baseline_aggregate = {"traffic": 0, "peak": 0, "spills": 0}
@@ -139,35 +166,45 @@ def main() -> int:
                 "schedule_seconds": 0.0,
                 "q2_seconds": float(summary["q2_seconds"]),
                 "q2_valid": summary["valid"],
+                "error": "",
             }
         )
 
         for name, config in CONFIGS:
-            schedule_start = time.perf_counter()
-            scheduled = schedule_q2_reuse_aware(graph, config)
-            schedule_seconds = time.perf_counter() - schedule_start
-            oracle = solve_uniform_unit_cache_oracle(
-                graph,
-                scheduled.order,
-                memory_type="L1",
-                capacity=CACHE_CAPACITIES["L1"],
-            )
-            q2_start = time.perf_counter()
-            q2 = allocate_q2_baseline(graph, scheduled.order)
-            q2_seconds = time.perf_counter() - q2_start
-            q2.validation.require_ok()
-            if (
-                q2.validation.spill_count != oracle.spill_count
-                or q2.validation.extra_traffic != oracle.extra_traffic
-            ):
-                raise AssertionError(
-                    f"{case}/{name}: strict allocator diverged from exact uniform-page oracle"
+            try:
+                schedule_start = time.perf_counter()
+                scheduled = schedule_q2_reuse_aware(graph, config)
+                schedule_seconds = time.perf_counter() - schedule_start
+                oracle = solve_uniform_unit_cache_oracle(
+                    graph,
+                    scheduled.order,
+                    memory_type="L1",
+                    capacity=CACHE_CAPACITIES["L1"],
                 )
+                q2_start = time.perf_counter()
+                q2 = allocate_q2_baseline(graph, scheduled.order)
+                q2_seconds = time.perf_counter() - q2_start
+                q2.validation.require_ok()
+                if (
+                    q2.validation.spill_count != oracle.spill_count
+                    or q2.validation.extra_traffic != oracle.extra_traffic
+                ):
+                    raise AssertionError(
+                        f"strict allocator {q2.validation.spill_count}/{q2.validation.extra_traffic} "
+                        f"!= oracle {oracle.spill_count}/{oracle.extra_traffic}"
+                    )
+            except Exception as exc:  # experiment failure is evidence, not a CI abort
+                aggregate[name]["failed"] = True
+                row = _empty_experiment_row(case, name, config, f"{type(exc).__name__}: {exc}")
+                grid_rows.append(row)
+                print(f"EXPERIMENT_REJECTED {case}/{name}: {row['error']}")
+                continue
 
-            aggregate[name]["traffic"] += oracle.extra_traffic
-            aggregate[name]["peak"] += scheduled.evaluation.peak_residency or 0
-            aggregate[name]["spills"] += oracle.spill_count
-            aggregate[name]["footprint_decisions"] += scheduled.footprint_decisions
+            aggregate[name]["traffic"] = int(aggregate[name]["traffic"]) + oracle.extra_traffic
+            aggregate[name]["peak"] = int(aggregate[name]["peak"]) + (scheduled.evaluation.peak_residency or 0)
+            aggregate[name]["spills"] = int(aggregate[name]["spills"]) + oracle.spill_count
+            aggregate[name]["footprint_decisions"] = int(aggregate[name]["footprint_decisions"]) + scheduled.footprint_decisions
+            aggregate[name]["valid_cases"] = int(aggregate[name]["valid_cases"]) + 1
             grid_rows.append(
                 {
                     "case": case,
@@ -187,14 +224,24 @@ def main() -> int:
                     "schedule_seconds": round(schedule_seconds, 6),
                     "q2_seconds": round(q2_seconds, 6),
                     "q2_valid": q2.validation.ok,
+                    "error": "",
                 }
             )
 
+    eligible = [
+        (name, config)
+        for name, config in CONFIGS
+        if not bool(aggregate[name]["failed"])
+        and int(aggregate[name]["valid_cases"]) == len(MATMUL_CASES)
+    ]
+    if not eligible:
+        raise RuntimeError("all Q2-aware scheduler configurations were rejected")
+
     winner_name, winner_config = min(
-        CONFIGS,
+        eligible,
         key=lambda item: (
-            aggregate[item[0]]["traffic"],
-            aggregate[item[0]]["peak"],
+            int(aggregate[item[0]]["traffic"]),
+            int(aggregate[item[0]]["peak"]),
             -item[1].footprint_min_buffers,
             item[1].hot_window,
             item[1].release_weight,
@@ -203,6 +250,7 @@ def main() -> int:
     )
     selection = {
         "baseline_matmul": baseline_aggregate,
+        "experiments": aggregate,
         "winner": winner_name,
         "winner_config": {
             "hot_window": winner_config.hot_window,
@@ -212,8 +260,8 @@ def main() -> int:
             "footprint_min_buffers": winner_config.footprint_min_buffers,
         },
         "winner_matmul": aggregate[winner_name],
-        "matmul_traffic_delta": aggregate[winner_name]["traffic"] - baseline_aggregate["traffic"],
-        "matmul_spill_delta": aggregate[winner_name]["spills"] - baseline_aggregate["spills"],
+        "matmul_traffic_delta": int(aggregate[winner_name]["traffic"]) - baseline_aggregate["traffic"],
+        "matmul_spill_delta": int(aggregate[winner_name]["spills"]) - baseline_aggregate["spills"],
     }
 
     six_rows: list[dict[str, object]] = []
