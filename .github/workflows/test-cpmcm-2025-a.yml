@@ -37,11 +37,26 @@ jobs:
           python problems/CPMCM/2025/A/src/batch_q1.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q1-baseline-results
-      - name: Compare baseline and pressure heuristic on all six cases
+      - name: Compare greedy policies on all six cases
         run: |
           python problems/CPMCM/2025/A/src/compare_q1.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q1-greedy-results
+      - name: Download public canonical Problem 1 schedules for independent benchmarking
+        run: |
+          mkdir -p /tmp/public-q1
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/outputs/submission/problem1"
+          for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
+            curl --fail --location --silent --show-error \
+              "$base/${case}_schedule.txt" \
+              --output "/tmp/public-q1/${case}_schedule.txt"
+          done
+      - name: Strictly re-evaluate public canonical schedules
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q1_schedules.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --schedule-dir /tmp/public-q1 \
+            --out /tmp/q1-public-benchmark.csv
       - name: Upload reproducible Q1 outputs
         uses: actions/upload-artifact@v4
         with:
@@ -49,4 +64,6 @@ jobs:
           path: |
             /tmp/q1-baseline-results
             /tmp/q1-greedy-results
+            /tmp/q1-public-benchmark.csv
+            /tmp/q1-public-benchmark.json
           if-no-files-found: error
