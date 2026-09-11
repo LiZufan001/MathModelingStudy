@@ -1,0 +1,53 @@
+name: Test CPMCM 2025 A Q3 Conv Local Recolor
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/q3_conv_local_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/test_q3_conv_local_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py"
+      - ".github/workflows/test-cpmcm-2025-a-q3-conv-local.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-conv-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused local-recolor and strict-evaluator tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_local_recolor.py \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            -q
+      - name: Search Conv critical-reuse local recolor moves
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-conv-local \
+            --max-targets 6 \
+            --max-starts 12
+          test -s /tmp/q3-conv-local/conv_local_recolor_summary.csv
+          test -s /tmp/q3-conv-local/conv_local_recolor_trials.csv
+          test -s /tmp/q3-conv-local/conv_local_recolor_summary.json
+      - name: Upload Conv local-recolor evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv-local-recolor
+          path: /tmp/q3-conv-local
+          if-no-files-found: error
