@@ -60,6 +60,13 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --solution-dir /tmp/public-q2 \
             --out /tmp/q2-public-benchmark.csv
+      - name: Profile strict and archived spill victims
+        run: |
+          python problems/CPMCM/2025/A/src/analyze_q2_spill_profiles.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --baseline-dir /tmp/q2-baseline-results \
+            --external-dir /tmp/public-q2 \
+            --out /tmp/q2-spill-profiles.csv
       - name: Download archived competition Problem 1 schedules
         run: |
           mkdir -p /tmp/public-q1
@@ -85,6 +92,8 @@ jobs:
             /tmp/q2-baseline-results
             /tmp/q2-public-benchmark.csv
             /tmp/q2-public-benchmark.json
+            /tmp/q2-spill-profiles.csv
+            /tmp/q2-spill-profiles.json
             /tmp/q2-order-ablation.csv
             /tmp/q2-order-ablation.json
           if-no-files-found: error
