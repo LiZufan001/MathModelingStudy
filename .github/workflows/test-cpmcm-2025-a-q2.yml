@@ -43,6 +43,23 @@ jobs:
           python problems/CPMCM/2025/A/src/batch_q2.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q2-baseline-results
+      - name: Download public canonical Problem 2 files for independent benchmarking
+        run: |
+          mkdir -p /tmp/public-q2
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/outputs/submission/problem2"
+          for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
+            for kind in schedule memory spill; do
+              curl --fail --location --silent --show-error \
+                "$base/${case}_${kind}.txt" \
+                --output "/tmp/public-q2/${case}_${kind}.txt"
+            done
+          done
+      - name: Strictly re-evaluate public canonical Problem 2 solutions
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_solutions.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --solution-dir /tmp/public-q2 \
+            --out /tmp/q2-public-benchmark.csv
       - name: Upload Q2 acceptance evidence
         uses: actions/upload-artifact@v4
         with:
@@ -50,4 +67,6 @@ jobs:
           path: |
             /tmp/q2-statement-records.json
             /tmp/q2-baseline-results
+            /tmp/q2-public-benchmark.csv
+            /tmp/q2-public-benchmark.json
           if-no-files-found: error
