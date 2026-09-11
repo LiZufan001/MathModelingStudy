@@ -41,7 +41,7 @@ jobs:
           unar -q -o /tmp/cpmcm-awards/2025 /tmp/cpmcm-awards/2025.rar
           find /tmp/cpmcm-awards/2025 -maxdepth 4 -type f -printf '%p\n' | sort
 
-      - name: Parse national second-prize teams
+      - name: Parse exact national second-prize teams
         shell: bash
         run: |
           cat > /tmp/parse_second.py <<'PY'
@@ -89,9 +89,11 @@ jobs:
                       continue
                   for i, row in df.iterrows():
                       vals = [cv(x) for x in row.tolist()]
-                      joined = ' | '.join(x for x in vals if x)
-                      if '二等奖' not in joined:
+                      # Exact award-cell match is required. This intentionally excludes
+                      # rows such as “一等奖(华为专项二等奖)”.
+                      if not any(v == '二等奖' for v in vals):
                           continue
+                      joined = ' | '.join(x for x in vals if x)
                       codes = []
                       for v in vals:
                           c = v.replace(' ', '').upper()
@@ -130,14 +132,14 @@ jobs:
               'unique_second_prize_codes': len(records),
               'by_problem': by_problem,
               'parse_warnings': diagnostics,
-              'note': 'The final attachment yields 3091 A-F second-prize rows; this differs by 6 from the earlier announcement figure 3085, so the final XLSX attachment is retained as the authoritative row-level baseline.'
+              'note': 'Exact award-cell matching gives 3085 national second-prize teams. A prior substring parse returned 3091 because it also counted six A-topic rows labeled 一等奖(华为专项二等奖).'
           }
           (OUT / 'SECOND_PRIZE_2025_DIAGNOSTICS.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
           print(json.dumps(diag, ensure_ascii=False, indent=2))
           PY
           python /tmp/parse_second.py
 
-      - name: Sanity-check final-list counts
+      - name: Sanity-check exact final-list counts
         shell: bash
         run: |
           python - <<'PY'
@@ -146,9 +148,9 @@ jobs:
           p = 'papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025.csv'
           rows = list(csv.DictReader(open(p, encoding='utf-8-sig')))
           got = Counter(r['problem'] for r in rows)
-          expected = {'A':77, 'B':136, 'C':392, 'D':310, 'E':1953, 'F':223}
+          expected = {'A':71, 'B':136, 'C':392, 'D':310, 'E':1953, 'F':223}
           print('total', len(rows), 'by_problem', got)
-          assert len(rows) == 3091, len(rows)
+          assert len(rows) == 3085, len(rows)
           assert dict(got) == expected, (got, expected)
           PY
 
@@ -159,6 +161,6 @@ jobs:
           git add papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025.csv \
                   papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025_DIAGNOSTICS.json
           if ! git diff --cached --quiet; then
-            git commit -m 'research: import CPMCM 2025 second-prize IDs [skip ci]'
+            git commit -m 'research: correct CPMCM 2025 second-prize IDs [skip ci]'
             git push origin HEAD:main
           fi
