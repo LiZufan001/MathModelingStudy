@@ -1,0 +1,99 @@
+name: Scout CPMCM 2025 A Q3 Pareto
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/scout-cpmcm-2025-a-q3-pareto.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-pareto-scout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scout critical-window traffic and raw safe cycles
+        run: |
+          python - <<'PY'
+          import csv
+          import sys
+          from pathlib import Path
+
+          root = Path('problems/CPMCM/2025/A')
+          sys.path.insert(0, str(root / 'src'))
+          from parser import load_case
+          from q2_allocator import allocate_q2_baseline
+          from q2_optimized import schedule_q2_optimized
+          from q3_evaluator import evaluate_q3_solution
+          from q3_tradeoff_scheduler import schedule_q3_critical_window
+
+          cases = (
+              'Matmul_Case0', 'Matmul_Case1',
+              'FlashAttention_Case0', 'FlashAttention_Case1',
+              'Conv_Case0', 'Conv_Case1',
+          )
+          windows = (0, 8, 32, 128, 512)
+          rows = []
+          data_dir = root / 'data/csv'
+          for case in cases:
+              graph = load_case(data_dir, case)
+              promoted = schedule_q2_optimized(graph)
+              base = allocate_q2_baseline(graph, promoted.order)
+              base.validation.require_ok()
+              d0 = base.validation.extra_traffic
+              t0 = evaluate_q3_solution(graph, base.solution, reuse_mode='residency_safe')
+              t0.require_ok()
+              for window in windows:
+                  try:
+                      scheduled = schedule_q3_critical_window(graph, promoted.order, window=window)
+                      q2 = allocate_q2_baseline(graph, scheduled.order)
+                      q2.validation.require_ok()
+                      timing = evaluate_q3_solution(graph, q2.solution, reuse_mode='residency_safe')
+                      timing.require_ok()
+                      d = q2.validation.extra_traffic
+                      rows.append({
+                          'case': case,
+                          'window': window,
+                          'changed_positions': scheduled.changed_positions,
+                          'q1_peak': scheduled.evaluation.peak_residency,
+                          'spill_count': q2.validation.spill_count,
+                          'extra_traffic': d,
+                          'traffic_delta': d-d0,
+                          'traffic_pct': round(100.0*(d-d0)/d0, 6) if d0 else 0.0,
+                          'raw_safe_cycles': timing.total_cycles,
+                          'cycle_delta': timing.total_cycles-t0.total_cycles,
+                          'cycle_pct': round(100.0*(timing.total_cycles-t0.total_cycles)/t0.total_cycles, 6),
+                          'valid': True,
+                          'error': '',
+                      })
+                  except Exception as exc:
+                      rows.append({
+                          'case': case, 'window': window, 'changed_positions': '', 'q1_peak': '',
+                          'spill_count': '', 'extra_traffic': '', 'traffic_delta': '', 'traffic_pct': '',
+                          'raw_safe_cycles': '', 'cycle_delta': '', 'cycle_pct': '', 'valid': False,
+                          'error': f'{type(exc).__name__}: {exc}',
+                      })
+          out = Path('/tmp/q3-pareto-scout.csv')
+          with out.open('w', encoding='utf-8', newline='') as fh:
+              writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+              writer.writeheader(); writer.writerows(rows)
+          print(out.read_text(encoding='utf-8'))
+          PY
+      - name: Upload Q3 Pareto scout
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-pareto-scout
+          path: /tmp/q3-pareto-scout.csv
+          if-no-files-found: error
