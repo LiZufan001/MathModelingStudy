@@ -41,7 +41,7 @@ jobs:
           unar -q -o /tmp/cpmcm-awards/2025 /tmp/cpmcm-awards/2025.rar
           find /tmp/cpmcm-awards/2025 -maxdepth 4 -type f -printf '%p\n' | sort
 
-      - name: Parse exact national second-prize teams
+      - name: Parse national second-prize teams
         shell: bash
         run: |
           cat > /tmp/parse_second.py <<'PY'
@@ -89,9 +89,10 @@ jobs:
                       continue
                   for i, row in df.iterrows():
                       vals = [cv(x) for x in row.tolist()]
-                      # Exact award-cell match is required. This intentionally excludes
-                      # rows such as “一等奖(华为专项二等奖)”.
-                      if not any(v == '二等奖' for v in vals):
+                      # National award class is the prefix of the award cell. This includes
+                      # e.g. “二等奖(华为专项...)” but excludes “一等奖(华为专项二等奖)”.
+                      award_cells = [v for v in vals if v.startswith(('一等奖', '二等奖', '三等奖'))]
+                      if not any(v.startswith('二等奖') for v in award_cells):
                           continue
                       joined = ' | '.join(x for x in vals if x)
                       codes = []
@@ -132,14 +133,14 @@ jobs:
               'unique_second_prize_codes': len(records),
               'by_problem': by_problem,
               'parse_warnings': diagnostics,
-              'note': 'Exact award-cell matching gives 3085 national second-prize teams. A prior substring parse returned 3091 because it also counted six A-topic rows labeled 一等奖(华为专项二等奖).'
+              'note': 'National award is classified by the award-cell prefix. This preserves national second-prize rows that also carry a Huawei special award, while excluding national first-prize rows whose parenthetical text contains 华为专项二等奖.'
           }
           (OUT / 'SECOND_PRIZE_2025_DIAGNOSTICS.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
           print(json.dumps(diag, ensure_ascii=False, indent=2))
           PY
           python /tmp/parse_second.py
 
-      - name: Sanity-check exact final-list counts
+      - name: Sanity-check final-list counts
         shell: bash
         run: |
           python - <<'PY'
