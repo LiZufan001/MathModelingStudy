@@ -25,7 +25,9 @@
 
 这项训练由用户主动进行，是后续最重要的能力转化环节。
 
-### P1｜Competition Starter Kit（当前立即建设）
+### P1｜Competition Starter Kit（v0.1 已建立）
+
+入口：[`../../../resources/competition_starter_kit/README.md`](../../../resources/competition_starter_kit/README.md)
 
 把手册中的执行纪律变成可直接复制的代码与模板：
 
@@ -34,7 +36,10 @@
 - stable results JSON；
 - 论文数字自动渲染；
 - preflight / freeze 检查；
-- research canvas。
+- research canvas；
+- 最小单元测试。
+
+当前 v0.1 已实现上述骨架。下一次盲做/模拟赛实际使用后，再根据真实摩擦迭代，而不是继续凭想象加功能。
 
 目标：正式比赛不靠临时记忆执行这些纪律。
 
@@ -88,7 +93,7 @@
 ## 当前执行顺序
 
 ```text
-P1 Starter Kit
+P1 Starter Kit v0.1 已建立 → 等待真实训练反馈迭代
    ↓
 P0 盲做训练（持续）
    ↓
