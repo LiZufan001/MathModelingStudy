@@ -11,8 +11,10 @@
 - [`COMPETITION_MASTER_PLAYBOOK.md`](COMPETITION_MASTER_PLAYBOOK.md)：**主手册**。拿题→选题→evaluator→baseline→模型选型→验证→代码→图表→论文→团队协作的完整统一框架。
 - [`QUICK_REFERENCE_CARD.md`](QUICK_REFERENCE_CARD.md)：**速查卡**。按“症状→第一动作”组织，正赛卡住时直接翻。
 - [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)：**赛末审计表**。冻结模型后逐项打勾，优先排除 evaluator、硬约束、泄漏、单位、结果版本等一票否决错误。
+- [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)：**科学论证指南**。严格区分 ORIGINAL / INTERPRETATION / RECOMMENDED，学习方法如何由事实与证据引出。
+- [`ORIGINAL_PAPER_NARRATIVE_STUDY.md`](ORIGINAL_PAPER_NARRATIVE_STUDY.md)：**国一原文叙事研究**。直接回到 exact-match PDF，研究摘要、问题分析、问间过渡、失败实验与结果分析的真实写法。
 
-核心纪律：**先证明结果是真的，再证明方法很强。**
+核心纪律：**事实先于判断，判断先于方法；结果服务于检验，结论服从于证据。**
 
 ---
 
