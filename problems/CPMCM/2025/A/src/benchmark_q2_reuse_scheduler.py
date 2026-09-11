@@ -81,7 +81,19 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     print(path.read_text(encoding="utf-8"))
 
 
-def _empty_experiment_row(case: str, name: str, config: Q2ReuseScheduleConfig, error: str) -> dict[str, object]:
+def _write_json(path: Path, payload: dict[str, object]) -> None:
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _empty_experiment_row(
+    case: str,
+    name: str,
+    config: Q2ReuseScheduleConfig,
+    error: str,
+) -> dict[str, object]:
     return {
         "case": case,
         "config": name,
@@ -97,6 +109,32 @@ def _empty_experiment_row(case: str, name: str, config: Q2ReuseScheduleConfig, e
         "strict_spills": None,
         "strict_traffic": None,
         "strict_matches_oracle": False,
+        "schedule_seconds": None,
+        "q2_seconds": None,
+        "q2_valid": False,
+        "error": error,
+    }
+
+
+def _six_case_rejected_row(
+    case: str,
+    winner_name: str,
+    baseline: dict[str, str],
+    error: str,
+) -> dict[str, object]:
+    return {
+        "case": case,
+        "winner_config": winner_name,
+        "q1_peak": None,
+        "baseline_spills": int(baseline["spill_count"]),
+        "reuse_spills": None,
+        "spill_delta": None,
+        "baseline_traffic": int(baseline["extra_traffic"]),
+        "reuse_traffic": None,
+        "traffic_delta": None,
+        "traffic_ratio": None,
+        "affinity_decisions": None,
+        "footprint_decisions": None,
         "schedule_seconds": None,
         "q2_seconds": None,
         "q2_valid": False,
@@ -235,6 +273,18 @@ def main() -> int:
         and int(aggregate[name]["valid_cases"]) == len(MATMUL_CASES)
     ]
     if not eligible:
+        # Persist the rejected parameter sweep before failing so the artifact/log
+        # still explains why no candidate survived.
+        _write_csv(args.out_dir / "q2_reuse_grid.csv", grid_rows)
+        _write_json(
+            args.out_dir / "q2_reuse_selection.json",
+            {
+                "baseline_matmul": baseline_aggregate,
+                "experiments": aggregate,
+                "winner": None,
+                "error": "all Q2-aware scheduler configurations were rejected",
+            },
+        )
         raise RuntimeError("all Q2-aware scheduler configurations were rejected")
 
     winner_name, winner_config = min(
@@ -248,7 +298,7 @@ def main() -> int:
             item[0],
         ),
     )
-    selection = {
+    selection: dict[str, object] = {
         "baseline_matmul": baseline_aggregate,
         "experiments": aggregate,
         "winner": winner_name,
@@ -262,19 +312,39 @@ def main() -> int:
         "winner_matmul": aggregate[winner_name],
         "matmul_traffic_delta": int(aggregate[winner_name]["traffic"]) - baseline_aggregate["traffic"],
         "matmul_spill_delta": int(aggregate[winner_name]["spills"]) - baseline_aggregate["spills"],
+        "six_case_all_valid": None,
+        "six_case_valid_count": 0,
+        "six_case_rejected": [],
     }
 
+    # Matmul is the experiment-selection objective.  Persist it immediately so a
+    # later cross-family rejection cannot erase the already-computed evidence.
+    _write_csv(args.out_dir / "q2_reuse_grid.csv", grid_rows)
+    _write_json(args.out_dir / "q2_reuse_selection.json", selection)
+    print("MATMUL_SELECTION")
+    print(json.dumps(selection, ensure_ascii=False, indent=2))
+
     six_rows: list[dict[str, object]] = []
+    rejected: list[dict[str, str]] = []
+    valid_count = 0
     for case in ALL_CASES:
-        graph = load_case(args.data_dir, case)
-        schedule_start = time.perf_counter()
-        scheduled = schedule_q2_reuse_aware(graph, winner_config)
-        schedule_seconds = time.perf_counter() - schedule_start
-        q2_start = time.perf_counter()
-        q2 = allocate_q2_baseline(graph, scheduled.order)
-        q2_seconds = time.perf_counter() - q2_start
-        q2.validation.require_ok()
         baseline = baseline_summary[case]
+        try:
+            graph = load_case(args.data_dir, case)
+            schedule_start = time.perf_counter()
+            scheduled = schedule_q2_reuse_aware(graph, winner_config)
+            schedule_seconds = time.perf_counter() - schedule_start
+            q2_start = time.perf_counter()
+            q2 = allocate_q2_baseline(graph, scheduled.order)
+            q2_seconds = time.perf_counter() - q2_start
+            q2.validation.require_ok()
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            six_rows.append(_six_case_rejected_row(case, winner_name, baseline, error))
+            rejected.append({"case": case, "error": error})
+            print(f"SIX_CASE_REJECTED {case}: {error}")
+            continue
+
         baseline_traffic = int(baseline["extra_traffic"])
         baseline_spills = int(baseline["spill_count"])
         six_rows.append(
@@ -296,15 +366,17 @@ def main() -> int:
                 "schedule_seconds": round(schedule_seconds, 6),
                 "q2_seconds": round(q2_seconds, 6),
                 "q2_valid": q2.validation.ok,
+                "error": "",
             }
         )
+        valid_count += 1
 
-    _write_csv(args.out_dir / "q2_reuse_grid.csv", grid_rows)
     _write_csv(args.out_dir / "q2_reuse_six_case.csv", six_rows)
-    (args.out_dir / "q2_reuse_selection.json").write_text(
-        json.dumps(selection, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    selection["six_case_all_valid"] = valid_count == len(ALL_CASES)
+    selection["six_case_valid_count"] = valid_count
+    selection["six_case_rejected"] = rejected
+    _write_json(args.out_dir / "q2_reuse_selection.json", selection)
+    print("FINAL_SELECTION")
     print(json.dumps(selection, ensure_ascii=False, indent=2))
     return 0
 
