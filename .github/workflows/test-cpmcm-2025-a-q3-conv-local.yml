@@ -7,6 +7,8 @@ on:
     paths:
       - "problems/CPMCM/2025/A/experiments/q3_conv_local_recolor.py"
       - "problems/CPMCM/2025/A/experiments/test_q3_conv_local_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/q3_conv_greedy_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_recolor.py"
       - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py"
       - ".github/workflows/test-cpmcm-2025-a-q3-conv-local.yml"
   workflow_dispatch:
@@ -32,14 +34,16 @@ jobs:
           python -m pip install --disable-pip-version-check pytest
           python -m pytest \
             problems/CPMCM/2025/A/experiments/test_q3_conv_local_recolor.py \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_recolor.py \
             problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
             problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
             -q
-      - name: Search Conv critical-reuse local recolor moves
+      - name: Search Conv greedy critical-reuse local recolor moves
         run: |
           python problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-conv-local \
+            --max-rounds 3 \
             --max-targets 6 \
             --max-starts 12
           test -s /tmp/q3-conv-local/conv_local_recolor_summary.csv
