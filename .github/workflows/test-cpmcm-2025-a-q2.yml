@@ -43,18 +43,18 @@ jobs:
           python problems/CPMCM/2025/A/src/batch_q2.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q2-baseline-results
-      - name: Download public canonical Problem 2 files for independent benchmarking
+      - name: Download archived 2025-09-25 competition Problem 2 attachment
         run: |
           mkdir -p /tmp/public-q2
-          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/outputs/submission/problem2"
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/archive/submission_packages/extracted_A25100550012/A25100550012/Attachment/Problem2"
           for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
             for kind in schedule memory spill; do
               curl --fail --location --silent --show-error \
-                "$base/${case}_${kind}.txt" \
+                "$base/Q2_${case}_${kind}.txt" \
                 --output "/tmp/public-q2/${case}_${kind}.txt"
             done
           done
-      - name: Strictly re-evaluate public canonical Problem 2 solutions
+      - name: Strictly re-evaluate archived competition Problem 2 solutions
         run: |
           python problems/CPMCM/2025/A/src/benchmark_q2_solutions.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
