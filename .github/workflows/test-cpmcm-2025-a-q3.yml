@@ -1,0 +1,44 @@
+name: Test CPMCM 2025 A Q3
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/src/**"
+      - "problems/CPMCM/2025/A/tests/**"
+      - "problems/CPMCM/2025/A/README.md"
+      - ".github/workflows/test-cpmcm-2025-a-q3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit, oracle, Q2, and Q3 regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/tests -q
+      - name: Evaluate promoted Q2 as six-case Q3 timing baseline
+        run: |
+          python problems/CPMCM/2025/A/src/batch_q3.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q3-baseline
+      - name: Upload Q3 baseline evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-baseline
+          path: /tmp/q3-baseline
+          if-no-files-found: error
