@@ -18,7 +18,7 @@ permissions:
 jobs:
   q2-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -34,13 +34,20 @@ jobs:
             --docx "problems/CPMCM/2025/A/A题：通用神经网络处理器下的核内调度问题.docx" \
             --window 5 \
             --json-out /tmp/q2-statement-records.json
-      - name: Existing Q1 regression tests
+      - name: Unit, oracle, and regression tests
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest problems/CPMCM/2025/A/tests -q
-      - name: Upload statement extraction evidence
+      - name: Run Q2 baseline on all six official Appendix-E cases
+        run: |
+          python problems/CPMCM/2025/A/src/batch_q2.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q2-baseline-results
+      - name: Upload Q2 acceptance evidence
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q2-statement-evidence
-          path: /tmp/q2-statement-records.json
+          name: cpmcm-2025-a-q2-validation
+          path: |
+            /tmp/q2-statement-records.json
+            /tmp/q2-baseline-results
           if-no-files-found: error
