@@ -9,6 +9,42 @@
 
 ## A 题
 
+### Zhengzhou University A-codeRepository｜`N2-V`
+
+- 题目：2025 A《通用神经网络处理器下的核内调度问题》
+- 参赛编号：`A25104590087`
+- 学校：郑州大学
+- 队员：徐志鹏 / 宋旭辉 / 韩冰琪
+- 奖项：全国二等奖
+- 公开项目：[`song-xh/huaweibei-A-codeRepository`](https://github.com/song-xh/huaweibei-A-codeRepository)
+- 已核验比赛期 commit：`2f2b70cf7974f568935fc8f8581125f7c3f3e639`、`342b1849585a999b6c2904dab78ead079088f21a`
+- **全文状态：尚未取得正式参赛论文 PDF**。本条 `N2-V` 仅表示“官方获奖身份 + 公开赛中代码身份”已经完成交叉闭环。
+
+#### 身份闭环证据
+
+1. 官方 2025 最终获奖附件 `A.xlsx` 中，`A25104590087` 的奖项为“二等奖”，三名队员均为郑州大学：徐志鹏 / 宋旭辉 / 韩冰琪。仓库保留的官方解析基线见：
+   - `papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025.csv`
+   - `papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025_DIAGNOSTICS.json`
+2. 郑州大学 2024 年硕士研究生复试结果综合排序公示中，计算机技术专业公开列有“宋旭辉”，能够独立确认同名研究生的学校与专业身份：
+   - <https://www7.zzu.edu.cn/__local/8/49/46/AA0CAC008420860358C198FD12C_CBB36C49_5BB63.pdf>
+3. `song-xh/huaweibei-A-codeRepository` 的 2025-09-26 比赛期提交，Git author / committer 均为 `sxh <1770986733@qq.com>`；GitHub 将提交关联到账号 `1125rx`。同一 `1125rx` 身份长期向 `song-xh` 名下多个仓库提交，并非比赛当天偶然出现的第三方账号。
+4. `song-xh/auction_aware_task_assignment` 中公开保留的研究论文《Auction-Aware Crowdsourced Parcel Assignment for Cooperative Urban Logistics》作者列表明确包含 **Xuhui Song**，单位为 **School of Computer Science and Artificial Intelligence, Zhengzhou University**，并公开研究生邮箱 `xhsong@gs.zzu.edu.cn`。这与“宋旭辉 / 郑州大学”的姓名拼音、学校和研究生身份形成独立交叉证据。
+5. A 题代码仓本身完整保留 Conv / Matmul / FlashAttention 六组赛题 JSON/CSV、Problem1/2/3 求解代码、schedule/spill 结果和可视化等比赛材料，且提交时间处于正式比赛窗口。结合上述身份链，可将其作为 `A25104590087` 的公开原队代码来源收录为 `N2-V`。
+
+#### 可学习内容
+
+该仓库更接近比赛现场工程快照，而不是赛后整理教程：
+
+1. **Q1 调度**：按 Problem1 组织调度生成、内存轨迹和各 case 的 schedule 输出。
+2. **Q2 缓存/搬运**：保留 Problem2 的缓存分配、SPILL 相关实现及对应结果文件。
+3. **Q3 联合优化**：Problem3 中继续围绕调度与缓存代价进行联合优化，并输出各计算图结果。
+4. **原始数据完整**：同时保留官方 JSON 与转换后的 CSV 版本，便于与其他国一/国二方案做同输入对比。
+
+#### 当前缺口
+
+- 尚未发现该队正式提交论文 PDF，因此目前不能进行 PDF SHA256、封面队号或论文方法与源码的逐段绑定。
+- 后续优先反查队员姓名、学校公开材料、赛后分享、文档分享站、网盘镜像以及 GitHub 历史对象；找到 PDF 后应作为独立“全文已取得”证据补入本条。
+
 ### NPU Operator Scheduler｜`N2-V`
 
 - 题目：2025 A《通用神经网络处理器下的核内调度问题》
