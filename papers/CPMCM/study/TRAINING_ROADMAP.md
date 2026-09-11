@@ -43,9 +43,11 @@
 
 目标：正式比赛不靠临时记忆执行这些纪律。
 
-### P2｜国一原文研究动作矩阵
+### P2｜国一原文研究动作矩阵（v1 已完成）
 
-基于 exact-match PDF，不基于二次 README，逐篇编码：
+入口：[`ORIGINAL_NARRATIVE_MATRIX.md`](ORIGINAL_NARRATIVE_MATRIX.md)
+
+基于 8 篇文本可可靠读取的 exact-match PDF，不基于二次 README，已经逐篇编码：
 
 - 摘要怎样组织；
 - 问题分析怎样指出事实与困难；
@@ -55,9 +57,11 @@
 - 结果分析是在复述数字还是解释原因；
 - 结论是否超过证据。
 
-严格区分 ORIGINAL / INTERPRETATION / RECOMMENDED。
+同时形成八篇研究动作卡片、七类跨论文共性动作，以及 Blind Modeling Drill 赛后对照模板。
 
-### P3｜摘要 / 问题分析专项训练
+严格区分 `ORIGINAL / RESEARCH_MOVE / RECOMMENDED`。2021 A 因 PDF 字体编码导致原文自动抽取严重乱码，不纳入措辞矩阵。
+
+### P3｜摘要 / 问题分析专项训练（下一项）
 
 只看题目和自己的结果，先独立写摘要或问题分析，再与国一原文逐段对照。
 
@@ -97,7 +101,7 @@ P1 Starter Kit v0.1 已建立 → 等待真实训练反馈迭代
    ↓
 P0 盲做训练（持续）
    ↓
-P2 原文动作矩阵
+P2 原文动作矩阵 v1 已完成
    ↓
 P3 摘要/问题分析训练
    ↓
