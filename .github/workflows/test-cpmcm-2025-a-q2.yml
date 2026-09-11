@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "agent/q2-memory-spill-20260911"
+      - "agent/q3-pipeline-20260911"
     paths:
       - "problems/CPMCM/2025/A/src/**"
       - "problems/CPMCM/2025/A/tests/**"
