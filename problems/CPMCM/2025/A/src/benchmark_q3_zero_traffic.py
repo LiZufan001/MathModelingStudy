@@ -7,8 +7,7 @@ import time
 from pathlib import Path
 
 from parser import load_case
-from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_zero_traffic_optimizer import optimize_q3_zero_traffic
 
 CASES = (
@@ -33,8 +32,8 @@ def main() -> int:
     trace: dict[str, list[dict[str, object]]] = {}
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        scheduled = schedule_q2_optimized(graph)
-        q2 = allocate_q2_baseline(graph, scheduled.order)
+        promoted = solve_q2_promoted(graph)
+        q2 = promoted.allocation
         q2.validation.require_ok()
 
         t0 = time.perf_counter()
@@ -43,6 +42,7 @@ def main() -> int:
         rows.append(
             {
                 "case": case,
+                "polish_window": promoted.polish_window,
                 "baseline_cycles": result.original_cycles,
                 "optimized_cycles": result.timing.total_cycles,
                 "cycle_delta": result.timing.total_cycles - result.original_cycles,

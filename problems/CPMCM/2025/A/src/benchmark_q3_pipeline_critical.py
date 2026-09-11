@@ -7,8 +7,7 @@ import time
 from pathlib import Path
 
 from parser import load_case
-from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_address_portfolio import select_q3_address_portfolio
 from q3_pipeline_scheduler import reschedule_q3_critical
 
@@ -32,8 +31,8 @@ def main() -> int:
     rows: list[dict[str, object]] = []
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        q2_sched = schedule_q2_optimized(graph)
-        q2 = allocate_q2_baseline(graph, q2_sched.order)
+        promoted = solve_q2_promoted(graph)
+        q2 = promoted.allocation
         q2.validation.require_ok()
 
         t0 = time.perf_counter()
@@ -47,6 +46,7 @@ def main() -> int:
             rows.append(
                 {
                     "case": case,
+                    "polish_window": promoted.polish_window,
                     "address_policy": address.policy,
                     "address_cycles": address.timing.total_cycles,
                     "critical_cycles": rescheduled.timing.total_cycles,
@@ -69,6 +69,7 @@ def main() -> int:
             rows.append(
                 {
                     "case": case,
+                    "polish_window": promoted.polish_window,
                     "address_policy": address.policy,
                     "address_cycles": address.timing.total_cycles,
                     "critical_cycles": None,

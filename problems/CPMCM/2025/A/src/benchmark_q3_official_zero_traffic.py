@@ -7,8 +7,7 @@ import time
 from pathlib import Path
 
 from parser import load_case
-from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_official_optimizer import optimize_q3_official_zero_traffic
 
 CASES = (
@@ -23,7 +22,7 @@ CASES = (
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Benchmark official-literal objective Q3 optimizer at fixed Q2 traffic"
+        description="Benchmark official-literal objective Q3 optimizer at fixed promoted-Q2 traffic"
     )
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
@@ -36,8 +35,8 @@ def main() -> int:
 
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        scheduled = schedule_q2_optimized(graph)
-        q2 = allocate_q2_baseline(graph, scheduled.order)
+        promoted = solve_q2_promoted(graph)
+        q2 = promoted.allocation
         q2.validation.require_ok()
 
         t0 = time.perf_counter()
@@ -53,6 +52,7 @@ def main() -> int:
         rows.append(
             {
                 "case": case,
+                "polish_window": promoted.polish_window,
                 "baseline_official_cycles": result.original_official_cycles,
                 "optimized_official_cycles": result.official_timing.total_cycles,
                 "official_cycle_delta": official_delta,

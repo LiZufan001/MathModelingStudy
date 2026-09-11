@@ -8,8 +8,9 @@ from pathlib import Path
 
 from parser import load_case
 from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_evaluator import evaluate_q3_solution
+from q3_official_optimizer import optimize_q3_official_zero_traffic
 from q3_tradeoff_scheduler import schedule_q3_critical_window
 from q3_zero_traffic_optimizer import optimize_q3_zero_traffic
 
@@ -44,7 +45,7 @@ def _winner(
     *,
     metric: str,
 ) -> dict[str, object]:
-    if metric not in {"optimized_safe_cycles", "official_literal_cycles"}:
+    if metric not in {"safe_variant_safe_cycles", "official_variant_official_cycles"}:
         raise ValueError(f"unsupported Pareto metric: {metric}")
     return min(
         eligible,
@@ -66,8 +67,17 @@ def _frontier_row(
     baseline_official_cycles: int,
     objective: str,
 ) -> dict[str, object]:
-    official_cycles = int(winner["official_literal_cycles"])
-    safe_cycles = int(winner["optimized_safe_cycles"])
+    if objective == "residency_safe":
+        safe_cycles = int(winner["safe_variant_safe_cycles"])
+        official_cycles = int(winner["safe_variant_official_cycles"])
+        accepted_steps = int(winner["safe_accepted_steps"])
+    elif objective == "official_literal":
+        safe_cycles = int(winner["official_variant_safe_cycles"])
+        official_cycles = int(winner["official_variant_official_cycles"])
+        accepted_steps = int(winner["official_accepted_steps"])
+    else:
+        raise ValueError(f"unsupported frontier objective {objective!r}")
+
     return {
         "case": case,
         "objective": objective,
@@ -86,22 +96,20 @@ def _frontier_row(
         "baseline_official_literal_cycles": baseline_official_cycles,
         "official_literal_cycles": official_cycles,
         "official_improvement_pct": round(
-            100.0
-            * (baseline_official_cycles - official_cycles)
-            / baseline_official_cycles,
+            100.0 * (baseline_official_cycles - official_cycles) / baseline_official_cycles,
             6,
         ),
-        "literal_overlap_errors": winner["literal_overlap_errors"],
         "spill_count": winner["spill_count"],
         "changed_positions": winner["changed_positions"],
+        "accepted_zero_traffic_steps": accepted_steps,
     }
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=(
-            "Build strict Q3 traffic/cycles Pareto candidates with controlled critical windows; "
-            "emit both conservative-safe and Appendix-C official-literal views"
+            "Build strict Q3 traffic/cycles Pareto candidates from the promoted Q2 baseline; "
+            "safe and official frontiers use their own monotone post-optimizers"
         )
     )
     ap.add_argument("--data-dir", type=Path, required=True)
@@ -117,8 +125,8 @@ def main() -> int:
 
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        promoted = schedule_q2_optimized(graph)
-        base_q2 = allocate_q2_baseline(graph, promoted.order)
+        promoted = solve_q2_promoted(graph)
+        base_q2 = promoted.allocation
         base_q2.validation.require_ok()
         baseline_traffic = base_q2.validation.extra_traffic
         baseline_spills = base_q2.validation.spill_count
@@ -129,6 +137,7 @@ def main() -> int:
 
         case_candidates: list[dict[str, object]] = []
         case_trace: dict[str, object] = {
+            "promoted_q2_polish_window": promoted.polish_window,
             "baseline_traffic": baseline_traffic,
             "baseline_spills": baseline_spills,
             "baseline_safe_cycles": baseline_safe.total_cycles,
@@ -140,6 +149,7 @@ def main() -> int:
             started = time.perf_counter()
             row: dict[str, object] = {
                 "case": case,
+                "promoted_q2_polish_window": promoted.polish_window,
                 "window": window,
                 "changed_positions": None,
                 "q1_peak": None,
@@ -149,24 +159,38 @@ def main() -> int:
                 "traffic_ratio": None,
                 "within_5pct": False,
                 "raw_safe_cycles": None,
-                "optimized_safe_cycles": None,
-                "safe_cycle_delta_vs_q2": None,
-                "safe_improvement_pct": None,
-                "official_literal_cycles": None,
-                "official_improvement_pct": None,
-                "literal_overlap_errors": None,
-                "accepted_zero_traffic_steps": None,
+                "raw_official_cycles": None,
+                "safe_variant_safe_cycles": None,
+                "safe_variant_official_cycles": None,
+                "official_variant_safe_cycles": None,
+                "official_variant_official_cycles": None,
+                "safe_accepted_steps": None,
+                "official_accepted_steps": None,
                 "seconds": None,
                 "valid": False,
                 "error": "",
             }
             trace_entry: dict[str, object] = {}
             try:
-                scheduled = schedule_q3_critical_window(graph, promoted.order, window=window)
-                row["changed_positions"] = scheduled.changed_positions
-                row["q1_peak"] = scheduled.evaluation.peak_residency
-                q2 = allocate_q2_baseline(graph, scheduled.order)
-                q2.validation.require_ok()
+                if window == 0:
+                    order = promoted.order
+                    evaluation = promoted.evaluation
+                    changed = 0
+                    q2 = base_q2
+                else:
+                    scheduled = schedule_q3_critical_window(
+                        graph,
+                        promoted.order,
+                        window=window,
+                    )
+                    order = scheduled.order
+                    evaluation = scheduled.evaluation
+                    changed = scheduled.changed_positions
+                    q2 = allocate_q2_baseline(graph, order)
+                    q2.validation.require_ok()
+
+                row["changed_positions"] = changed
+                row["q1_peak"] = evaluation.peak_residency
                 traffic = q2.validation.extra_traffic
                 spills = q2.validation.spill_count
                 row["spill_count"] = spills
@@ -178,47 +202,45 @@ def main() -> int:
 
                 raw_safe = evaluate_q3_solution(graph, q2.solution, reuse_mode="residency_safe")
                 raw_safe.require_ok()
+                raw_official = evaluate_q3_solution(graph, q2.solution, reuse_mode="official_literal")
+                raw_official.require_ok()
                 row["raw_safe_cycles"] = raw_safe.total_cycles
+                row["raw_official_cycles"] = raw_official.total_cycles
 
                 if within_5:
-                    optimized = optimize_q3_zero_traffic(
+                    safe_opt = optimize_q3_zero_traffic(
                         graph,
                         q2.solution,
                         max_rounds=args.rounds,
                     )
-                    # Official-literal is the Appendix-C objective view.  The
-                    # candidate is nevertheless required to have passed the
-                    # stronger residency-safe evaluator above and after the
-                    # zero-traffic optimizer.
-                    literal = evaluate_q3_solution(
+                    safe_official = evaluate_q3_solution(
                         graph,
-                        optimized.solution,
+                        safe_opt.solution,
                         reuse_mode="official_literal",
                     )
-                    literal.require_ok()
-                    row["optimized_safe_cycles"] = optimized.timing.total_cycles
-                    row["safe_cycle_delta_vs_q2"] = (
-                        optimized.timing.total_cycles - baseline_safe.total_cycles
+                    safe_official.require_ok()
+
+                    official_opt = optimize_q3_official_zero_traffic(
+                        graph,
+                        q2.solution,
+                        max_rounds=args.rounds,
                     )
-                    row["safe_improvement_pct"] = round(
-                        100.0
-                        * (baseline_safe.total_cycles - optimized.timing.total_cycles)
-                        / baseline_safe.total_cycles,
-                        6,
+                    official_opt.safe_timing.require_ok()
+                    official_opt.official_timing.require_ok()
+
+                    row["safe_variant_safe_cycles"] = safe_opt.timing.total_cycles
+                    row["safe_variant_official_cycles"] = safe_official.total_cycles
+                    row["official_variant_safe_cycles"] = official_opt.safe_timing.total_cycles
+                    row["official_variant_official_cycles"] = official_opt.official_timing.total_cycles
+                    row["safe_accepted_steps"] = sum(
+                        1 for step in safe_opt.steps if step.accepted
                     )
-                    row["official_literal_cycles"] = literal.total_cycles
-                    row["official_improvement_pct"] = round(
-                        100.0
-                        * (baseline_literal.total_cycles - literal.total_cycles)
-                        / baseline_literal.total_cycles,
-                        6,
+                    row["official_accepted_steps"] = sum(
+                        1 for step in official_opt.steps if step.accepted
                     )
-                    row["literal_overlap_errors"] = len(literal.physical_overlap_errors)
-                    row["accepted_zero_traffic_steps"] = sum(
-                        1 for step in optimized.steps if step.accepted
-                    )
-                    row["valid"] = optimized.timing.ok
-                    trace_entry["zero_traffic_steps"] = [
+                    row["valid"] = safe_opt.timing.ok and official_opt.safe_timing.ok
+
+                    trace_entry["safe_zero_traffic_steps"] = [
                         {
                             "round": step.round_index,
                             "transformation": step.transformation,
@@ -228,11 +250,26 @@ def main() -> int:
                             "accepted": step.accepted,
                             "error": step.error,
                         }
-                        for step in optimized.steps
+                        for step in safe_opt.steps
+                    ]
+                    trace_entry["official_zero_traffic_steps"] = [
+                        {
+                            "round": step.round_index,
+                            "transformation": step.transformation,
+                            "detail": step.detail,
+                            "official_before": step.official_before,
+                            "official_after": step.official_after,
+                            "safe_before": step.safe_before,
+                            "safe_after": step.safe_after,
+                            "accepted": step.accepted,
+                            "error": step.error,
+                        }
+                        for step in official_opt.steps
                     ]
                 else:
                     row["error"] = "strict-valid candidate exceeds the 5% experiment ceiling"
-                    trace_entry["zero_traffic_steps"] = []
+                    trace_entry["safe_zero_traffic_steps"] = []
+                    trace_entry["official_zero_traffic_steps"] = []
             except Exception as exc:
                 row["error"] = f"{type(exc).__name__}: {exc}"
             row["seconds"] = round(time.perf_counter() - started, 6)
@@ -244,8 +281,8 @@ def main() -> int:
             row
             for row in case_candidates
             if row["valid"]
-            and row["optimized_safe_cycles"] is not None
-            and row["official_literal_cycles"] is not None
+            and row["safe_variant_safe_cycles"] is not None
+            and row["official_variant_official_cycles"] is not None
         ]
         if not usable:
             raise RuntimeError(f"{case}: no strict Q3 Pareto candidate survived")
@@ -263,8 +300,8 @@ def main() -> int:
             if not eligible:
                 raise RuntimeError(f"{case}: no candidate satisfies epsilon={epsilon_bps} bps")
 
-            safe_winner = _winner(eligible, metric="optimized_safe_cycles")
-            official_winner = _winner(eligible, metric="official_literal_cycles")
+            safe_winner = _winner(eligible, metric="safe_variant_safe_cycles")
+            official_winner = _winner(eligible, metric="official_variant_official_cycles")
             safe_frontier_rows.append(
                 _frontier_row(
                     case=case,
@@ -296,7 +333,6 @@ def main() -> int:
     _write_csv(candidate_path, candidate_rows)
     _write_csv(safe_frontier_path, safe_frontier_rows)
     _write_csv(official_frontier_path, official_frontier_rows)
-    # Preserve the old filename as an explicit safe-frontier compatibility alias.
     _write_csv(compatibility_path, safe_frontier_rows)
     (args.out_dir / "q3_pareto_candidates.json").write_text(
         json.dumps(candidate_rows, ensure_ascii=False, indent=2) + "\n",

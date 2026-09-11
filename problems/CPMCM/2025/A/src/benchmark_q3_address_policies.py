@@ -7,8 +7,7 @@ import time
 from pathlib import Path
 
 from parser import load_case
-from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_evaluator import evaluate_q3_solution
 from q3_reallocator import repack_q3_addresses
 
@@ -43,8 +42,8 @@ def main() -> int:
 
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        scheduled = schedule_q2_optimized(graph)
-        q2 = allocate_q2_baseline(graph, scheduled.order)
+        promoted = solve_q2_promoted(graph)
+        q2 = promoted.allocation
         q2.validation.require_ok()
         baseline = evaluate_q3_solution(graph, q2.solution, reuse_mode="residency_safe")
         baseline.require_ok()
@@ -55,6 +54,7 @@ def main() -> int:
         rows.append(
             {
                 "case": case,
+                "polish_window": promoted.polish_window,
                 "policy": "original_q2_addresses",
                 "cycles": baseline.total_cycles,
                 "cycle_delta": 0,
@@ -80,6 +80,7 @@ def main() -> int:
                 rows.append(
                     {
                         "case": case,
+                        "polish_window": promoted.polish_window,
                         "policy": policy,
                         "cycles": timing.total_cycles,
                         "cycle_delta": timing.total_cycles - baseline.total_cycles,
@@ -97,6 +98,7 @@ def main() -> int:
                 rows.append(
                     {
                         "case": case,
+                        "polish_window": promoted.polish_window,
                         "policy": policy,
                         "cycles": None,
                         "cycle_delta": None,
@@ -113,6 +115,7 @@ def main() -> int:
 
         best_cycles, best_policy, _ = min(candidates, key=lambda item: (item[0], item[1]))
         winners[case] = {
+            "polish_window": promoted.polish_window,
             "baseline_cycles": baseline.total_cycles,
             "winner_policy": best_policy,
             "winner_cycles": best_cycles,

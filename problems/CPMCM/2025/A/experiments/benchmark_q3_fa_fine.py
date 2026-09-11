@@ -12,7 +12,7 @@ sys.path.insert(0, str(SRC))
 
 from parser import load_case
 from q2_allocator import allocate_q2_baseline
-from q2_optimized import schedule_q2_optimized
+from q2_promoted import solve_q2_promoted
 from q3_evaluator import evaluate_q3_solution
 from q3_official_optimizer import optimize_q3_official_zero_traffic
 from q3_tradeoff_scheduler import schedule_q3_critical_window
@@ -47,8 +47,7 @@ def _nondominated(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             <= int(row["optimized_official_cycles"])
             and (
                 int(other["extra_traffic"]) < int(row["extra_traffic"])
-                or int(other["optimized_official_cycles"])
-                < int(row["optimized_official_cycles"])
+                or int(other["optimized_official_cycles"]) < int(row["optimized_official_cycles"])
             )
             for other in valid
             if other is not row
@@ -61,8 +60,8 @@ def _nondominated(rows: list[dict[str, object]]) -> list[dict[str, object]]:
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=(
-            "Fine-grained FlashAttention Q3 trade-off search: window=0..16, "
-            "strict Q2 replay, residency-safe feasibility, official-cycle optimization"
+            "Fine-grained FlashAttention Q3 trade-off search from the promoted Q2 baseline: "
+            "window=0..16, strict Q2 replay, residency-safe feasibility, official-cycle optimization"
         )
     )
     ap.add_argument("--data-dir", type=Path, required=True)
@@ -77,8 +76,8 @@ def main() -> int:
 
     for case in CASES:
         graph = load_case(args.data_dir, case)
-        promoted = schedule_q2_optimized(graph)
-        base_q2 = allocate_q2_baseline(graph, promoted.order)
+        promoted = solve_q2_promoted(graph)
+        base_q2 = promoted.allocation
         base_q2.validation.require_ok()
         base_traffic = base_q2.validation.extra_traffic
         base_official_raw = evaluate_q3_solution(
@@ -91,6 +90,7 @@ def main() -> int:
             started = time.perf_counter()
             row: dict[str, object] = {
                 "case": case,
+                "promoted_q2_polish_window": promoted.polish_window,
                 "window": window,
                 "changed_positions": None,
                 "q1_peak": None,
@@ -110,14 +110,23 @@ def main() -> int:
                 "error": "",
             }
             try:
-                scheduled = schedule_q3_critical_window(
-                    graph, promoted.order, window=window
-                )
-                row["changed_positions"] = scheduled.changed_positions
-                row["q1_peak"] = scheduled.evaluation.peak_residency
+                if window == 0:
+                    evaluation = promoted.evaluation
+                    changed = 0
+                    q2 = base_q2
+                else:
+                    scheduled = schedule_q3_critical_window(
+                        graph,
+                        promoted.order,
+                        window=window,
+                    )
+                    evaluation = scheduled.evaluation
+                    changed = scheduled.changed_positions
+                    q2 = allocate_q2_baseline(graph, scheduled.order)
+                    q2.validation.require_ok()
 
-                q2 = allocate_q2_baseline(graph, scheduled.order)
-                q2.validation.require_ok()
+                row["changed_positions"] = changed
+                row["q1_peak"] = evaluation.peak_residency
                 row["spill_count"] = q2.validation.spill_count
                 row["extra_traffic"] = q2.validation.extra_traffic
                 traffic_delta = q2.validation.extra_traffic - base_traffic
@@ -158,7 +167,7 @@ def main() -> int:
             None,
         )
         if zero is None:
-            raise RuntimeError(f"{case}: window=0 baseline did not survive")
+            raise RuntimeError(f"{case}: window=0 promoted baseline did not survive")
         zero_cycles = int(zero["optimized_official_cycles"])
 
         for row in case_rows:
@@ -172,8 +181,7 @@ def main() -> int:
                 row["improvement_per_traffic_pct"] = round(improvement / traffic_pct, 6)
 
         frontier = _nondominated(case_rows)
-        for row in frontier:
-            frontier_rows.append(dict(row))
+        frontier_rows.extend(dict(row) for row in frontier)
 
         improved = [
             row
@@ -191,11 +199,7 @@ def main() -> int:
             default=None,
         )
         best_efficiency = max(
-            (
-                row
-                for row in improved
-                if row["improvement_per_traffic_pct"] is not None
-            ),
+            (row for row in improved if row["improvement_per_traffic_pct"] is not None),
             key=lambda row: (
                 float(row["improvement_per_traffic_pct"]),
                 -int(row["extra_traffic"]),
@@ -211,6 +215,7 @@ def main() -> int:
             ),
         )
         summary[case] = {
+            "promoted_q2_polish_window": promoted.polish_window,
             "base_q2_traffic": base_traffic,
             "base_q2_official_cycles": base_official_raw.total_cycles,
             "window0_official_optimized_cycles": zero_cycles,
