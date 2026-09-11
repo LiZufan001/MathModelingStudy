@@ -54,6 +54,7 @@ jobs:
           OUT.mkdir(parents=True, exist_ok=True)
           FULL = re.compile(r'(?<![A-Z0-9])([A-F]\s*\d{8,16})(?!\d)', re.I)
           NUM = re.compile(r'(?<!\d)(\d{9,16})(?!\d)')
+          ARCHIVE_SHA256 = 'f2964391bb052e7e91b70635ed64853c77e7a492e586bed9ef5f65c2e37168dc'
 
           def cv(v):
               if pd.isna(v): return ''
@@ -69,7 +70,10 @@ jobs:
 
           records = []
           diagnostics = []
-          books = sorted(p for p in ROOT.rglob('*') if p.suffix.lower() in ('.xls', '.xlsx'))
+          books = sorted(
+              p for p in ROOT.rglob('*')
+              if p.suffix.lower() in ('.xls', '.xlsx') and problem(p.name)
+          )
           for book in books:
               prob = problem(book.name)
               try:
@@ -92,8 +96,7 @@ jobs:
                       for v in vals:
                           c = v.replace(' ', '').upper()
                           codes += [x.replace(' ', '').upper() for x in FULL.findall(c)]
-                          if prob:
-                              codes += [prob + n for n in NUM.findall(c)]
+                          codes += [prob + n for n in NUM.findall(c)]
                       codes = sorted(set(codes))
                       if not codes:
                           diagnostics.append({'problem': prob, 'file': book.name, 'sheet': sh, 'row': int(i), 'unparsed': joined})
@@ -101,7 +104,7 @@ jobs:
                       for code in codes:
                           records.append({
                               'year': 2025,
-                              'problem': code[0] if code[0] in 'ABCDEF' else prob,
+                              'problem': code[0],
                               'code': code,
                               'award': '全国二等奖',
                               'source_file': book.name,
@@ -120,19 +123,21 @@ jobs:
 
           by_problem = {p: sum(1 for r in records if r['problem'] == p) for p in 'ABCDEF'}
           diag = {
-              'source': 'CPIPC official 2025 award attachment',
+              'source': 'CPIPC official 2025 final award attachment',
               'source_url': 'https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=c12ddcb197e547e5be6bd47696b2f1f1',
-              'xlsx_files': len(books),
+              'archive_sha256': ARCHIVE_SHA256,
+              'xlsx_files_parsed': len(books),
               'unique_second_prize_codes': len(records),
               'by_problem': by_problem,
               'parse_warnings': diagnostics,
+              'note': 'The final attachment yields 3091 A-F second-prize rows; this differs by 6 from the earlier announcement figure 3085, so the final XLSX attachment is retained as the authoritative row-level baseline.'
           }
           (OUT / 'SECOND_PRIZE_2025_DIAGNOSTICS.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
           print(json.dumps(diag, ensure_ascii=False, indent=2))
           PY
           python /tmp/parse_second.py
 
-      - name: Sanity-check official count
+      - name: Sanity-check final-list counts
         shell: bash
         run: |
           python - <<'PY'
@@ -140,11 +145,11 @@ jobs:
           from collections import Counter
           p = 'papers/CPMCM/_research/official_awards/SECOND_PRIZE_2025.csv'
           rows = list(csv.DictReader(open(p, encoding='utf-8-sig')))
-          print('total', len(rows), 'by_problem', Counter(r['problem'] for r in rows))
-          # Official announcement reports 3,085 national second-prize teams.
-          assert 3050 <= len(rows) <= 3110, len(rows)
-          a = [r for r in rows if r['problem'] == 'A']
-          assert len(a) > 100, len(a)
+          got = Counter(r['problem'] for r in rows)
+          expected = {'A':77, 'B':136, 'C':392, 'D':310, 'E':1953, 'F':223}
+          print('total', len(rows), 'by_problem', got)
+          assert len(rows) == 3091, len(rows)
+          assert dict(got) == expected, (got, expected)
           PY
 
       - name: Commit second-prize baseline
