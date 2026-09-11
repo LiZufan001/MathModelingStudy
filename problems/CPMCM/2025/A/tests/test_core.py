@@ -88,3 +88,19 @@ def test_scheduler_rejects_cycle() -> None:
     graph = ComputeGraph.from_edges(nodes, [(0, 1), (1, 0)])
     with pytest.raises(ValueError, match="cyclic or unschedulable"):
         schedule_q1_baseline(graph)
+
+
+def test_many_independent_l0_buffers_are_serialized() -> None:
+    nodes = []
+    edges = []
+    for i in range(100):
+        alloc_id = 2 * i
+        free_id = alloc_id + 1
+        nodes.append(Node(alloc_id, "ALLOC", i, 8, "L0A"))
+        nodes.append(Node(free_id, "FREE", i, 8, "L0A"))
+        edges.append((alloc_id, free_id))
+    graph = ComputeGraph.from_edges(nodes, edges)
+    result = schedule_q1_baseline(graph)
+    assert result.evaluation.valid
+    for i in range(100):
+        assert result.order.index(2 * i) < result.order.index(2 * i + 1)

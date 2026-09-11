@@ -27,6 +27,9 @@ def _memory_delta(graph: ComputeGraph, node_id: int) -> int:
 def _ready_key(graph: ComputeGraph, node_id: int) -> tuple[int, int, int]:
     node = graph.nodes[node_id]
     delta = _memory_delta(graph, node_id)
+    # Deterministic baseline: FREE first, neutral work second, counted-memory ALLOC last.
+    # Within a class prefer the action with the most favorable immediate memory delta,
+    # then node id for reproducibility.
     if delta < 0:
         cls = 0
     elif delta == 0:
@@ -38,32 +41,55 @@ def _ready_key(graph: ComputeGraph, node_id: int) -> tuple[int, int, int]:
 
 def schedule_q1_baseline(graph: ComputeGraph) -> Q1ScheduleResult:
     indegree = graph.indegrees()
-    ready: list[tuple[tuple[int, int, int], int]] = []
-    for node_id, degree in indegree.items():
-        if degree == 0:
-            heapq.heappush(ready, (_ready_key(graph, node_id), node_id))
 
-    order: list[int] = []
+    # A blocked L0 ALLOC must not be repeatedly popped and pushed on every scheduling
+    # step. Keep each L0 type in its own ready heap and only expose its minimum node
+    # while that L0 type is free. This keeps the baseline near O((V+E) log V) even
+    # when many independent L0 allocations are simultaneously ready.
+    ready: list[tuple[tuple[int, int, int], int]] = []
+    l0_alloc_ready: dict[str, list[int]] = {kind: [] for kind in L0_TYPES}
     l0_live: dict[str, int] = {kind: 0 for kind in L0_TYPES}
 
-    while ready:
-        deferred: list[tuple[tuple[int, int, int], int]] = []
-        chosen: int | None = None
-        while ready:
-            item = heapq.heappop(ready)
-            node_id = item[1]
-            node = graph.nodes[node_id]
-            if node.is_alloc and node.memory_type in L0_TYPES and l0_live[node.memory_type] >= 1:
-                deferred.append(item)
-                continue
-            chosen = node_id
-            break
-        for item in deferred:
-            heapq.heappush(ready, item)
+    def enqueue(node_id: int) -> None:
+        node = graph.nodes[node_id]
+        if node.is_alloc and node.memory_type in L0_TYPES:
+            heapq.heappush(l0_alloc_ready[node.memory_type], node_id)
+        else:
+            heapq.heappush(ready, (_ready_key(graph, node_id), node_id))
 
-        if chosen is None:
-            blocked = [node_id for _, node_id in ready]
-            raise ValueError(f"no Q1-feasible ready node under L0 constraint; blocked={blocked[:8]}")
+    for node_id, degree in indegree.items():
+        if degree == 0:
+            enqueue(node_id)
+
+    order: list[int] = []
+    while len(order) < graph.node_count:
+        candidates: list[tuple[tuple[int, int, int], str | None, int]] = []
+        if ready:
+            key, node_id = ready[0]
+            candidates.append((key, None, node_id))
+        for memory_type, heap in l0_alloc_ready.items():
+            if heap and l0_live[memory_type] == 0:
+                node_id = heap[0]
+                candidates.append(((1, 0, node_id), memory_type, node_id))
+
+        if not candidates:
+            unresolved = [node_id for node_id, degree in indegree.items() if degree > 0]
+            blocked = {
+                memory_type: heap[:8]
+                for memory_type, heap in l0_alloc_ready.items()
+                if heap
+            }
+            if unresolved:
+                raise ValueError(f"graph is cyclic or unschedulable; unresolved={unresolved[:8]}")
+            raise ValueError(f"no Q1-feasible ready node under L0 constraint; blocked={blocked}")
+
+        _, l0_type, chosen = min(candidates, key=lambda item: item[0])
+        if l0_type is None:
+            _, popped = heapq.heappop(ready)
+            assert popped == chosen
+        else:
+            popped = heapq.heappop(l0_alloc_ready[l0_type])
+            assert popped == chosen
 
         node = graph.nodes[chosen]
         order.append(chosen)
@@ -77,11 +103,7 @@ def schedule_q1_baseline(graph: ComputeGraph) -> Q1ScheduleResult:
         for nxt in graph.successors[chosen]:
             indegree[nxt] -= 1
             if indegree[nxt] == 0:
-                heapq.heappush(ready, (_ready_key(graph, nxt), nxt))
-
-    if len(order) != graph.node_count:
-        unresolved = [node_id for node_id, degree in indegree.items() if degree > 0]
-        raise ValueError(f"graph is cyclic or unschedulable; unresolved={unresolved[:8]}")
+                enqueue(nxt)
 
     evaluation = evaluate_q1(graph, order)
     if not evaluation.valid:
