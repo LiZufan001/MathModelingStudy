@@ -1,0 +1,17 @@
+{
+  "source": "CPIPC official 2025 final award attachment",
+  "source_url": "https://cpipc.acge.org.cn/sysFile/downFile.do?fileId=c12ddcb197e547e5be6bd47696b2f1f1",
+  "archive_sha256": "f2964391bb052e7e91b70635ed64853c77e7a492e586bed9ef5f65c2e37168dc",
+  "xlsx_files_parsed": 6,
+  "unique_second_prize_codes": 3091,
+  "by_problem": {
+    "A": 77,
+    "B": 136,
+    "C": 392,
+    "D": 310,
+    "E": 1953,
+    "F": 223
+  },
+  "parse_warnings": [],
+  "note": "The final attachment yields 3091 A-F second-prize rows; this differs by 6 from the earlier announcement figure 3085, so the final XLSX attachment is retained as the authoritative row-level baseline."
+}
