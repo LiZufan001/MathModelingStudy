@@ -1,0 +1,45 @@
+name: Test CPMCM 2025 A Q3 Conv0 Deep Recolor
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/test-cpmcm-2025-a-q3-conv0-deep.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q3-conv0-deep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deep greedy recolor probe
+        run: |
+          OUT_DIR=/tmp/q3-conv0-deep
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_conv_local_recolor_case.py \
+            --case Conv_Case0 \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir "$OUT_DIR" \
+            --max-rounds 24 \
+            --max-targets 6 \
+            --max-starts 12
+          test -s "$OUT_DIR/conv_local_recolor_summary.csv"
+          test -s "$OUT_DIR/conv_local_recolor_trials.csv"
+          test -s "$OUT_DIR/conv_local_recolor_summary.json"
+      - name: Upload Conv0 deep evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv0-deep-recolor
+          path: /tmp/q3-conv0-deep
+          if-no-files-found: error
