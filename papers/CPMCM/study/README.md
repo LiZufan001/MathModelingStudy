@@ -13,6 +13,9 @@
 - [`FINAL_AUDIT_CHECKLIST.md`](FINAL_AUDIT_CHECKLIST.md)：**赛末审计表**。冻结模型后逐项打勾，优先排除 evaluator、硬约束、泄漏、单位、结果版本等一票否决错误。
 - [`NARRATIVE_AND_ARGUMENTATION_GUIDE.md`](NARRATIVE_AND_ARGUMENTATION_GUIDE.md)：**科学论证指南**。严格区分 ORIGINAL / INTERPRETATION / RECOMMENDED，学习方法如何由事实与证据引出。
 - [`ORIGINAL_PAPER_NARRATIVE_STUDY.md`](ORIGINAL_PAPER_NARRATIVE_STUDY.md)：**国一原文叙事研究**。直接回到 exact-match PDF，研究摘要、问题分析、问间过渡、失败实验与结果分析的真实写法。
+- [`ORIGINAL_NARRATIVE_MATRIX.md`](ORIGINAL_NARRATIVE_MATRIX.md)：**8 篇国一原文研究动作矩阵**。横向对照摘要、问题分析、方法引入、问间接口、失败调整、结果解释与结论强度。
+- [`TRAINING_ROADMAP.md`](TRAINING_ROADMAP.md)：**赛前训练路线**。P0 盲做对照、P1 Starter Kit、P2 原文矩阵、P3 摘要训练、P4 exact-match 补全、P5 模拟赛闭环。
+- [`../../../resources/competition_starter_kit/README.md`](../../../resources/competition_starter_kit/README.md)：**Competition Starter Kit v0.1**。把 evaluator、决策日志、单一结果源、论文数字渲染和 preflight 落成可执行工具。
 
 核心纪律：**事实先于判断，判断先于方法；结果服务于检验，结论服从于证据。**
 
