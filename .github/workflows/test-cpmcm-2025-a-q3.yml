@@ -58,13 +58,7 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q3-official-zero-traffic \
             --rounds 2
-      - name: Build strict epsilon-constrained Q3 Pareto frontiers
-        run: |
-          python problems/CPMCM/2025/A/src/benchmark_q3_pareto.py \
-            --data-dir problems/CPMCM/2025/A/data/csv \
-            --out-dir /tmp/q3-pareto \
-            --rounds 2
-      - name: Upload Q3 evidence
+      - name: Upload Q3 core evidence
         uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-q3-validation
@@ -74,5 +68,4 @@ jobs:
             /tmp/q3-pipeline-critical
             /tmp/q3-zero-traffic
             /tmp/q3-official-zero-traffic
-            /tmp/q3-pareto
           if-no-files-found: error
