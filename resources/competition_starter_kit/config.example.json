@@ -1,0 +1,12 @@
+{
+  "contest": "CPMCM",
+  "year": 2026,
+  "problem": "TODO",
+  "team": "TODO",
+  "data_dir": "data",
+  "results_dir": "results",
+  "build_dir": "build",
+  "experiment_log": "experiments/decisions.jsonl",
+  "paper_draft": "paper",
+  "random_seed": 20260923
+}
