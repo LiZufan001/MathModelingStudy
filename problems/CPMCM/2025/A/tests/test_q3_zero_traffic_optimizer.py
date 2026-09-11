@@ -27,8 +27,13 @@ def test_zero_traffic_optimizer_is_monotone_and_preserves_q2_metrics() -> None:
         nodes,
         [(0, 1), (1, 2), (2, 3), (4, 5), (5, 6), (6, 7)],
     )
-    # Sequential address reuse and poor pipe order are both legal but slow.
-    solution = Q2Solution((4, 5, 0, 1, 2, 3, 6, 7), {0: 0, 1: 0}, ())
+    # The two buffers are simultaneously live in this legal Q2 order, so they
+    # deliberately use disjoint physical ranges.  The slow part is only the
+    # submitted same-pipe order: long CUBE B runs before short CUBE A, delaying
+    # A's long VECTOR successor.  This gives the zero-traffic optimizer a real
+    # Q3 improvement opportunity without smuggling an invalid Q2 overlap into
+    # the fixture.
+    solution = Q2Solution((4, 5, 0, 1, 2, 3, 6, 7), {0: 0, 1: 4}, ())
     before = validate_q2_solution(graph, solution)
     before.require_ok()
 
