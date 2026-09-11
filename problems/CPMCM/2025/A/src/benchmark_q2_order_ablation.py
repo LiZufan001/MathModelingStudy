@@ -7,7 +7,7 @@ import re
 import time
 from pathlib import Path
 
-from evaluator import evaluate_q1
+from model import Q1_COUNTED_TYPES
 from parser import load_case
 from q1_scheduler import schedule_q1_baseline
 from q2_allocator import allocate_q2_baseline
@@ -66,11 +66,33 @@ def _read_q2_original_node_order(path: Path) -> tuple[int, ...]:
     return tuple(order)
 
 
+def _q1_peak_only(graph, order: tuple[int, ...]) -> int:
+    """Compute the official Q1 L1+UB residency metric for a topological order.
+
+    Deliberately do not impose the baseline scheduler's extra one-live-L0
+    restriction here. Q2 physical feasibility is checked by the allocator and
+    independent Q2 replay, which use the actual per-pool capacities and offsets.
+    """
+
+    resident = 0
+    peak = 0
+    for node_id in order:
+        node = graph.nodes[node_id]
+        if node.memory_type not in Q1_COUNTED_TYPES or node.size is None:
+            continue
+        if node.is_alloc:
+            resident += node.size
+            peak = max(peak, resident)
+        elif node.is_free:
+            resident -= node.size
+    if resident != 0:
+        raise ValueError(f"non-zero final Q1 L1+UB residency {resident}")
+    return peak
+
+
 def _run_order(graph, case: str, source: str, order: tuple[int, ...]) -> dict[str, object]:
     topo = validate_topological_order(graph, order)
-    q1_eval = evaluate_q1(graph, order)
-    if not topo.ok or not q1_eval.valid:
-        errors = topo.errors if not topo.ok else q1_eval.errors
+    if not topo.ok:
         return {
             "case": case,
             "order_source": source,
@@ -80,9 +102,10 @@ def _run_order(graph, case: str, source: str, order: tuple[int, ...]) -> dict[st
             "extra_traffic": "",
             "q2_seconds": "",
             "q2_valid": False,
-            "errors": " | ".join(errors),
+            "errors": " | ".join(topo.errors),
         }
 
+    q1_peak = _q1_peak_only(graph, order)
     start = time.perf_counter()
     try:
         q2 = allocate_q2_baseline(graph, order)
@@ -93,7 +116,7 @@ def _run_order(graph, case: str, source: str, order: tuple[int, ...]) -> dict[st
             "case": case,
             "order_source": source,
             "order_valid": True,
-            "q1_peak": q1_eval.peak_residency,
+            "q1_peak": q1_peak,
             "spill_count": replay.spill_count,
             "extra_traffic": replay.extra_traffic,
             "q2_seconds": round(elapsed, 6),
@@ -106,7 +129,7 @@ def _run_order(graph, case: str, source: str, order: tuple[int, ...]) -> dict[st
             "case": case,
             "order_source": source,
             "order_valid": True,
-            "q1_peak": q1_eval.peak_residency,
+            "q1_peak": q1_peak,
             "spill_count": "",
             "extra_traffic": "",
             "q2_seconds": round(elapsed, 6),
