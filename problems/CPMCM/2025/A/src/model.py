@@ -45,6 +45,7 @@ class ComputeGraph:
         for node_id in self.nodes:
             self.successors.setdefault(node_id, [])
             self.predecessors.setdefault(node_id, [])
+
         for node in self.nodes.values():
             if node.is_alloc:
                 if node.buf_id is None:
@@ -59,9 +60,26 @@ class ComputeGraph:
                     raise ValueError(f"duplicate FREE for buffer {node.buf_id}")
                 self._free_by_buf[node.buf_id] = node.id
 
+        # Static integrity check: whenever both ends of a buffer lifetime are present,
+        # they must describe exactly the same physical buffer. A mismatch here would
+        # make every later residency calculation ambiguous, so fail at graph build time.
+        for buf_id in self._alloc_by_buf.keys() & self._free_by_buf.keys():
+            alloc = self.nodes[self._alloc_by_buf[buf_id]]
+            free = self.nodes[self._free_by_buf[buf_id]]
+            if alloc.size != free.size or alloc.memory_type != free.memory_type:
+                raise ValueError(
+                    f"buffer {buf_id} ALLOC/FREE metadata mismatch: "
+                    f"ALLOC(size={alloc.size}, type={alloc.memory_type}) vs "
+                    f"FREE(size={free.size}, type={free.memory_type})"
+                )
+
     @classmethod
     def from_edges(cls, nodes: Iterable[Node], edges: Iterable[tuple[int, int]]) -> "ComputeGraph":
-        node_map = {node.id: node for node in nodes}
+        node_list = list(nodes)
+        node_map = {node.id: node for node in node_list}
+        if len(node_map) != len(node_list):
+            raise ValueError("duplicate node ids")
+
         succ = {node_id: [] for node_id in node_map}
         pred = {node_id: [] for node_id in node_map}
         count = 0

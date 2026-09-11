@@ -104,3 +104,32 @@ def test_many_independent_l0_buffers_are_serialized() -> None:
     assert result.evaluation.valid
     for i in range(100):
         assert result.order.index(2 * i) < result.order.index(2 * i + 1)
+
+
+def test_operation_must_not_use_buffer_after_free() -> None:
+    nodes = [
+        Node(0, "ALLOC", 0, 10, "L1"),
+        Node(1, "OP", pipe="VECTOR", cycles=1, bufs=(0,)),
+        Node(2, "FREE", 0, 10, "L1"),
+    ]
+    # The graph deliberately omits the normal OP -> FREE dependency. The order is a
+    # valid topological order for those edges, but must still be rejected by the
+    # independent buffer-liveness oracle.
+    graph = ComputeGraph.from_edges(nodes, [(0, 2)])
+    eval_ = evaluate_q1(graph, [0, 2, 1])
+    assert not eval_.valid
+    assert any("references buffer 0 while it is not live" in e for e in eval_.errors)
+
+
+def test_alloc_free_metadata_mismatch_is_rejected() -> None:
+    nodes = [
+        Node(0, "ALLOC", 7, 10, "L1"),
+        Node(1, "FREE", 7, 11, "L1"),
+    ]
+    with pytest.raises(ValueError, match="metadata mismatch"):
+        ComputeGraph.from_edges(nodes, [(0, 1)])
+
+
+def test_duplicate_node_ids_are_rejected() -> None:
+    with pytest.raises(ValueError, match="duplicate node ids"):
+        ComputeGraph.from_edges([Node(0, "OP"), Node(0, "OP")], [])
