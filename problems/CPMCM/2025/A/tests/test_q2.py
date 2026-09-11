@@ -106,6 +106,28 @@ def test_q2_validator_rejects_buffer_use_between_spill_out_and_in() -> None:
     assert any("spilled out / not resident" in error for error in result.errors)
 
 
+def test_q2_validator_rejects_free_before_spill_in() -> None:
+    nodes = [
+        Node(0, "ALLOC", 0, 6, "L1"),
+        Node(1, "USE", pipe="VECTOR", cycles=1, bufs=(0,)),
+        Node(2, "FREE", 0, 6, "L1"),
+    ]
+    graph = ComputeGraph.from_edges(nodes, [(0, 1), (1, 2)])
+    # N=3 => OUT=3, IN=4.  This models an evict-only shortcut: FREE is
+    # attempted after OUT while the buffer is still nonresident.
+    solution = Q2Solution(
+        schedule=(0, 1, 3, 2, 4),
+        initial_offsets={0: 0},
+        spills=(SpillRecord(0, 0),),
+    )
+    result = validate_q2_solution(graph, solution, {"L1": 6})
+    assert not result.ok
+    assert any(
+        "not resident" in error or "must satisfy" in error
+        for error in result.errors
+    )
+
+
 def test_q2_validator_rejects_wrong_spill_pair_order() -> None:
     nodes = [
         Node(0, "ALLOC", 0, 6, "L1"),
