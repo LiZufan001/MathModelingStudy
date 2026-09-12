@@ -107,7 +107,11 @@ def main() -> int:
     composed_priority = None
     composed_pipe = None
     composed_candidates = [(second_name, second_solution, second_official, second_safe)]
-    if second_official.total_cycles < saturated_official.total_cycles:
+    allow_neutral_bridge = (
+        second_official.total_cycles <= saturated_official.total_cycles
+        and second_solution != saturated_solution
+    )
+    if allow_neutral_bridge:
         composed_priority = search_q3_priority_reschedule_portfolio(
             graph,
             second_solution,
@@ -145,10 +149,12 @@ def main() -> int:
     )
     joint_recolor = None
     final_candidates = [(third_name, third_solution, third_official, third_safe)]
-    if (
+    allow_joint_recolor = (
         args.joint_recolor_rounds > 0
-        and third_official.total_cycles < saturated_official.total_cycles
-    ):
+        and third_official.total_cycles <= saturated_official.total_cycles
+        and third_solution != saturated_solution
+    )
+    if allow_joint_recolor:
         joint_recolor = optimize_q3_critical_recolor_greedy(
             graph,
             third_solution,
@@ -196,6 +202,7 @@ def main() -> int:
             "trials": [asdict(trial) for trial in gap.trials],
         },
         "composition": {
+            "neutral_bridge_used": allow_neutral_bridge,
             "priority": None
             if composed_priority is None
             else _candidate_payload("priority_after_second", composed_priority, second_official.total_cycles),
@@ -206,6 +213,7 @@ def main() -> int:
         "joint_recolor": None
         if joint_recolor is None
         else {
+            "neutral_or_improving_schedule_input": True,
             "input_source": third_name,
             "input_official_cycles": third_official.total_cycles,
             "accepted_rounds": joint_recolor.accepted_rounds,
