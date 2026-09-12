@@ -1,0 +1,65 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Second Batch
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_second_batch_after_polish.py"
+      - ".github/workflows/probe-cpmcm-2025-a-q3-conv1-second-batch.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  second-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download strict batch solution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-spill-switch-batch
+          path: /tmp/batch-source
+          github-token: ${{ github.token }}
+          repository: LiZufan001/MathModelingStudy
+          run-id: 34684161605
+      - name: Download strict greedy polish evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-batch-greedy-polish
+          path: /tmp/polish-evidence
+          github-token: ${{ github.token }}
+          repository: LiZufan001/MathModelingStudy
+          run-id: 34684378161
+      - name: Second-batch gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_batch.py \
+            -q
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q3_second_batch_after_polish.py
+      - name: Replay polish recipe then probe second batch
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_second_batch_after_polish.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --solution /tmp/batch-source/q3-conv1-batch-switch-solution.json \
+            --polish-evidence /tmp/polish-evidence/q3-conv1-batch-greedy-polish.json \
+            --out /tmp/q3-conv1-second-batch.json
+      - name: Upload second-batch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-second-batch
+          path: /tmp/q3-conv1-second-batch.json
+          if-no-files-found: error
