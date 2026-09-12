@@ -2,6 +2,11 @@ name: Probe CPMCM 2025 A Q2 Transfer-Aware Conv1
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/probe-cpmcm-2025-a-q2-transfer-aware-conv1.yml"
 
 permissions:
   contents: read
