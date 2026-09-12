@@ -2,6 +2,11 @@ name: Probe CPMCM 2025 A Q3 Conv1 Snapshot Operators
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/probe-cpmcm-2025-a-q3-conv1-snapshot-operators.yml"
 
 permissions:
   contents: read
