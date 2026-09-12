@@ -50,6 +50,17 @@ def _q3_summary(graph, solution) -> dict[str, int | bool]:
     }
 
 
+def _run_policy(graph, cost_map: dict[int, int]):
+    original_chooser = q2_allocator.choose_min_cost_window
+    try:
+        q2_allocator.choose_min_cost_window = make_transfer_aware_chooser(cost_map)
+        result = solve_q2_promoted(graph)
+    finally:
+        q2_allocator.choose_min_cost_window = original_chooser
+    result.validation.require_ok()
+    return result
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", type=Path, required=True)
@@ -59,40 +70,79 @@ def main() -> int:
 
     graph = load_case(args.data_dir, args.case)
 
-    t0 = time.perf_counter()
-    baseline = solve_q2_promoted(graph)
-    t1 = time.perf_counter()
-    baseline.validation.require_ok()
-
-    transfer_costs: dict[int, int] = {}
+    per_buf: dict[int, tuple[int, int]] = {}
     for node in graph.nodes.values():
         if not node.is_alloc or node.buf_id is None:
             continue
-        out, incoming = spill_cycles(graph, node.buf_id)
-        transfer_costs[node.buf_id] = out + incoming
+        per_buf[node.buf_id] = spill_cycles(graph, node.buf_id)
+    policy_costs = {
+        "min_total_transfer": {buf: out + incoming for buf, (out, incoming) in per_buf.items()},
+        "min_mte2_spill_in": {buf: incoming for buf, (_, incoming) in per_buf.items()},
+        "min_mte3_spill_out": {buf: out for buf, (out, _) in per_buf.items()},
+    }
 
-    original_chooser = q2_allocator.choose_min_cost_window
-    try:
-        q2_allocator.choose_min_cost_window = make_transfer_aware_chooser(transfer_costs)
-        experimental = solve_q2_promoted(graph)
-    finally:
-        q2_allocator.choose_min_cost_window = original_chooser
-    t2 = time.perf_counter()
-    experimental.validation.require_ok()
+    t0 = time.perf_counter()
+    baseline = solve_q2_promoted(graph)
+    baseline.validation.require_ok()
+    t1 = time.perf_counter()
 
     baseline_transfer = _transfer_summary(graph, baseline.solution)
-    experimental_transfer = _transfer_summary(graph, experimental.solution)
     baseline_q3 = _q3_summary(graph, baseline.solution)
-    experimental_q3 = _q3_summary(graph, experimental.solution)
-    t3 = time.perf_counter()
+    policies: dict[str, dict] = {}
 
-    same_q2_primary = (
-        experimental.validation.extra_traffic == baseline.validation.extra_traffic
-        and experimental.validation.spill_count == baseline.validation.spill_count
+    for name, costs in policy_costs.items():
+        p0 = time.perf_counter()
+        result = _run_policy(graph, costs)
+        p1 = time.perf_counter()
+        transfer = _transfer_summary(graph, result.solution)
+        q3 = _q3_summary(graph, result.solution)
+        p2 = time.perf_counter()
+        same_q2_primary = (
+            result.validation.extra_traffic == baseline.validation.extra_traffic
+            and result.validation.spill_count == baseline.validation.spill_count
+        )
+        policies[name] = {
+            "same_q2_primary": same_q2_primary,
+            "extra_traffic": result.validation.extra_traffic,
+            "spill_count": result.validation.spill_count,
+            "polish_window": result.polish_window,
+            "changed_positions": result.changed_positions,
+            "transfer": transfer,
+            "q3": q3,
+            "delta_vs_baseline": {
+                "extra_traffic": result.validation.extra_traffic - baseline.validation.extra_traffic,
+                "spill_count": result.validation.spill_count - baseline.validation.spill_count,
+                "spill_out_cycles": transfer["spill_out_cycles"] - baseline_transfer["spill_out_cycles"],
+                "spill_in_cycles": transfer["spill_in_cycles"] - baseline_transfer["spill_in_cycles"],
+                "spill_transfer_cycles": transfer["spill_transfer_cycles"] - baseline_transfer["spill_transfer_cycles"],
+                "zero_out_spills": transfer["zero_out_spills"] - baseline_transfer["zero_out_spills"],
+                "promoted_official_cycles": q3["official_cycles"] - baseline_q3["official_cycles"],
+                "promoted_safe_cycles": q3["safe_cycles"] - baseline_q3["safe_cycles"],
+            },
+            "seconds": {
+                "q2": round(p1 - p0, 6),
+                "q3_replays": round(p2 - p1, 6),
+                "total": round(p2 - p0, 6),
+            },
+        }
+
+    t2 = time.perf_counter()
+    comparable = {
+        name: data
+        for name, data in policies.items()
+        if data["same_q2_primary"] and data["q3"]["valid"]
+    }
+    best_policy = min(
+        comparable,
+        key=lambda name: (
+            comparable[name]["q3"]["official_cycles"],
+            comparable[name]["q3"]["safe_cycles"],
+            name,
+        ),
+        default=None,
     )
     payload = {
         "case": args.case,
-        "same_q2_primary": same_q2_primary,
         "baseline": {
             "extra_traffic": baseline.validation.extra_traffic,
             "spill_count": baseline.validation.spill_count,
@@ -101,29 +151,13 @@ def main() -> int:
             "transfer": baseline_transfer,
             "q3": baseline_q3,
         },
-        "transfer_aware": {
-            "extra_traffic": experimental.validation.extra_traffic,
-            "spill_count": experimental.validation.spill_count,
-            "polish_window": experimental.polish_window,
-            "changed_positions": experimental.changed_positions,
-            "transfer": experimental_transfer,
-            "q3": experimental_q3,
-        },
-        "delta": {
-            "extra_traffic": experimental.validation.extra_traffic - baseline.validation.extra_traffic,
-            "spill_count": experimental.validation.spill_count - baseline.validation.spill_count,
-            "spill_out_cycles": experimental_transfer["spill_out_cycles"] - baseline_transfer["spill_out_cycles"],
-            "spill_in_cycles": experimental_transfer["spill_in_cycles"] - baseline_transfer["spill_in_cycles"],
-            "spill_transfer_cycles": experimental_transfer["spill_transfer_cycles"] - baseline_transfer["spill_transfer_cycles"],
-            "zero_out_spills": experimental_transfer["zero_out_spills"] - baseline_transfer["zero_out_spills"],
-            "promoted_official_cycles": experimental_q3["official_cycles"] - baseline_q3["official_cycles"],
-            "promoted_safe_cycles": experimental_q3["safe_cycles"] - baseline_q3["safe_cycles"],
-        },
+        "policies": policies,
+        "best_same_q2_policy": best_policy,
+        "best_same_q2_official_cycles": None if best_policy is None else comparable[best_policy]["q3"]["official_cycles"],
         "seconds": {
-            "baseline_q2": round(t1 - t0, 6),
-            "transfer_aware_q2": round(t2 - t1, 6),
-            "q3_replays": round(t3 - t2, 6),
-            "total": round(t3 - t0, 6),
+            "baseline": round(t1 - t0, 6),
+            "policy_portfolio": round(t2 - t1, 6),
+            "total": round(t2 - t0, 6),
         },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
