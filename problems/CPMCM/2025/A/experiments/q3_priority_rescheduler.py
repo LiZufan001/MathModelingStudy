@@ -26,7 +26,7 @@ from q3_model import Q3TimingResult, node_cycles
 class PriorityRescheduleTrial:
     policy: str
     q2_valid: bool
-    safe_valid: bool
+    safe_valid: bool | None
     official_cycles: int | None
     safe_cycles: int | None
     changed_positions: int
@@ -121,8 +121,10 @@ def search_q3_priority_reschedule_portfolio(
     production critical rescheduler: original DAG + SPILL + residency-safe reuse.
     Only the ready-queue ranking changes. Priority bottom-levels are computed from
     safe, official-literal, or structural (original+SPILL) dependency graphs.
-    Candidates are accepted only after strict Q2, residency-safe, and official
-    replay, with SPILL identity/order/count and extra traffic invariant.
+    Candidates are accepted only after strict Q2, official, and residency-safe
+    replay, with SPILL identity/order/count and extra traffic invariant. Official
+    timing is evaluated first so clearly noncompetitive candidates can skip the
+    more expensive residency-safe replay without weakening the acceptance gate.
     """
 
     base_q2 = validate_q2_solution(graph, solution)
@@ -198,16 +200,36 @@ def search_q3_priority_reschedule_portfolio(
             if tuple(spill.buf_id for spill in candidate.spills) != base_spills:
                 raise AssertionError("priority reschedule changed spill victim identity/order")
 
+            official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
+            official.require_ok()
+            if official.total_cycles > best_official.total_cycles:
+                trials.append(
+                    PriorityRescheduleTrial(
+                        policy,
+                        True,
+                        None,
+                        official.total_cycles,
+                        None,
+                        changed,
+                        "residency-safe replay skipped: official score not competitive",
+                    )
+                )
+                continue
+
             safe = evaluate_q3_solution(graph, candidate, reuse_mode="residency_safe")
             if not safe.ok:
                 trials.append(
                     PriorityRescheduleTrial(
-                        policy, True, False, None, None, changed, "; ".join(safe.errors[:2])
+                        policy,
+                        True,
+                        False,
+                        official.total_cycles,
+                        None,
+                        changed,
+                        "; ".join(safe.errors[:2]),
                     )
                 )
                 continue
-            official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
-            official.require_ok()
             trials.append(
                 PriorityRescheduleTrial(
                     policy,
