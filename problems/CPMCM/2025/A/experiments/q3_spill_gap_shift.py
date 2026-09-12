@@ -154,7 +154,9 @@ def search_q3_critical_spill_gap_shifts(
     production rescheduler, this can deliberately change which original uses lie
     before versus after the spill boundary. Proposals run strict Q2 and official
     replay first; only official-competitive moves pay for residency-safe replay,
-    which remains mandatory before any move can be kept.
+    which remains mandatory before any move can be kept. Candidate spills are
+    selected from the official critical path downstream-first, closest to the
+    terminal makespan.
     """
 
     if max_spills <= 0 or gap_radius <= 0:
@@ -168,13 +170,21 @@ def search_q3_critical_spill_gap_shifts(
         baseline_safe = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
     baseline_safe.require_ok()
 
-    path_nodes = set(baseline_official.critical_path)
-    critical: list[int] = []
+    spill_by_event: dict[int, int] = {}
     for spill_index in range(len(solution.spills)):
         out_id, in_id = spill_node_ids(graph, spill_index)
-        if out_id in path_nodes or in_id in path_nodes:
-            critical.append(spill_index)
-    critical = critical[:max_spills]
+        spill_by_event[out_id] = spill_index
+        spill_by_event[in_id] = spill_index
+    critical: list[int] = []
+    seen_critical: set[int] = set()
+    for node_id in reversed(baseline_official.critical_path):
+        spill_index = spill_by_event.get(node_id)
+        if spill_index is None or spill_index in seen_critical:
+            continue
+        seen_critical.add(spill_index)
+        critical.append(spill_index)
+        if len(critical) >= max_spills:
+            break
 
     base_spills = tuple((spill.buf_id, spill.new_offset) for spill in solution.spills)
     best_solution = solution
