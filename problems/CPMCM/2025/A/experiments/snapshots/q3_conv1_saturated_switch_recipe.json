@@ -1,0 +1,28 @@
+{
+  "case": "Conv_Case1",
+  "source_snapshot": "q3_conv1_saturated_offsets.json",
+  "baseline": {
+    "official_cycles": 3781664,
+    "safe_cycles": 4113775,
+    "spill_count": 9646,
+    "extra_traffic": 721464
+  },
+  "move": {
+    "spill_index": 6805,
+    "mode": "both_earlier",
+    "reversed_edges": [
+      [49704, 49696],
+      [5606, 49697]
+    ]
+  },
+  "expected_after_switch": {
+    "official_cycles": 3780840,
+    "safe_cycles": 4113775,
+    "changed_positions": 22
+  },
+  "evidence": {
+    "workflow_run": 34679268606,
+    "artifact_id": 10293741850,
+    "head_sha": "2d6d48682e748700895895888d541e52539d54fc"
+  }
+}
