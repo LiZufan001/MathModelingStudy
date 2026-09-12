@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 EXP = Path(__file__).resolve().parent
@@ -31,13 +32,7 @@ def _candidate_payload(name, result, baseline_official: int):
         "best_policy": best_policy,
         "best_edge": None if best_edge is None else list(best_edge),
         "safe_overlap_errors": len(result.best_safe.physical_overlap_errors),
-        "trials": [
-            {
-                key: value
-                for key, value in vars(trial).items()
-            }
-            for trial in result.trials
-        ],
+        "trials": [asdict(trial) for trial in result.trials],
     }
 
 
