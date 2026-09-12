@@ -73,6 +73,8 @@ def optimize_q3_critical_recolor_greedy(
             current,
             max_targets=max_targets,
             max_starts=max_starts,
+            baseline_official=current_official,
+            baseline_safe=current_safe,
         )
         rounds.append(result)
         if result.baseline_official.total_cycles != current_official.total_cycles:
