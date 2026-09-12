@@ -18,12 +18,12 @@ from q3_paired_epoch_recolor import search_q3_paired_epoch_recolor
 def _paired_fixture() -> tuple[ComputeGraph, Q2Solution]:
     nodes = [
         Node(0, "ALLOC", 0, 4, "L1"),
-        Node(1, "PREV", pipe="CUBE", cycles=100, bufs=(0,)),
+        Node(1, "PREV", pipe="CUBE", cycles=500, bufs=(0,)),
         Node(2, "FREE", 0, 4, "L1"),
         Node(3, "ALLOC", 1, 4, "L1"),
         Node(4, "FREE", 1, 4, "L1"),
         Node(5, "ALLOC", 2, 4, "L1"),
-        Node(6, "TARGET", pipe="VECTOR", cycles=100, bufs=(2,)),
+        Node(6, "TARGET", pipe="VECTOR", cycles=500, bufs=(2,)),
         Node(7, "FREE", 2, 4, "L1"),
     ]
     graph = ComputeGraph.from_edges(
@@ -33,7 +33,9 @@ def _paired_fixture() -> tuple[ComputeGraph, Q2Solution]:
     # N=8 -> spill 0 nodes are 8 (OUT) and 9 (IN).  The target buffer starts
     # at 0, where official literal reuse serializes it behind buffer 0.  Moving
     # target to 4 would remove that edge, but SPILL_IN(1) currently occupies 4.
-    # Relocating that SPILL_IN epoch to 8 makes the improving initial move legal.
+    # Relocating that SPILL_IN epoch makes the improving initial move legal.
+    # The 500-cycle independent compute chains deliberately dominate the
+    # 158+158-cycle spill path so this fixture isolates the reuse serialization.
     solution = Q2Solution(
         schedule=(0, 1, 2, 3, 8, 9, 5, 6, 7, 4),
         initial_offsets={0: 0, 1: 8, 2: 0},
@@ -47,7 +49,7 @@ def test_pair_move_enables_official_improvement_blocked_by_spill_epoch() -> None
     graph, solution = _paired_fixture()
     baseline = evaluate_q3_solution(graph, solution, reuse_mode="official_literal")
     baseline.require_ok()
-    assert baseline.total_cycles == 200
+    assert baseline.total_cycles == 1000
 
     result = search_q3_paired_epoch_recolor(
         graph,
@@ -57,7 +59,7 @@ def test_pair_move_enables_official_improvement_blocked_by_spill_epoch() -> None
         max_spill_starts=8,
     )
     assert result.improved
-    assert result.best_official.total_cycles == 100
+    assert result.best_official.total_cycles == 500
     assert result.best_safe.ok
     assert result.best_move is not None
     assert result.best_move.target_buf == 2
