@@ -1,0 +1,63 @@
+name: Test CPMCM 2025 A Q3 Paired Epoch Recolor
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/q3_paired_epoch_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/test_q3_paired_epoch_recolor.py"
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_paired_epoch_recolor.py"
+      - ".github/workflows/test-cpmcm-2025-a-q3-paired-epoch-recolor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Synthetic paired epoch tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/experiments/test_q3_paired_epoch_recolor.py -q
+
+  conv0-probe:
+    needs: paired-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe paired residency move on saturated Conv0
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_paired_epoch_recolor.py \
+            --case Conv_Case0 \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out /tmp/q3-paired-conv0.json \
+            --recolor-rounds 24 \
+            --targets 6 \
+            --initial-starts 24 \
+            --spill-starts 8
+      - name: Upload paired epoch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-paired-epoch-conv0
+          path: /tmp/q3-paired-conv0.json
+          if-no-files-found: error
