@@ -28,7 +28,7 @@ class CriticalPipeSwapTrial:
     v: int
     pipe: str | None
     q2_valid: bool
-    safe_valid: bool
+    safe_valid: bool | None
     official_cycles: int | None
     safe_cycles: int | None
     changed_positions: int
@@ -97,9 +97,9 @@ def search_q3_critical_pipe_swaps(
 
     For each candidate u->v, every other current same-Pipe adjacency is frozen,
     while u->v is replaced by v->u. A stable topological sort then changes only
-    what is necessary to realize that local pipe swap. Acceptance still requires
-    strict Q2, residency-safe, and official-literal replay with unchanged traffic
-    and SPILL identity/order/count.
+    what is necessary to realize that local pipe swap. Candidate screening runs
+    strict Q2 then official timing first; the more expensive residency-safe replay
+    is required for every official-competitive candidate before it can be kept.
     """
 
     if max_candidates <= 0:
@@ -122,8 +122,6 @@ def search_q3_critical_pipe_swaps(
     )
     pipes = pipe_edges(solution, nodes)
     path_edges = list(zip(baseline_official.critical_path, baseline_official.critical_path[1:]))
-    # Prefer downstream critical pipe adjacencies first; they are closest to the
-    # terminal makespan and usually have less upstream schedule blast radius.
     candidates = [edge for edge in reversed(path_edges) if edge in pipes and edge not in fixed]
     candidates = candidates[:max_candidates]
 
@@ -158,16 +156,40 @@ def search_q3_critical_pipe_swaps(
             if tuple(spill.buf_id for spill in candidate.spills) != base_spills:
                 raise AssertionError("critical pipe swap changed spill victim identity/order")
 
+            official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
+            official.require_ok()
+            if official.total_cycles > best_official.total_cycles:
+                trials.append(
+                    CriticalPipeSwapTrial(
+                        u,
+                        v,
+                        pipe,
+                        True,
+                        None,
+                        official.total_cycles,
+                        None,
+                        changed,
+                        "residency-safe replay skipped: official score not competitive",
+                    )
+                )
+                continue
+
             safe = evaluate_q3_solution(graph, candidate, reuse_mode="residency_safe")
             if not safe.ok:
                 trials.append(
                     CriticalPipeSwapTrial(
-                        u, v, pipe, True, False, None, None, changed, "; ".join(safe.errors[:2])
+                        u,
+                        v,
+                        pipe,
+                        True,
+                        False,
+                        official.total_cycles,
+                        None,
+                        changed,
+                        "; ".join(safe.errors[:2]),
                     )
                 )
                 continue
-            official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
-            official.require_ok()
             trials.append(
                 CriticalPipeSwapTrial(
                     u, v, pipe, True, True, official.total_cycles, safe.total_cycles, changed
