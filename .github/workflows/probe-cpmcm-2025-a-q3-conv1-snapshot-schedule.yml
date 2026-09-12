@@ -30,6 +30,7 @@ jobs:
             problems/CPMCM/2025/A/experiments/benchmark_q3_priority_snapshot.py \
             problems/CPMCM/2025/A/experiments/q3_priority_rescheduler.py \
             problems/CPMCM/2025/A/experiments/q3_critical_pipe_swap.py \
+            problems/CPMCM/2025/A/experiments/q3_spill_gap_shift.py \
             problems/CPMCM/2025/A/experiments/benchmark_q3_schedule_snapshot.py
       - name: Probe saturated Conv1 schedule portfolio
         run: |
@@ -37,7 +38,8 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --snapshot problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json \
             --out /tmp/q3-conv1-snapshot-schedule.json \
-            --pipe-candidates 24
+            --pipe-candidates 24 \
+            --spill-candidates 8
       - name: Upload saturated schedule evidence
         uses: actions/upload-artifact@v4
         with:
