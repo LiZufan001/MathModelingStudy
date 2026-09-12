@@ -1,0 +1,43 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Snapshot Operators
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot-operator:
+    strategy:
+      fail-fast: false
+      matrix:
+        operator: [priority, critical_pipe, spill_gap]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile split operator benchmark
+        run: |
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q3_snapshot_operator.py
+      - name: Probe snapshot operator
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_snapshot_operator.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --snapshot problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json \
+            --operator "${{ matrix.operator }}" \
+            --out "/tmp/q3-conv1-${{ matrix.operator }}.json" \
+            --pipe-candidates 24 \
+            --spill-candidates 8
+      - name: Upload operator evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-${{ matrix.operator }}
+          path: /tmp/q3-conv1-${{ matrix.operator }}.json
+          if-no-files-found: error
