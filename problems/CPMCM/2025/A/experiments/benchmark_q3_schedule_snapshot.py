@@ -16,6 +16,7 @@ from benchmark_q3_priority_snapshot import _replay_snapshot
 from parser import load_case
 from q2_promoted import solve_q2_promoted
 from q2_validator import validate_q2_solution
+from q3_conv_greedy_recolor import optimize_q3_critical_recolor_greedy
 from q3_critical_pipe_swap import search_q3_critical_pipe_swaps
 from q3_priority_rescheduler import search_q3_priority_reschedule_portfolio
 from q3_spill_gap_shift import search_q3_critical_spill_gap_shifts
@@ -44,6 +45,7 @@ def main() -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--pipe-candidates", type=int, default=24)
     ap.add_argument("--spill-candidates", type=int, default=8)
+    ap.add_argument("--joint-recolor-rounds", type=int, default=3)
     args = ap.parse_args()
 
     snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
@@ -104,7 +106,7 @@ def main() -> int:
 
     composed_priority = None
     composed_pipe = None
-    final_candidates = [(second_name, second_solution, second_official, second_safe)]
+    composed_candidates = [(second_name, second_solution, second_official, second_safe)]
     if second_official.total_cycles < saturated_official.total_cycles:
         composed_priority = search_q3_priority_reschedule_portfolio(
             graph,
@@ -119,7 +121,7 @@ def main() -> int:
             baseline_official=second_official,
             baseline_safe=second_safe,
         )
-        final_candidates.extend(
+        composed_candidates.extend(
             [
                 (
                     "priority_after_second",
@@ -136,6 +138,33 @@ def main() -> int:
             ]
         )
     t5 = time.perf_counter()
+
+    third_name, third_solution, third_official, third_safe = min(
+        composed_candidates,
+        key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
+    )
+    joint_recolor = None
+    final_candidates = [(third_name, third_solution, third_official, third_safe)]
+    if (
+        args.joint_recolor_rounds > 0
+        and third_official.total_cycles < saturated_official.total_cycles
+    ):
+        joint_recolor = optimize_q3_critical_recolor_greedy(
+            graph,
+            third_solution,
+            max_rounds=args.joint_recolor_rounds,
+            max_targets=6,
+            max_starts=12,
+        )
+        final_candidates.append(
+            (
+                "shallow_recolor_after_schedule",
+                joint_recolor.final_solution,
+                joint_recolor.final_official,
+                joint_recolor.final_safe,
+            )
+        )
+    t6 = time.perf_counter()
 
     final_name, final_solution, final_official, final_safe = min(
         final_candidates,
@@ -174,6 +203,17 @@ def main() -> int:
             if composed_pipe is None
             else _candidate_payload("pipe_after_second", composed_pipe, second_official.total_cycles),
         },
+        "joint_recolor": None
+        if joint_recolor is None
+        else {
+            "input_source": third_name,
+            "input_official_cycles": third_official.total_cycles,
+            "accepted_rounds": joint_recolor.accepted_rounds,
+            "attempted_rounds": len(joint_recolor.rounds),
+            "official_cycles": joint_recolor.final_official.total_cycles,
+            "safe_cycles": joint_recolor.final_safe.total_cycles,
+            "improvement_cycles": third_official.total_cycles - joint_recolor.final_official.total_cycles,
+        },
         "final_source": final_name,
         "final_official_cycles": final_official.total_cycles,
         "final_safe_cycles": final_safe.total_cycles,
@@ -188,7 +228,8 @@ def main() -> int:
         "critical_pipe_seconds": round(t3 - t2, 6),
         "spill_gap_seconds": round(t4 - t3, 6),
         "composition_seconds": round(t5 - t4, 6),
-        "total_seconds": round(t5 - t0, 6),
+        "joint_recolor_seconds": round(t6 - t5, 6),
+        "total_seconds": round(t6 - t0, 6),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
