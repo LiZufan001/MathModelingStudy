@@ -18,6 +18,7 @@ from q2_promoted import solve_q2_promoted
 from q2_validator import validate_q2_solution
 from q3_critical_pipe_swap import search_q3_critical_pipe_swaps
 from q3_priority_rescheduler import search_q3_priority_reschedule_portfolio
+from q3_spill_gap_shift import search_q3_critical_spill_gap_shifts
 
 
 def _candidate_payload(name, result, baseline_official: int):
@@ -42,6 +43,7 @@ def main() -> int:
     ap.add_argument("--snapshot", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--pipe-candidates", type=int, default=24)
+    ap.add_argument("--spill-candidates", type=int, default=8)
     args = ap.parse_args()
 
     snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
@@ -72,47 +74,72 @@ def main() -> int:
     )
     t3 = time.perf_counter()
 
-    candidates = [
+    first_candidates = [
         ("baseline", saturated_solution, saturated_official, saturated_safe),
         ("priority", priority.best_solution, priority.best_official, priority.best_safe),
-        ("pipe", pipe.best_solution, pipe.best_official, pipe.best_safe),
+        ("critical_pipe", pipe.best_solution, pipe.best_official, pipe.best_safe),
     ]
-    _, first_solution, first_official, first_safe = min(
-        candidates,
+    first_name, first_solution, first_official, first_safe = min(
+        first_candidates,
         key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
     )
 
-    composed = None
-    if first_official.total_cycles < saturated_official.total_cycles:
-        priority2 = search_q3_priority_reschedule_portfolio(
-            graph,
-            first_solution,
-            baseline_official=first_official,
-            baseline_safe=first_safe,
-        )
-        pipe2 = search_q3_critical_pipe_swaps(
-            graph,
-            first_solution,
-            max_candidates=args.pipe_candidates,
-            baseline_official=first_official,
-            baseline_safe=first_safe,
-        )
-        composed_candidates = [
-            ("first", first_solution, first_official, first_safe),
-            ("priority_after_first", priority2.best_solution, priority2.best_official, priority2.best_safe),
-            ("pipe_after_first", pipe2.best_solution, pipe2.best_official, pipe2.best_safe),
-        ]
-        composed = min(
-            composed_candidates,
-            key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
-        )
+    gap = search_q3_critical_spill_gap_shifts(
+        graph,
+        first_solution,
+        max_spills=args.spill_candidates,
+        gap_radius=1,
+        baseline_official=first_official,
+        baseline_safe=first_safe,
+    )
     t4 = time.perf_counter()
+    second_candidates = [
+        (first_name, first_solution, first_official, first_safe),
+        ("spill_gap_after_first", gap.best_solution, gap.best_official, gap.best_safe),
+    ]
+    second_name, second_solution, second_official, second_safe = min(
+        second_candidates,
+        key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
+    )
 
-    final_name, final_solution, final_official, final_safe = (
-        composed if composed is not None else min(
-            candidates,
-            key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
+    composed_priority = None
+    composed_pipe = None
+    final_candidates = [(second_name, second_solution, second_official, second_safe)]
+    if second_official.total_cycles < saturated_official.total_cycles:
+        composed_priority = search_q3_priority_reschedule_portfolio(
+            graph,
+            second_solution,
+            baseline_official=second_official,
+            baseline_safe=second_safe,
         )
+        composed_pipe = search_q3_critical_pipe_swaps(
+            graph,
+            second_solution,
+            max_candidates=args.pipe_candidates,
+            baseline_official=second_official,
+            baseline_safe=second_safe,
+        )
+        final_candidates.extend(
+            [
+                (
+                    "priority_after_second",
+                    composed_priority.best_solution,
+                    composed_priority.best_official,
+                    composed_priority.best_safe,
+                ),
+                (
+                    "pipe_after_second",
+                    composed_pipe.best_solution,
+                    composed_pipe.best_official,
+                    composed_pipe.best_safe,
+                ),
+            ]
+        )
+    t5 = time.perf_counter()
+
+    final_name, final_solution, final_official, final_safe = min(
+        final_candidates,
+        key=lambda item: (item[2].total_cycles, item[3].total_cycles, item[0]),
     )
     final_q2 = validate_q2_solution(graph, final_solution)
     final_q2.require_ok()
@@ -129,6 +156,24 @@ def main() -> int:
         "saturated_safe_cycles": saturated_safe.total_cycles,
         "priority": _candidate_payload("priority", priority, saturated_official.total_cycles),
         "critical_pipe": _candidate_payload("critical_pipe", pipe, saturated_official.total_cycles),
+        "spill_gap": {
+            "input_source": first_name,
+            "input_official_cycles": first_official.total_cycles,
+            "critical_spill_count": len(gap.critical_spill_indices),
+            "best_shift": None if gap.best_shift is None else list(gap.best_shift),
+            "official_cycles": gap.best_official.total_cycles,
+            "safe_cycles": gap.best_safe.total_cycles,
+            "improvement_cycles": first_official.total_cycles - gap.best_official.total_cycles,
+            "trials": [asdict(trial) for trial in gap.trials],
+        },
+        "composition": {
+            "priority": None
+            if composed_priority is None
+            else _candidate_payload("priority_after_second", composed_priority, second_official.total_cycles),
+            "critical_pipe": None
+            if composed_pipe is None
+            else _candidate_payload("pipe_after_second", composed_pipe, second_official.total_cycles),
+        },
         "final_source": final_name,
         "final_official_cycles": final_official.total_cycles,
         "final_safe_cycles": final_safe.total_cycles,
@@ -141,8 +186,9 @@ def main() -> int:
         "snapshot_replay_seconds": round(t1 - t0, 6),
         "priority_seconds": round(t2 - t1, 6),
         "critical_pipe_seconds": round(t3 - t2, 6),
-        "composition_seconds": round(t4 - t3, 6),
-        "total_seconds": round(t4 - t0, 6),
+        "spill_gap_seconds": round(t4 - t3, 6),
+        "composition_seconds": round(t5 - t4, 6),
+        "total_seconds": round(t5 - t0, 6),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
