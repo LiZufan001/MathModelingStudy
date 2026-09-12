@@ -31,8 +31,8 @@ class CriticalSpillSwitchCandidate:
     right_run_cycles: int
 
     @property
-    def bottleneck_cycles(self) -> int:
-        return min(self.left_run_cycles, self.right_run_cycles)
+    def combined_run_cycles(self) -> int:
+        return self.left_run_cycles + self.right_run_cycles
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,15 +74,16 @@ def critical_spill_switch_candidates(
     *,
     max_switches: int = 8,
 ) -> tuple[CriticalSpillSwitchCandidate, ...]:
-    """Rank critical SPILL_OUT->SPILL_IN pipe switches by adjacent run weight.
+    """Rank critical SPILL_OUT->SPILL_IN switches by serialized run weight.
 
     Conv1's saturated critical path is dominated by long MTE3 and MTE2 runs that
-    are stitched together by a small number of SPILL dependencies.  A switch is
+    are stitched together by a small number of SPILL dependencies. A switch is
     interesting when the matching SPILL_OUT (MTE3) -> SPILL_IN (MTE2) edge lies
-    directly on the official critical path.  We rank it by the shorter of the two
-    contiguous pipe-run cycle totals, then by their combined cycles, so a switch
-    separating two long serialized transfer regions is tried before a merely
-    downstream switch.
+    directly on the official critical path. Rank primarily by the combined cycle
+    weight of the contiguous MTE3 run ending at OUT and MTE2 run starting at IN.
+    This deliberately surfaces a switch adjacent to one enormous serialized run
+    even when the run on the other side is short; those are exactly the boundaries
+    that downstream-only and min-side ranking can miss.
     """
 
     if max_switches <= 0:
@@ -129,8 +130,8 @@ def critical_spill_switch_candidates(
         )
         ranked.append(
             (
-                -candidate.bottleneck_cycles,
-                -(left_cycles + right_cycles),
+                -candidate.combined_run_cycles,
+                -max(left_cycles, right_cycles),
                 spill_index,
                 candidate,
             )
@@ -171,7 +172,7 @@ def search_q3_critical_spill_switch_bubbles(
     For each ranked critical SPILL_OUT(MTE3)->SPILL_IN(MTE2) edge, try three
     fixed-traffic schedule perturbations: move the OUT one MTE3 slot earlier,
     move the IN one MTE2 slot earlier, and move both. Every other same-Pipe
-    adjacency remains frozen.  Original/SPILL/residency-safe correctness edges
+    adjacency remains frozen. Original/SPILL/residency-safe correctness edges
     remain mandatory, and no candidate is accepted before strict Q2, official,
     and residency-safe replay with identical SPILL records and extra traffic.
     """
