@@ -1,0 +1,66 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Greedy Spill Switch
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_fourth_switch_recipe.json"
+      - "problems/CPMCM/2025/A/experiments/q3_conv_greedy_spill_switch.py"
+      - "problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_spill_switch.py"
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_greedy_spill_switch_snapshot.py"
+      - ".github/workflows/probe-cpmcm-2025-a-q3-conv1-greedy-spill-switch.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  greedy-spill-switch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download strict three-switch solution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-fourth-switch
+          path: /tmp/three-switch-source
+          github-token: ${{ github.token }}
+          repository: LiZufan001/MathModelingStudy
+          run-id: 34683646610
+      - name: Synthetic greedy switch gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_recipe.py \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_spill_switch.py \
+            -q
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q3_greedy_spill_switch_snapshot.py
+      - name: Replay fourth switch then greedily search critical switches
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_greedy_spill_switch_snapshot.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --solution /tmp/three-switch-source/q3-conv1-three-switch-solution.json \
+            --recipe problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_fourth_switch_recipe.json \
+            --solution-out /tmp/q3-conv1-greedy-switch-solution.json \
+            --out /tmp/q3-conv1-greedy-switch.json \
+            --max-rounds 4 \
+            --max-switches 8
+      - name: Upload greedy switch solution and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-greedy-spill-switch
+          path: |
+            /tmp/q3-conv1-greedy-switch-solution.json
+            /tmp/q3-conv1-greedy-switch.json
+          if-no-files-found: error
