@@ -1,0 +1,51 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Saturated Batch Greedy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_saturated_batch_greedy.py"
+      - ".github/workflows/probe-cpmcm-2025-a-q3-conv1-saturated-batch-greedy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  saturated-batch-greedy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Synthetic batch and greedy gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_batch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_greedy_spill_switch.py \
+            -q
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q3_saturated_batch_greedy.py
+      - name: Replay saturated Conv1 then batch and greedy polish
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_saturated_batch_greedy.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --snapshot problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json \
+            --out /tmp/q3-conv1-saturated-batch-greedy.json \
+            --batch-prefixes 2,4,8 \
+            --max-switches 8 \
+            --greedy-rounds 2
+      - name: Upload saturated batch greedy evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-saturated-batch-greedy
+          path: /tmp/q3-conv1-saturated-batch-greedy.json
+          if-no-files-found: error
