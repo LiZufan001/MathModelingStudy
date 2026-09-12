@@ -21,7 +21,7 @@ class SpillGapShiftTrial:
     old_gap: int
     new_gap: int
     q2_valid: bool
-    safe_valid: bool
+    safe_valid: bool | None
     official_cycles: int | None
     safe_cycles: int | None
     changed_positions: int
@@ -152,8 +152,9 @@ def search_q3_critical_spill_gap_shifts(
     The SPILL tuple, victim, new_offset, count, and official extra traffic are
     unchanged. Only OUT/IN placement in the global sequence moves. Unlike the
     production rescheduler, this can deliberately change which original uses lie
-    before versus after the spill boundary, so every proposal is accepted only
-    after complete Q2, residency-safe, and official replay.
+    before versus after the spill boundary. Proposals run strict Q2 and official
+    replay first; only official-competitive moves pay for residency-safe replay,
+    which remains mandatory before any move can be kept.
     """
 
     if max_spills <= 0 or gap_radius <= 0:
@@ -222,17 +223,42 @@ def search_q3_critical_spill_gap_shifts(
                 if tuple((s.buf_id, s.new_offset) for s in candidate.spills) != base_spills:
                     raise AssertionError("spill gap shift changed spill record identity/order/offset")
 
+                official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
+                official.require_ok()
+                if official.total_cycles > best_official.total_cycles:
+                    trials.append(
+                        SpillGapShiftTrial(
+                            spill_index,
+                            spill.buf_id,
+                            old_gap,
+                            new_gap,
+                            True,
+                            None,
+                            official.total_cycles,
+                            None,
+                            changed,
+                            "residency-safe replay skipped: official score not competitive",
+                        )
+                    )
+                    continue
+
                 safe = evaluate_q3_solution(graph, candidate, reuse_mode="residency_safe")
                 if not safe.ok:
                     trials.append(
                         SpillGapShiftTrial(
-                            spill_index, spill.buf_id, old_gap, new_gap, True, False,
-                            None, None, changed, "; ".join(safe.errors[:2]),
+                            spill_index,
+                            spill.buf_id,
+                            old_gap,
+                            new_gap,
+                            True,
+                            False,
+                            official.total_cycles,
+                            None,
+                            changed,
+                            "; ".join(safe.errors[:2]),
                         )
                     )
                     continue
-                official = evaluate_q3_solution(graph, candidate, reuse_mode="official_literal")
-                official.require_ok()
                 trials.append(
                     SpillGapShiftTrial(
                         spill_index, spill.buf_id, old_gap, new_gap, True, True,
