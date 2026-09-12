@@ -1,0 +1,41 @@
+name: Probe CPMCM 2025 A Q2 Transfer-Aware Conv1 Parallel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transfer-policy:
+    strategy:
+      fail-fast: false
+      matrix:
+        policy: [min_total_transfer, min_mte2_spill_in, min_mte3_spill_out]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile split transfer benchmark
+        run: |
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q2_transfer_policy.py
+      - name: Probe transfer policy
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q2_transfer_policy.py \
+            --case Conv_Case1 \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --policy "${{ matrix.policy }}" \
+            --out "/tmp/q2-${{ matrix.policy }}.json"
+      - name: Upload policy evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q2-${{ matrix.policy }}
+          path: /tmp/q2-${{ matrix.policy }}.json
+          if-no-files-found: error
