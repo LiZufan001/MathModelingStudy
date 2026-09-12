@@ -1,0 +1,38 @@
+name: Probe CPMCM 2025 A Q2 Transfer-Aware Conv1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conv1-transfer-aware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile transfer-aware benchmark
+        run: |
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/q2_transfer_aware_window.py \
+            problems/CPMCM/2025/A/experiments/benchmark_q2_transfer_aware.py
+      - name: Probe equal-Q2 transfer-aware Conv1 portfolio
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q2_transfer_aware.py \
+            --case Conv_Case1 \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out /tmp/q2-transfer-aware-conv1.json
+      - name: Upload transfer-aware evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q2-transfer-aware-conv1
+          path: /tmp/q2-transfer-aware-conv1.json
+          if-no-files-found: error
