@@ -65,10 +65,14 @@ def test_lower_official_traffic_still_dominates_transfer_cycles() -> None:
 
 
 def test_fewer_victims_still_dominates_transfer_cycles() -> None:
-    pool = AddressPool(12)
+    # Fully occupy the pool so every 4-byte placement must spill.  Offset 0
+    # spills two 2-byte victims (traffic 32+32); offset 4 spills one 4-byte
+    # victim (traffic 64).  Equal traffic means victim count must beat even an
+    # arbitrarily attractive transfer-cycle score on the two-victim option.
+    pool = AddressPool(8)
     pool.reserve_at(1, 0, 2)
     pool.reserve_at(2, 2, 2)
-    pool.reserve_at(3, 8, 4)
+    pool.reserve_at(3, 4, 4)
     traffic = {1: 32, 2: 32, 3: 64}
     distances = {1: 100, 2: 100, 3: 1}
 
