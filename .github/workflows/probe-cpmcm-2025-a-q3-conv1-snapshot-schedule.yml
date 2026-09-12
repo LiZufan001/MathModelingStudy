@@ -1,0 +1,46 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Snapshot Schedule
+
+on:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conv1-snapshot-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile snapshot schedule probes
+        run: |
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/benchmark_q3_priority_snapshot.py \
+            problems/CPMCM/2025/A/experiments/q3_priority_rescheduler.py \
+            problems/CPMCM/2025/A/experiments/q3_critical_pipe_swap.py \
+            problems/CPMCM/2025/A/experiments/benchmark_q3_schedule_snapshot.py
+      - name: Probe saturated Conv1 schedule portfolio
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_schedule_snapshot.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --snapshot problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json \
+            --out /tmp/q3-conv1-snapshot-schedule.json \
+            --pipe-candidates 24
+      - name: Upload saturated schedule evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-snapshot-schedule
+          path: /tmp/q3-conv1-snapshot-schedule.json
+          if-no-files-found: error
