@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[1] / "src"
@@ -57,22 +58,52 @@ class FastOfficialScore:
     reuse_edge_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class _AllocMeta:
+    node_id: int
+    buf_id: int
+    memory_type: str
+    size: int
+    start: int
+
+
+@dataclass(frozen=True, slots=True)
+class _TargetMoveContext:
+    alloc_id: int
+    buf_id: int
+    memory_type: str
+    size: int
+    old_start: int
+    owner_before: tuple[int | None, ...]
+    first_after_alloc: tuple[int | None, ...]
+
+
 @dataclass(slots=True)
 class OfficialFastContext:
     """Cached Appendix-C timing context for fixed schedule/SPILL decisions.
 
-    A local initial-offset move changes only literal address-reuse edges. Original
-    DAG, SPILL dependencies, Pipe serialization, node cycles, and schedule positions
-    remain immutable. Candidate screening can therefore reuse all static timing
-    predecessors and rebuild only literal reuse edges. Any candidate that can win
-    this fast screen is still replayed by the full Q2/Q3 validators before it is
-    accepted.
+    For the baseline placement, literal reuse-edge support is replayed once. A
+    single initial-offset move can then change only the moved ALLOC's incoming
+    reuse edges and, for bytes entering/leaving its range, the first later ALLOC
+    touching each byte. After that later ALLOC overwrites the byte, baseline and
+    candidate last-owner state are identical again. Candidate screening therefore
+    updates only those edge-support counts instead of replaying every ALLOC byte.
+
+    Any candidate that can win this exact fast screen is still replayed by the
+    full Q2/Q3 validators before it is accepted.
     """
 
     schedule: tuple[int, ...]
     pos: dict[int, int]
     static_predecessors: dict[int, tuple[int, ...]]
     cycles: dict[int, int]
+    baseline_offsets: dict[int, int]
+    allocs: tuple[_AllocMeta, ...]
+    alloc_index_by_buf: dict[int, int]
+    free_op_by_buf: dict[int, int]
+    baseline_reuse_support: dict[tuple[int, int], int]
+    baseline_dynamic_predecessors: dict[int, tuple[int, ...]]
+    target_move_contexts: dict[int, _TargetMoveContext] = field(default_factory=dict)
 
     @classmethod
     def build(cls, graph: ComputeGraph, solution: Q2Solution) -> "OfficialFastContext":
@@ -93,33 +124,245 @@ class OfficialFastContext:
                     f"{pos[u]} >= {pos[v]}"
                 )
             predecessors[v].append(u)
+
+        allocs: list[_AllocMeta] = []
+        alloc_index_by_buf: dict[int, int] = {}
+        free_op_by_buf: dict[int, int] = {}
+        for alloc in sorted(
+            (node for node in graph.nodes.values() if node.is_alloc),
+            key=lambda node: pos[node.id],
+        ):
+            if alloc.buf_id is None or alloc.memory_type is None or alloc.size is None:
+                raise ValueError(f"ALLOC node {alloc.id} has incomplete metadata")
+            start = solution.initial_offsets[alloc.buf_id]
+            capacity = CACHE_CAPACITIES[alloc.memory_type]
+            if start < 0 or start + alloc.size > capacity:
+                raise ValueError(f"buffer {alloc.buf_id} initial range exceeds {alloc.memory_type}")
+            alloc_index_by_buf[alloc.buf_id] = len(allocs)
+            allocs.append(
+                _AllocMeta(
+                    alloc.id,
+                    alloc.buf_id,
+                    alloc.memory_type,
+                    alloc.size,
+                    start,
+                )
+            )
+            free = graph.free_node_for_buffer(alloc.buf_id)
+            if free is not None:
+                free_op_by_buf[alloc.buf_id] = free.id
+
+        last_owner: dict[str, list[int | None]] = {
+            memory_type: [None] * capacity
+            for memory_type, capacity in CACHE_CAPACITIES.items()
+        }
+        support: dict[tuple[int, int], int] = {}
+        for alloc in allocs:
+            owners = last_owner[alloc.memory_type]
+            start = alloc.start
+            end = start + alloc.size
+            for previous_buf, count in Counter(owners[start:end]).items():
+                if previous_buf is None:
+                    continue
+                free_id = free_op_by_buf.get(previous_buf)
+                if free_id is None:
+                    raise ValueError(f"buffer {previous_buf} lacks FREE")
+                if pos[free_id] < pos[alloc.node_id]:
+                    edge = (free_id, alloc.node_id)
+                    support[edge] = support.get(edge, 0) + count
+            owners[start:end] = [alloc.buf_id] * alloc.size
+
+        dynamic_predecessors: dict[int, list[int]] = {}
+        for u, v in support:
+            dynamic_predecessors.setdefault(v, []).append(u)
+
         return cls(
             tuple(solution.schedule),
             pos,
             {node_id: tuple(preds) for node_id, preds in predecessors.items()},
             {node_id: node_cycles(node) for node_id, node in nodes.items()},
+            dict(solution.initial_offsets),
+            tuple(allocs),
+            alloc_index_by_buf,
+            free_op_by_buf,
+            support,
+            {node_id: tuple(preds) for node_id, preds in dynamic_predecessors.items()},
         )
 
-    def score(self, graph: ComputeGraph, solution: Q2Solution) -> FastOfficialScore:
-        if tuple(solution.schedule) != self.schedule:
-            raise ValueError("fast official context requires the frozen schedule")
-        reuse = official_literal_reuse_edges(graph, solution, self.pos)
-        dynamic_predecessors: dict[int, list[int]] = {}
-        for u, v in reuse:
-            dynamic_predecessors.setdefault(v, []).append(u)
+    @property
+    def baseline_reuse_edges(self) -> frozenset[tuple[int, int]]:
+        return frozenset(self.baseline_reuse_support)
 
+    def _edge_for_owner(self, owner: int | None, alloc_id: int) -> tuple[int, int] | None:
+        if owner is None:
+            return None
+        free_id = self.free_op_by_buf.get(owner)
+        if free_id is None:
+            raise ValueError(f"buffer {owner} lacks FREE")
+        if self.pos[free_id] < self.pos[alloc_id]:
+            return free_id, alloc_id
+        return None
+
+    def _target_context(self, buf_id: int) -> _TargetMoveContext:
+        cached = self.target_move_contexts.get(buf_id)
+        if cached is not None:
+            return cached
+        target_index = self.alloc_index_by_buf.get(buf_id)
+        if target_index is None:
+            raise ValueError(f"buffer {buf_id} lacks initial ALLOC")
+        target = self.allocs[target_index]
+        capacity = CACHE_CAPACITIES[target.memory_type]
+
+        owner_before: list[int | None] = [None] * capacity
+        for alloc in self.allocs[:target_index]:
+            if alloc.memory_type != target.memory_type:
+                continue
+            owner_before[alloc.start : alloc.start + alloc.size] = [alloc.buf_id] * alloc.size
+
+        first_after: list[int | None] = [None] * capacity
+        unresolved = capacity
+        for alloc in self.allocs[target_index + 1 :]:
+            if alloc.memory_type != target.memory_type:
+                continue
+            for address in range(alloc.start, alloc.start + alloc.size):
+                if first_after[address] is None:
+                    first_after[address] = alloc.node_id
+                    unresolved -= 1
+            if unresolved == 0:
+                break
+
+        context = _TargetMoveContext(
+            target.node_id,
+            target.buf_id,
+            target.memory_type,
+            target.size,
+            target.start,
+            tuple(owner_before),
+            tuple(first_after),
+        )
+        self.target_move_contexts[buf_id] = context
+        return context
+
+    def _timing_score(
+        self,
+        reuse_edge_count: int,
+        *,
+        full_dynamic: dict[int, tuple[int, ...]] | None = None,
+        overrides: dict[int, tuple[int, ...]] | None = None,
+    ) -> FastOfficialScore:
         finish_times: dict[int, int] = {}
         total_cycles = 0
         for node_id in self.schedule:
             start = 0
             for pred in self.static_predecessors[node_id]:
                 start = max(start, finish_times[pred])
-            for pred in dynamic_predecessors.get(node_id, ()):
+            if full_dynamic is not None:
+                dynamic = full_dynamic.get(node_id, ())
+            elif overrides is not None and node_id in overrides:
+                dynamic = overrides[node_id]
+            else:
+                dynamic = self.baseline_dynamic_predecessors.get(node_id, ())
+            for pred in dynamic:
                 start = max(start, finish_times[pred])
             finish = start + self.cycles[node_id]
             finish_times[node_id] = finish
             total_cycles = max(total_cycles, finish)
-        return FastOfficialScore(total_cycles, len(reuse))
+        return FastOfficialScore(total_cycles, reuse_edge_count)
+
+    def _score_single_move(self, buf_id: int, new_start: int) -> FastOfficialScore:
+        target = self._target_context(buf_id)
+        capacity = CACHE_CAPACITIES[target.memory_type]
+        new_end = new_start + target.size
+        if new_start < 0 or new_end > capacity:
+            raise ValueError(f"buffer {buf_id} initial range exceeds {target.memory_type}")
+        old_start = target.old_start
+        old_end = old_start + target.size
+        deltas: dict[tuple[int, int], int] = {}
+
+        def adjust(owner: int | None, alloc_id: int, amount: int) -> None:
+            if amount == 0:
+                return
+            edge = self._edge_for_owner(owner, alloc_id)
+            if edge is not None:
+                deltas[edge] = deltas.get(edge, 0) + amount
+
+        for owner, count in Counter(target.owner_before[old_start:old_end]).items():
+            adjust(owner, target.alloc_id, -count)
+        for owner, count in Counter(target.owner_before[new_start:new_end]).items():
+            adjust(owner, target.alloc_id, count)
+
+        for address in range(old_start, old_end):
+            if new_start <= address < new_end:
+                continue
+            later_alloc = target.first_after_alloc[address]
+            if later_alloc is None:
+                continue
+            adjust(target.buf_id, later_alloc, -1)
+            adjust(target.owner_before[address], later_alloc, 1)
+        for address in range(new_start, new_end):
+            if old_start <= address < old_end:
+                continue
+            later_alloc = target.first_after_alloc[address]
+            if later_alloc is None:
+                continue
+            adjust(target.owner_before[address], later_alloc, -1)
+            adjust(target.buf_id, later_alloc, 1)
+
+        overrides: dict[int, set[int]] = {}
+        reuse_edge_count = len(self.baseline_reuse_support)
+        for edge, delta in deltas.items():
+            if delta == 0:
+                continue
+            baseline_count = self.baseline_reuse_support.get(edge, 0)
+            candidate_count = baseline_count + delta
+            if candidate_count < 0:
+                raise AssertionError(
+                    f"incremental reuse support became negative for edge {edge}: "
+                    f"{baseline_count} + {delta}"
+                )
+            before = baseline_count > 0
+            after = candidate_count > 0
+            if before == after:
+                continue
+            u, v = edge
+            preds = overrides.setdefault(v, set(self.baseline_dynamic_predecessors.get(v, ())))
+            if after:
+                preds.add(u)
+                reuse_edge_count += 1
+            else:
+                preds.discard(u)
+                reuse_edge_count -= 1
+
+        return self._timing_score(
+            reuse_edge_count,
+            overrides={node_id: tuple(preds) for node_id, preds in overrides.items()},
+        )
+
+    def score(self, graph: ComputeGraph, solution: Q2Solution) -> FastOfficialScore:
+        if tuple(solution.schedule) != self.schedule:
+            raise ValueError("fast official context requires the frozen schedule")
+        if solution.initial_offsets.keys() != self.baseline_offsets.keys():
+            reuse = official_literal_reuse_edges(graph, solution, self.pos)
+        else:
+            changed = [
+                buf_id
+                for buf_id, old_start in self.baseline_offsets.items()
+                if solution.initial_offsets[buf_id] != old_start
+            ]
+            if not changed:
+                return self._timing_score(len(self.baseline_reuse_support))
+            if len(changed) == 1:
+                buf_id = changed[0]
+                return self._score_single_move(buf_id, solution.initial_offsets[buf_id])
+            reuse = official_literal_reuse_edges(graph, solution, self.pos)
+
+        dynamic_predecessors: dict[int, list[int]] = {}
+        for u, v in reuse:
+            dynamic_predecessors.setdefault(v, []).append(u)
+        return self._timing_score(
+            len(reuse),
+            full_dynamic={node_id: tuple(preds) for node_id, preds in dynamic_predecessors.items()},
+        )
 
 
 def critical_reuse_targets(
@@ -128,6 +371,7 @@ def critical_reuse_targets(
     *,
     max_targets: int = 6,
     official_timing: Q3TimingResult | None = None,
+    reuse_edges: frozenset[tuple[int, int]] | set[tuple[int, int]] | None = None,
 ) -> tuple[int, ...]:
     if max_targets <= 0:
         return ()
@@ -136,7 +380,7 @@ def critical_reuse_targets(
         timing = evaluate_q3_solution(graph, solution, reuse_mode="official_literal")
         timing.require_ok()
     pos = {node_id: i for i, node_id in enumerate(solution.schedule)}
-    reuse = official_literal_reuse_edges(graph, solution, pos)
+    reuse = set(reuse_edges) if reuse_edges is not None else official_literal_reuse_edges(graph, solution, pos)
     path_edges = list(zip(timing.critical_path, timing.critical_path[1:]))
     out: list[int] = []
     seen: set[int] = set()
@@ -258,12 +502,22 @@ def move_initial_offset(solution: Q2Solution, buf_id: int, new_offset: int) -> Q
     return Q2Solution(solution.schedule, offsets, solution.spills)
 
 
-def search_q3_critical_recolor(graph: ComputeGraph, solution: Q2Solution, *, max_targets: int = 6, max_starts: int = 12) -> LocalRecolorSearchResult:
+def search_q3_critical_recolor(
+    graph: ComputeGraph,
+    solution: Q2Solution,
+    *,
+    max_targets: int = 6,
+    max_starts: int = 12,
+    baseline_official: Q3TimingResult | None = None,
+    baseline_safe: Q3TimingResult | None = None,
+) -> LocalRecolorSearchResult:
     base_q2 = validate_q2_solution(graph, solution)
     base_q2.require_ok()
-    baseline_safe = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
+    if baseline_safe is None:
+        baseline_safe = evaluate_q3_solution(graph, solution, reuse_mode="residency_safe")
     baseline_safe.require_ok()
-    baseline_official = evaluate_q3_solution(graph, solution, reuse_mode="official_literal")
+    if baseline_official is None:
+        baseline_official = evaluate_q3_solution(graph, solution, reuse_mode="official_literal")
     baseline_official.require_ok()
     base_spill_buffers = tuple(spill.buf_id for spill in solution.spills)
 
@@ -274,7 +528,13 @@ def search_q3_critical_recolor(graph: ComputeGraph, solution: Q2Solution, *, max
     if baseline_fast.reuse_edge_count != baseline_official.reuse_edge_count:
         raise AssertionError("cached official scorer disagrees with baseline reuse-edge count")
 
-    targets = critical_reuse_targets(graph, solution, max_targets=max_targets, official_timing=baseline_official)
+    targets = critical_reuse_targets(
+        graph,
+        solution,
+        max_targets=max_targets,
+        official_timing=baseline_official,
+        reuse_edges=fast_context.baseline_reuse_edges,
+    )
     best_solution = solution
     best_safe = baseline_safe
     best_official = baseline_official
@@ -314,12 +574,14 @@ def search_q3_critical_recolor(graph: ComputeGraph, solution: Q2Solution, *, max
         raise AssertionError("local recolor changed spill count")
     if tuple(spill.buf_id for spill in best_solution.spills) != base_spill_buffers:
         raise AssertionError("local recolor changed spill victim identity/order")
-    final_official = evaluate_q3_solution(graph, best_solution, reuse_mode="official_literal")
-    final_official.require_ok()
-    final_safe = evaluate_q3_solution(graph, best_solution, reuse_mode="residency_safe")
-    final_safe.require_ok()
-    if final_official.total_cycles != best_official.total_cycles:
-        raise AssertionError("final official replay disagrees with selected candidate")
-    if final_safe.total_cycles != best_safe.total_cycles:
-        raise AssertionError("final safe replay disagrees with selected candidate")
-    return LocalRecolorSearchResult(solution, baseline_official, baseline_safe, best_solution, final_official, final_safe, targets, tuple(trials))
+
+    return LocalRecolorSearchResult(
+        solution,
+        baseline_official,
+        baseline_safe,
+        best_solution,
+        best_official,
+        best_safe,
+        targets,
+        tuple(trials),
+    )
