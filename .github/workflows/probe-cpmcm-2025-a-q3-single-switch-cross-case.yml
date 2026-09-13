@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Conv1 Top4 After Spill 6334
+name: Probe CPMCM 2025 A Q3 Conv1 Cycle-Aware Exchange
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-top4-after-6334:
+  conv1-cycle-aware-exchange:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,32 +25,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download saturated spill 6334 checkpoint
+      - name: Download single-switch saturated Conv1 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-targeted-6334
+          name: cpmcm-2025-a-q3-conv1-top4-after-6334
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34773483500
-      - name: Probe gates
+          run-id: 34773656926
+      - name: Cycle-aware gates
         run: |
-          python -m pip install --disable-pip-version-check pytest
-          python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
-          python -m py_compile problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py
-      - name: Probe Conv1 top4 single-switch once
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/q3_cycle_aware_spill_exchange.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_cycle_aware_exchange_checkpoint.py
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          exp = Path('problems/CPMCM/2025/A/experiments').resolve()
+          sys.path.insert(0, str(exp))
+          from q3_cycle_aware_spill_exchange import _find_path
+          assert _find_path({1, 2, 3}, {(1, 2), (2, 3)}, 1, 3) == (1, 2, 3)
+          assert _find_path({1, 2, 3}, {(1, 2)}, 1, 3) is None
+          PY
+      - name: Probe spill 6565 cycle-aware two-edge exchange
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_cycle_aware_exchange_checkpoint.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/Problem3 \
-            --out-dir /tmp/q3-conv1-top4-after-6334 \
-            --max-switches 4 \
+            --input-dir /tmp/source/next \
+            --out-dir /tmp/q3-conv1-cycle-aware \
+            --max-targets 1 \
+            --max-blockers-per-target 8 \
             --expected-official 3765227
-      - name: Upload Conv1 top4 evidence
+      - name: Upload Conv1 cycle-aware evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-top4-after-6334
-          path: /tmp/q3-conv1-top4-after-6334
+          name: cpmcm-2025-a-q3-conv1-cycle-aware
+          path: /tmp/q3-conv1-cycle-aware
           if-no-files-found: warn
