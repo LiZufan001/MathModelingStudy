@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Conv1 Single-Switch And Cycle Witness
+name: Continue CPMCM 2025 A Q3 Conv1 Single-Switch Checkpoint
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-bounded-probe:
+  conv1-single-switch-continuation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,45 +25,35 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download accepted Conv1 Problem3 output
+      - name: Download Conv1 top4 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-formal-acceptance
+          name: cpmcm-2025-a-q3-conv1-bounded-probe
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34747404506
-      - name: Probe gates
+          run-id: 34749221776
+      - name: Continuation gates
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
           python -m py_compile \
             problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
-            problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py
-      - name: Probe Conv1 top4 single-switch
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
+      - name: Continue Conv1 for up to four checkpointed rounds
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/Conv_Case1 \
-            --out-dir /tmp/q3-conv1-single-switch-top4 \
+            --input-dir /tmp/source/q3-conv1-single-switch-top4/next \
+            --out-dir /tmp/q3-conv1-single-switch-continuation \
             --max-switches 4 \
-            --expected-official 3767326
-      - name: Diagnose Conv1 blocked batch prefixes
-        run: |
-          python problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py \
-            --data-dir problems/CPMCM/2025/A/data/csv \
-            --case Conv_Case1 \
-            --input-dir /tmp/source/Conv_Case1 \
-            --out /tmp/q3-conv1-cycle-blockers.json \
-            --max-switches 16 \
-            --prefix-sizes 1,2,4,8,11
-      - name: Upload Conv1 bounded evidence
+            --max-rounds 4 \
+            --expected-official 3767174
+      - name: Upload Conv1 continuation checkpoints
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-bounded-probe
-          path: |
-            /tmp/q3-conv1-single-switch-top4
-            /tmp/q3-conv1-cycle-blockers.json
+          name: cpmcm-2025-a-q3-conv1-single-switch-continuation
+          path: /tmp/q3-conv1-single-switch-continuation
           if-no-files-found: warn
