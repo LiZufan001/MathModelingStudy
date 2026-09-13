@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Conv1 Coordinate Descent
+name: Probe CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-coordinate-descent:
+  conv1-cycle-filtered-batch:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,39 +25,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download current Conv1 checkpoint
+      - name: Download coordinate-saturated Conv1 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-aware
+          name: cpmcm-2025-a-q3-conv1-coordinate
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34773837415
-      - name: Coordinate probe gates
+          run-id: 34774088910
+      - name: Cycle-filtered batch gates
         run: |
           python -m py_compile \
-            problems/CPMCM/2025/A/experiments/probe_q3_checkpoint_coordinate_descent.py \
-            problems/CPMCM/2025/A/src/q3_official_optimizer.py \
-            problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py \
-            problems/CPMCM/2025/A/src/q3_official_spill_optimizer.py
-      - name: Probe bounded coordinate descent
+            problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py \
+            problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py
+      - name: Probe cycle-filtered critical-SPILL prefixes
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_checkpoint_coordinate_descent.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
             --input-dir /tmp/source/next \
-            --out-dir /tmp/q3-conv1-coordinate \
+            --out-dir /tmp/q3-conv1-cycle-filtered-batch \
             --expected-official 3765227 \
-            --core-max-rounds 1 \
-            --recolor-max-rounds 2 \
-            --recolor-max-targets 6 \
-            --recolor-max-starts 12 \
-            --spill-max-rounds 4 \
-            --spill-max-switches 64
-      - name: Upload Conv1 coordinate evidence
+            --max-switches 16
+      - name: Upload Conv1 cycle-filtered batch evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-coordinate
-          path: /tmp/q3-conv1-coordinate
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-batch
+          path: /tmp/q3-conv1-cycle-filtered-batch
           if-no-files-found: warn
