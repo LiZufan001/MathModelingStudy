@@ -42,6 +42,8 @@ Q1 baseline 的完整结果与历史证据见 [`results/q1_baseline/README.md`](
 - `src/q3_spill_batch_optimizer.py`：fresh-rerank critical-SPILL batch 局部搜索；
 - `src/q3_official_spill_optimizer.py`：formal core + spill-batch 的稳定组合入口；
 - `src/export_q3_formal_fixed_traffic.py`：输出正式 `Problem3/<case>_schedule|memory|spill.txt`；
+- `experiments/q3_critical_spill_switch.py`：critical-SPILL single-switch bubble 邻域；
+- `experiments/probe_q3_single_switch_saturation.py`：checkpointed single-switch 饱和搜索；
 - `experiments/reconcile_q3_refined_frontier.py`：把 fixed-traffic evidence 与已有 trade-off 重新做 strict-valid-only Pareto reconciliation；
 - `tests/test_q3_*`：evaluator、official optimizer、spill-batch、formal wrapper 与 frontier reconciliation 回归。
 
@@ -72,12 +74,12 @@ Q3 主目标按 `official_literal_cycles` 排序，`residency_safe` 只作为硬
 | Matmul_Case1 | **1,531,946** | 1,669,574 | 430,208 |
 | FlashAttention_Case0 | **187,945** | 204,875 | 54,016 |
 | FlashAttention_Case1 | **962,022** | 1,026,634 | 242,552 |
-| Conv_Case0 | **597,969** | 787,783 | 177,904 |
+| Conv_Case0 | **595,302** | 789,619 | 177,904 |
 | Conv_Case1 | **3,767,326** | 4,112,665 | 721,464 |
 
-六组 critical-SPILL batch 均已到首个 no-improvement round；这是当前算子族的**局部饱和**，不是全局最优证明。Conv1 `3,767,326` 已由 deterministic saturated shortcut 与完整 promoted-Q2 -> deep formal chain 独立复现。
+六组 critical-SPILL batch 均已到首个 no-improvement round；这是该 batch 算子族的**局部饱和**，不是全局最优证明。Conv0 在 batch 终点 `597,969` 后再用 checkpointed single-switch bubble 降到 `595,302`，随后该 `max_switches=4` 邻域 no-op；正式 acceptance run `34748384017` 已从旧正式 Problem3 完整重放并通过。Conv1 `3,767,326` 已由 deterministic saturated shortcut 与完整 promoted-Q2 -> deep formal chain 独立复现。
 
-当前 refined Pareto 共 8 行。FA0 原 `w=1 = 55,036 / 191,230` 已被新 fixed-traffic 点 `54,016 / 187,945` 严格支配并删除；FA1 的 `1>1`、`2>1` 两个 higher-traffic trade-off 仍保留。
+当前 refined Pareto 共 8 行。FA0 原 `w=1 = 55,036 / 191,230` 已被新 fixed-traffic 点 `54,016 / 187,945` 严格支配并删除；FA1 的 `1>1`、`2>1` 两个 higher-traffic trade-off 仍保留。当前 published-results consistency run `34748431634` 为 success。
 
 ## 本地运行
 
