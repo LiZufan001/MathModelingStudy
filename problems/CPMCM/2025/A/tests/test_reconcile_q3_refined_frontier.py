@@ -6,7 +6,7 @@ from pathlib import Path
 EXP = Path(__file__).resolve().parents[1] / "experiments"
 sys.path.insert(0, str(EXP))
 
-from reconcile_q3_refined_frontier import _pareto
+from reconcile_q3_refined_frontier import _is_strict_valid, _pareto
 
 
 def _row(case: str, variant: str, traffic: int, cycles: int) -> dict[str, str]:
@@ -45,7 +45,7 @@ def test_more_traffic_lower_cycles_tradeoff_remains_on_frontier() -> None:
     assert dominated == []
 
 
-def test_invalid_candidate_is_never_kept() -> None:
+def test_invalid_candidate_is_never_kept_or_used_as_dominator() -> None:
     valid = _row("Conv_Case0", "zero_traffic", 177_904, 597_969)
     invalid = _row("Conv_Case0", "refined_tradeoff", 170_000, 590_000)
     invalid["strict_valid"] = "False"
@@ -54,3 +54,15 @@ def test_invalid_candidate_is_never_kept() -> None:
 
     assert kept == [valid]
     assert dominated == []
+
+
+def test_strict_valid_flag_is_case_insensitive() -> None:
+    upper = _row("Matmul_Case0", "zero_traffic", 28_800, 133_682)
+    lower = dict(upper)
+    lower["strict_valid"] = "true"
+    invalid = dict(upper)
+    invalid["strict_valid"] = "FALSE"
+
+    assert _is_strict_valid(upper)
+    assert _is_strict_valid(lower)
+    assert not _is_strict_valid(invalid)
