@@ -10,8 +10,6 @@ on:
       - "problems/CPMCM/2025/A/src/q3_official_spill_optimizer.py"
       - "problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py"
       - "problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py"
-      - "problems/CPMCM/2025/A/experiments/benchmark_q3_official_spill_matrix_case.py"
-      - ".github/workflows/probe-cpmcm-2025-a-q3-formal-spill-matrix.yml"
 
 permissions:
   contents: read

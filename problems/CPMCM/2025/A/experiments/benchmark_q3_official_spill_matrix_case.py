@@ -25,9 +25,11 @@ CASES = (
     "Conv_Case1",
 )
 
-# Already-promoted formal zero-traffic baselines. The new post-pass may improve
-# them, but the first stage must reproduce them exactly before promotion.
-EXPECTED_CORE = {
+# Previously promoted formal zero-traffic references. A stronger generic search
+# is allowed to beat these values; it must never regress the official objective.
+# residency_safe remains a feasibility gate rather than a secondary objective,
+# so its cycle count is recorded but is not required to equal the old reference.
+REFERENCE_CORE = {
     "Matmul_Case0": (133_682, 160_005),
     "Matmul_Case1": (1_531_946, 1_669_574),
     "FlashAttention_Case0": (188_562, 204_875),
@@ -96,16 +98,13 @@ def main() -> int:
     )
     t2 = time.perf_counter()
 
-    expected_core_official, expected_core_safe = EXPECTED_CORE[args.case]
-    if result.core.official_timing.total_cycles != expected_core_official:
+    reference_official, reference_safe = REFERENCE_CORE[args.case]
+    core_official = result.core.official_timing.total_cycles
+    core_safe = result.core.safe_timing.total_cycles
+    if core_official > reference_official:
         raise AssertionError(
-            f"formal core official drifted for {args.case}: "
-            f"{result.core.official_timing.total_cycles} != {expected_core_official}"
-        )
-    if result.core.safe_timing.total_cycles != expected_core_safe:
-        raise AssertionError(
-            f"formal core safe drifted for {args.case}: "
-            f"{result.core.safe_timing.total_cycles} != {expected_core_safe}"
+            f"formal core official regressed for {args.case}: "
+            f"{core_official} > {reference_official}"
         )
 
     core_q2 = validate_q2_solution(graph, result.core.solution)
@@ -138,7 +137,7 @@ def main() -> int:
         raise AssertionError("formal matrix official replay mismatch")
     if replay_safe.total_cycles != result.safe_timing.total_cycles:
         raise AssertionError("formal matrix residency-safe replay mismatch")
-    if result.official_timing.total_cycles > result.core.official_timing.total_cycles:
+    if result.official_timing.total_cycles > core_official:
         raise AssertionError("formal spill-batch post-pass regressed official cycles")
 
     spill = result.spill_batches
@@ -151,10 +150,12 @@ def main() -> int:
             "extra_traffic": promoted_q2.extra_traffic,
         },
         "core": {
-            "official_cycles": result.core.official_timing.total_cycles,
-            "safe_cycles": result.core.safe_timing.total_cycles,
-            "expected_official_cycles": expected_core_official,
-            "expected_safe_cycles": expected_core_safe,
+            "official_cycles": core_official,
+            "safe_cycles": core_safe,
+            "reference_official_cycles": reference_official,
+            "reference_safe_cycles": reference_safe,
+            "official_improvement_vs_reference_cycles": reference_official - core_official,
+            "improved_vs_reference": core_official < reference_official,
             "step_count": len(result.core.steps),
             "spill_offsets_recolored": core_spills != tuple(
                 (spill.buf_id, spill.new_offset) for spill in promoted.solution.spills
@@ -174,7 +175,8 @@ def main() -> int:
         "final": {
             "official_cycles": result.official_timing.total_cycles,
             "safe_cycles": result.safe_timing.total_cycles,
-            "improvement_cycles": result.core.official_timing.total_cycles - result.official_timing.total_cycles,
+            "improvement_vs_core_cycles": core_official - result.official_timing.total_cycles,
+            "improvement_vs_reference_cycles": reference_official - result.official_timing.total_cycles,
             "spill_count": final_q2.spill_count,
             "extra_traffic": final_q2.extra_traffic,
             "safe_overlap_errors": len(replay_safe.physical_overlap_errors),
