@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+SRC = Path(__file__).resolve().parents[1] / "src"
+sys.path.insert(0, str(SRC))
+
 from model import ComputeGraph, Node
 from q2_model import Q2Solution, SpillRecord
 from q2_validator import validate_q2_solution
