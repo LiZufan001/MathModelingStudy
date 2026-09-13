@@ -51,8 +51,9 @@ jobs:
             --max-rounds 12 \
             --expected-official 596988
       - name: Upload saturation checkpoints
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-q3-conv0-single-switch-saturation
           path: /tmp/q3-conv0-single-switch-saturation
-          if-no-files-found: error
+          if-no-files-found: warn
