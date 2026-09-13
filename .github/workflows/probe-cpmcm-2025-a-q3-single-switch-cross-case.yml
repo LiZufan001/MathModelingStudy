@@ -1,0 +1,75 @@
+name: Probe CPMCM 2025 A Q3 Single-Switch Cross-Case
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/probe-cpmcm-2025-a-q3-single-switch-cross-case.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  single-switch-cross-case:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - case: Matmul_Case0
+            artifact: cpmcm-2025-a-q3-formal-output-Matmul_Case0
+            expected: 133682
+          - case: Matmul_Case1
+            artifact: cpmcm-2025-a-q3-formal-output-Matmul_Case1
+            expected: 1531946
+          - case: FlashAttention_Case0
+            artifact: cpmcm-2025-a-q3-formal-output-FlashAttention_Case0
+            expected: 187945
+          - case: FlashAttention_Case1
+            artifact: cpmcm-2025-a-q3-formal-output-FlashAttention_Case1
+            expected: 962022
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download accepted formal Problem3 output
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: /tmp/source
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 34747455829
+      - name: Single-switch cross-case gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
+      - name: Probe checkpointed single-switch saturation
+        run: |
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --case "${{ matrix.case }}" \
+            --input-dir /tmp/source/Problem3 \
+            --out-dir "/tmp/q3-single-switch-${{ matrix.case }}" \
+            --max-switches 4 \
+            --max-rounds 8 \
+            --expected-official "${{ matrix.expected }}"
+      - name: Upload cross-case checkpoint evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-single-switch-${{ matrix.case }}
+          path: /tmp/q3-single-switch-${{ matrix.case }}
+          if-no-files-found: warn
