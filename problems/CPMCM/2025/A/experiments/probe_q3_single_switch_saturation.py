@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -74,7 +73,7 @@ def main() -> int:
         result.best_safe.require_ok()
 
         round_dir = args.out_dir / f"round-{round_no:02d}"
-        _write_solution(round_dir / "next", result.best_solution, args.case)
+        _write_solution(round_dir / "next", args.case, result.best_solution)
         record = {
             "round": round_no,
             "baseline_official_cycles": official.total_cycles,
@@ -103,7 +102,7 @@ def main() -> int:
             break
 
     final_dir = args.out_dir / "Problem3"
-    _write_solution(final_dir, current, args.case)
+    _write_solution(final_dir, args.case, current)
     payload = {
         "case": args.case,
         "operator": "checkpointed_critical_spill_single_switch_bubble",
