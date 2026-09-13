@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Single-Switch Cross-Case
+name: Probe CPMCM 2025 A Q3 Single-Switch Top8 Width Check
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  single-switch-cross-case:
+  single-switch-top8-width-check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -49,27 +49,24 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: 34747455829
-      - name: Single-switch cross-case gates
+      - name: Single-switch top8 gates
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
-          python -m py_compile \
-            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
-            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
-      - name: Probe checkpointed single-switch saturation
+          python -m py_compile problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py
+      - name: Probe one top8 single-switch round
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case "${{ matrix.case }}" \
             --input-dir /tmp/source/Problem3 \
-            --out-dir "/tmp/q3-single-switch-${{ matrix.case }}" \
-            --max-switches 4 \
-            --max-rounds 8 \
+            --out-dir "/tmp/q3-single-switch-top8-${{ matrix.case }}" \
+            --max-switches 8 \
             --expected-official "${{ matrix.expected }}"
-      - name: Upload cross-case checkpoint evidence
+      - name: Upload top8 width-check evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-single-switch-${{ matrix.case }}
-          path: /tmp/q3-single-switch-${{ matrix.case }}
+          name: cpmcm-2025-a-q3-single-switch-top8-${{ matrix.case }}
+          path: /tmp/q3-single-switch-top8-${{ matrix.case }}
           if-no-files-found: warn
