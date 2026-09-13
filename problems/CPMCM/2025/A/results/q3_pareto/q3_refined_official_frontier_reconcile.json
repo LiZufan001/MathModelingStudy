@@ -1,0 +1,129 @@
+{
+  "generated_by": "problems/CPMCM/2025/A/experiments/reconcile_q3_refined_frontier.py",
+  "dominance_fix_commit": "88263a87c0bad9b3221fb1598058210f0acee3cc",
+  "fixed_cases": [
+    "Conv_Case0",
+    "Conv_Case1",
+    "FlashAttention_Case0",
+    "FlashAttention_Case1",
+    "Matmul_Case0",
+    "Matmul_Case1"
+  ],
+  "formal_evidence": {
+    "Matmul_Case0": {
+      "run": 34747455829,
+      "artifact": 10314960252,
+      "digest": "sha256:a72268893be90a4944bcc57fbe8dec06be6545c0f2b51491e8e24a0f24aaa825"
+    },
+    "Matmul_Case1": {
+      "run": 34747455829,
+      "artifact": 10314493422,
+      "digest": "sha256:52325fef927cc7e3f648e4b8cd53f5a985c714cda5c41308124b085519b152ec"
+    },
+    "FlashAttention_Case0": {
+      "run": 34747455829,
+      "artifact": 10314796506,
+      "digest": "sha256:1d1ef5790ae01f69f9ecc86562a9bbaffb8d2236e3b568d2da3c9dadabd207a2"
+    },
+    "FlashAttention_Case1": {
+      "run": 34747455829,
+      "artifact": 10314227624,
+      "digest": "sha256:e3ea8116751023076264559558aa75dc08f001d3febc7a1d331b79fc73417b8d"
+    },
+    "Conv_Case0": {
+      "run": 34747455829,
+      "artifact": 10314676829,
+      "digest": "sha256:947ae8e7b496b59d91336b541c657b567299368f62d638b0858fb57e6825856f"
+    },
+    "Conv_Case1": {
+      "run": 34745747473,
+      "artifact": 10314199173,
+      "digest": "sha256:dda2514dcb6764ddcfa8361ed513acd7494c7ab6c4fc1b0add09aecb95c2a7e7"
+    }
+  },
+  "kept": [
+    {
+      "case": "Conv_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 177904,
+      "official_cycles": 597969,
+      "official_improvement_pct": 5.996567,
+      "safe_cycles": 787783
+    },
+    {
+      "case": "Conv_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 721464,
+      "official_cycles": 3767326,
+      "official_improvement_pct": 2.211968,
+      "safe_cycles": 4112665
+    },
+    {
+      "case": "FlashAttention_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 54016,
+      "official_cycles": 187945,
+      "official_improvement_pct": 3.253288,
+      "safe_cycles": 204875
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 242552,
+      "official_cycles": 962022,
+      "official_improvement_pct": 0.075202,
+      "safe_cycles": 1026634
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "refined_tradeoff",
+      "sequence": "1>1",
+      "extra_traffic": 244048,
+      "official_cycles": 947002,
+      "official_improvement_pct": 1.635322,
+      "safe_cycles": 958676
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "refined_tradeoff",
+      "sequence": "2>1",
+      "extra_traffic": 245060,
+      "official_cycles": 912556,
+      "official_improvement_pct": 5.213213,
+      "safe_cycles": 936070
+    },
+    {
+      "case": "Matmul_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 28800,
+      "official_cycles": 133682,
+      "official_improvement_pct": 1.036408,
+      "safe_cycles": 160005
+    },
+    {
+      "case": "Matmul_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 430208,
+      "official_cycles": 1531946,
+      "official_improvement_pct": 0.174115,
+      "safe_cycles": 1669574
+    }
+  ],
+  "dominated_removed": [
+    {
+      "case": "FlashAttention_Case0",
+      "variant": "refined_tradeoff",
+      "sequence": "1",
+      "extra_traffic": 55036,
+      "official_cycles": 191230,
+      "safe_cycles": 205617,
+      "reason": "strictly dominated by fixed-traffic 54016 / 187945"
+    }
+  ]
+}
