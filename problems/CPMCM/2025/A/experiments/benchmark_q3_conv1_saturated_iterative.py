@@ -75,8 +75,6 @@ def main() -> int:
         raise AssertionError("offset snapshot spill count drifted")
     if saturated_q2.extra_traffic != int(snap["extra_traffic"]):
         raise AssertionError("offset snapshot extra traffic drifted")
-    if saturated.solution if False else False:
-        raise AssertionError("unreachable")
     if saturated.spills != core.solution.spills:
         raise AssertionError("offset snapshot changed spill records")
     if saturated.schedule != core.solution.schedule:
