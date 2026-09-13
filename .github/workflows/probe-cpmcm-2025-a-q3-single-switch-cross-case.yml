@@ -1,4 +1,4 @@
-name: Continue CPMCM 2025 A Q3 Conv1 Targeted Bubble 6334
+name: Probe CPMCM 2025 A Q3 Conv1 Top4 After Spill 6334
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-targeted-bubble-6334:
+  conv1-top4-after-6334:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,40 +25,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download accepted spill 6334 checkpoint
+      - name: Download saturated spill 6334 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-top4-after-targeted
+          name: cpmcm-2025-a-q3-conv1-targeted-6334
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34750064978
-      - name: Targeted replay gates
+          run-id: 34773483500
+      - name: Probe gates
         run: |
           python -m pip install --disable-pip-version-check pytest
-          python -m pytest \
-            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
-            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_recipe.py \
-            -q
-          python -m py_compile \
-            problems/CPMCM/2025/A/experiments/q3_critical_spill_switch_recipe.py \
-            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
-      - name: Bubble spill 6334 until blocked or no improvement
+          python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
+          python -m py_compile problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py
+      - name: Probe Conv1 top4 single-switch once
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/next \
-            --out-dir /tmp/q3-conv1-targeted-6334 \
+            --input-dir /tmp/source/Problem3 \
+            --out-dir /tmp/q3-conv1-top4-after-6334 \
             --max-switches 4 \
-            --max-rounds 12 \
-            --target-spill-index 6334 \
-            --target-mode out_earlier \
-            --expected-official 3765534
-      - name: Upload Conv1 targeted 6334 checkpoints
+            --expected-official 3765227
+      - name: Upload Conv1 top4 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-targeted-6334
-          path: /tmp/q3-conv1-targeted-6334
+          name: cpmcm-2025-a-q3-conv1-top4-after-6334
+          path: /tmp/q3-conv1-top4-after-6334
           if-no-files-found: warn
