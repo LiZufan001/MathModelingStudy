@@ -43,7 +43,7 @@ jobs:
           python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/Problem3 \
+            --input-dir /tmp/source/Conv_Case1 \
             --out-dir /tmp/q3-conv1-single-switch-top4 \
             --max-switches 4 \
             --expected-official 3767326
