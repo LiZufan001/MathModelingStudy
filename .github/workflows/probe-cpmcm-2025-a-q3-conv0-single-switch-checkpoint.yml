@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Conv0 Single-Switch Checkpoint
+name: Probe CPMCM 2025 A Q3 Conv0 Single-Switch Saturation
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv0-single-switch:
+  conv0-single-switch-saturation:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,31 +25,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download Conv0 single-switch round-1 checkpoint
+      - name: Download Conv0 single-switch round-2 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv0-single-switch-checkpoint
+          name: cpmcm-2025-a-q3-conv0-single-switch-checkpoint-r2
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34748053239
-      - name: Single-switch checkpoint gates
+          run-id: 34748202247
+      - name: Single-switch saturation gates
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
-          python -m py_compile problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py
-      - name: Probe second bounded single-switch round
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
+      - name: Continue Conv0 until single-switch saturation
         run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case0 \
             --input-dir /tmp/source/next \
-            --out-dir /tmp/q3-conv0-single-switch-r2 \
+            --out-dir /tmp/q3-conv0-single-switch-saturation \
             --max-switches 4 \
-            --expected-official 597051
-      - name: Upload round-2 checkpoint evidence
+            --max-rounds 12 \
+            --expected-official 596988
+      - name: Upload saturation checkpoints
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv0-single-switch-checkpoint-r2
-          path: /tmp/q3-conv0-single-switch-r2
+          name: cpmcm-2025-a-q3-conv0-single-switch-saturation
+          path: /tmp/q3-conv0-single-switch-saturation
           if-no-files-found: error
