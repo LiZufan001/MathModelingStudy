@@ -105,15 +105,16 @@ def main() -> int:
         raise AssertionError("second-batch safe timing drifted")
     t3 = time.perf_counter()
 
-    # Fresh rerank on the new critical path.  Small prefixes are included so a
-    # newly exposed local bottleneck is not hidden by an overly aggressive
-    # batch; larger prefixes test whether the monotone 2/4/8 improvement seen in
-    # the second batch continues after reranking.
+    # The first fresh-rerank probe improved monotonically through prefix 16, so
+    # the previous max_switches=16 was an artificial search boundary rather
+    # than evidence of saturation.  Extend the same fresh critical-path ranking
+    # to much larger prefixes before deciding whether another rerank round is
+    # warranted.  Strict Q2 + residency-safe validation still gates every trial.
     third_batch = search_q3_critical_spill_out_batches(
         graph,
         second_batch.best_solution,
-        max_switches=16,
-        prefix_sizes=(1, 2, 4, 8, 12, 16),
+        max_switches=64,
+        prefix_sizes=(16, 24, 32, 48, 64),
         baseline_official=second_batch.best_official,
         baseline_safe=second_batch.best_safe,
     )
