@@ -1,0 +1,73 @@
+name: Accept CPMCM 2025 A Q3 Conv0 Single-Switch
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/accept-cpmcm-2025-a-q3-conv0-single-switch.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  conv0-single-switch-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download accepted Conv0 formal fixed-traffic output
+        uses: actions/download-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-formal-output-Conv_Case0
+          path: /tmp/source
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 34747455829
+      - name: Formal single-switch gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py
+      - name: Reproduce Conv0 single-switch saturation from formal output
+        run: |
+          python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_saturation.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --case Conv_Case0 \
+            --input-dir /tmp/source/Problem3 \
+            --out-dir /tmp/q3-conv0-single-switch-acceptance \
+            --max-switches 4 \
+            --max-rounds 8 \
+            --expected-official 597969
+      - name: Assert promoted Conv0 result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('/tmp/q3-conv0-single-switch-acceptance/single-switch-saturation.json').read_text())
+          assert p['final_official_cycles'] == 595302, p
+          assert p['extra_traffic'] == 177904, p
+          assert p['spill_count'] == 522, p
+          assert p['valid'] is True, p
+          assert p['safe_overlap_errors'] == 0, p
+          assert p['saturated'] is True, p
+          assert p['accepted_rounds'] == 3, p
+          assert p['round_count'] == 4, p
+          PY
+      - name: Upload accepted Conv0 Problem3 output
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv0-single-switch-accepted
+          path: /tmp/q3-conv0-single-switch-acceptance
+          if-no-files-found: error
