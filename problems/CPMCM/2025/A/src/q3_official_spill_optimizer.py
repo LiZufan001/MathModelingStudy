@@ -47,9 +47,11 @@ def optimize_q3_official_with_spill_batches(
     """Compose the formal fixed-traffic optimizer with critical-SPILL batches.
 
     The existing address/pipeline/recolor optimizer remains the stable first
-    stage.  The optional second stage only changes schedule order by reversing
-    selected mutable MTE3 serialization edges immediately before critical
-    SPILL_OUTs.  Exact SPILL records, count and extra traffic are immutable;
+    stage. That stage may recolor physical addresses, including SPILL_IN
+    NewOffset values, while preserving spill identity/order, spill count and
+    extra traffic. The optional second stage only changes schedule order by
+    reversing selected mutable MTE3 serialization edges immediately before
+    critical SPILL_OUTs. It must preserve the core stage's exact SPILL records;
     every accepted candidate must pass both official and residency-safe replay.
     """
     if spill_batch_max_rounds < 0:
@@ -57,7 +59,7 @@ def optimize_q3_official_with_spill_batches(
 
     original_q2 = validate_q2_solution(graph, solution)
     original_q2.require_ok()
-    original_spills = tuple((spill.buf_id, spill.new_offset) for spill in solution.spills)
+    original_spill_ids = tuple(spill.buf_id for spill in solution.spills)
 
     core = optimize_q3_official_zero_traffic(
         graph,
@@ -67,6 +69,15 @@ def optimize_q3_official_with_spill_batches(
         recolor_max_targets=recolor_max_targets,
         recolor_max_starts=recolor_max_starts,
     )
+    core_q2 = validate_q2_solution(graph, core.solution)
+    core_q2.require_ok()
+    core_spills = tuple((spill.buf_id, spill.new_offset) for spill in core.solution.spills)
+    if tuple(spill.buf_id for spill in core.solution.spills) != original_spill_ids:
+        raise AssertionError("formal Q3 core changed SPILL identity/order")
+    if core_q2.spill_count != original_q2.spill_count:
+        raise AssertionError("formal Q3 core changed spill count")
+    if core_q2.extra_traffic != original_q2.extra_traffic:
+        raise AssertionError("formal Q3 core changed extra traffic")
 
     if spill_batch_max_rounds == 0:
         final_solution = core.solution
@@ -90,8 +101,10 @@ def optimize_q3_official_with_spill_batches(
     final_q2 = validate_q2_solution(graph, final_solution)
     final_q2.require_ok()
     final_spills = tuple((spill.buf_id, spill.new_offset) for spill in final_solution.spills)
-    if final_spills != original_spills:
-        raise AssertionError("formal Q3 spill-batch portfolio changed exact SPILL records")
+    if final_spills != core_spills:
+        raise AssertionError("formal Q3 spill-batch post-pass changed core SPILL records")
+    if tuple(spill.buf_id for spill in final_solution.spills) != original_spill_ids:
+        raise AssertionError("formal Q3 spill-batch portfolio changed SPILL identity/order")
     if final_q2.spill_count != original_q2.spill_count:
         raise AssertionError("formal Q3 spill-batch portfolio changed spill count")
     if final_q2.extra_traffic != original_q2.extra_traffic:
