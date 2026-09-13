@@ -1,0 +1,111 @@
+{
+  "route": "promoted_q2 -> formal_zero_traffic_core -> formal_iterative_critical_spill_batch",
+  "objective": "official_literal_cycles",
+  "feasibility_gate": "residency_safe",
+  "fixed_q2_invariants": [
+    "SPILL identity/order",
+    "spill_count",
+    "extra_traffic"
+  ],
+  "cases": [
+    {
+      "case": "Matmul_Case0",
+      "raw_official_cycles": 135082,
+      "core_official_cycles": 133682,
+      "final_official_cycles": 133682,
+      "core_safe_cycles": 160005,
+      "final_safe_cycles": 160005,
+      "spill_count": 225,
+      "extra_traffic": 28800,
+      "accepted_spill_batch_rounds": 0,
+      "spill_batch_round_count": 1,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    },
+    {
+      "case": "Matmul_Case1",
+      "raw_official_cycles": 1534618,
+      "core_official_cycles": 1531946,
+      "final_official_cycles": 1531946,
+      "core_safe_cycles": 1669574,
+      "final_safe_cycles": 1669574,
+      "spill_count": 3361,
+      "extra_traffic": 430208,
+      "accepted_spill_batch_rounds": 0,
+      "spill_batch_round_count": 1,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    },
+    {
+      "case": "FlashAttention_Case0",
+      "raw_official_cycles": 194265,
+      "core_official_cycles": 188562,
+      "final_official_cycles": 187945,
+      "core_safe_cycles": 204875,
+      "final_safe_cycles": 204875,
+      "spill_count": 316,
+      "extra_traffic": 54016,
+      "accepted_spill_batch_rounds": 5,
+      "spill_batch_round_count": 6,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "raw_official_cycles": 962746,
+      "core_official_cycles": 962022,
+      "final_official_cycles": 962022,
+      "core_safe_cycles": 1026634,
+      "final_safe_cycles": 1026634,
+      "spill_count": 1782,
+      "extra_traffic": 242552,
+      "accepted_spill_batch_rounds": 0,
+      "spill_batch_round_count": 1,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    },
+    {
+      "case": "Conv_Case0",
+      "raw_official_cycles": 636114,
+      "core_official_cycles": 603405,
+      "final_official_cycles": 597969,
+      "core_safe_cycles": 785635,
+      "final_safe_cycles": 787783,
+      "spill_count": 522,
+      "extra_traffic": 177904,
+      "accepted_spill_batch_rounds": 10,
+      "spill_batch_round_count": 11,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    },
+    {
+      "case": "Conv_Case1",
+      "raw_official_cycles": 3852543,
+      "core_official_cycles": 3781664,
+      "final_official_cycles": 3767326,
+      "core_safe_cycles": 4113775,
+      "final_safe_cycles": 4112665,
+      "spill_count": 9646,
+      "extra_traffic": 721464,
+      "accepted_spill_batch_rounds": 7,
+      "spill_batch_round_count": 8,
+      "spill_batch_saturated": true,
+      "safe_overlap_errors": 0,
+      "valid": true
+    }
+  ],
+  "evidence": {
+    "five_case_problem3_export_run": 34747455829,
+    "conv1_full_formal_run": 34745747473,
+    "conv1_full_formal_artifact": 10314199173,
+    "conv1_full_formal_digest": "sha256:dda2514dcb6764ddcfa8361ed513acd7494c7ab6c4fc1b0add09aecb95c2a7e7",
+    "full_q2_regression_run": 34747286667,
+    "pareto_reconciliation_gate_run": 34747219856
+  },
+  "scope_note": "saturated means the current fresh-rerank critical-SPILL batch operator reached a no-improvement round; it is not a proof of global Q3 optimality"
+}
