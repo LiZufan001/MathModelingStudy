@@ -1,0 +1,53 @@
+name: Probe CPMCM 2025 A Q3 Conv1 Saturated Iterative
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv1_saturated_iterative.py"
+      - "problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json"
+      - "problems/CPMCM/2025/A/experiments/q3_conv_iterative_spill_batch.py"
+      - ".github/workflows/probe-cpmcm-2025-a-q3-conv1-saturated-iterative.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  saturated-iterative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Saturated-iterative gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_batch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_iterative_spill_batch.py \
+            -q
+          python -m py_compile problems/CPMCM/2025/A/experiments/benchmark_q3_conv1_saturated_iterative.py
+      - name: Rebuild saturated baseline and run iterative batches
+        run: |
+          python problems/CPMCM/2025/A/experiments/benchmark_q3_conv1_saturated_iterative.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --snapshot problems/CPMCM/2025/A/experiments/snapshots/q3_conv1_saturated_offsets.json \
+            --max-rounds 12 \
+            --out /tmp/q3-conv1-saturated-iterative.json
+      - name: Upload saturated-iterative evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-saturated-iterative
+          path: /tmp/q3-conv1-saturated-iterative.json
+          if-no-files-found: error
