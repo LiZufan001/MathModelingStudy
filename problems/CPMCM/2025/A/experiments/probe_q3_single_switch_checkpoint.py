@@ -19,13 +19,20 @@ from q3_critical_spill_switch import search_q3_critical_spill_switch_bubbles
 from q3_evaluator import evaluate_q3_solution
 
 
-CASE = "Conv_Case1"
+CASES = (
+    "Matmul_Case0",
+    "Matmul_Case1",
+    "FlashAttention_Case0",
+    "FlashAttention_Case1",
+    "Conv_Case0",
+    "Conv_Case1",
+)
 
 
-def _read_solution(input_dir: Path) -> Q2Solution:
-    schedule_path = input_dir / f"{CASE}_schedule.txt"
-    memory_path = input_dir / f"{CASE}_memory.txt"
-    spill_path = input_dir / f"{CASE}_spill.txt"
+def _read_solution(input_dir: Path, case: str) -> Q2Solution:
+    schedule_path = input_dir / f"{case}_schedule.txt"
+    memory_path = input_dir / f"{case}_memory.txt"
+    spill_path = input_dir / f"{case}_spill.txt"
 
     schedule = tuple(
         int(line.strip())
@@ -47,19 +54,19 @@ def _read_solution(input_dir: Path) -> Q2Solution:
     return Q2Solution(schedule, initial_offsets, tuple(spills))
 
 
-def _write_solution(out_dir: Path, solution: Q2Solution) -> None:
+def _write_solution(out_dir: Path, case: str, solution: Q2Solution) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / f"{CASE}_schedule.txt").write_text(
+    (out_dir / f"{case}_schedule.txt").write_text(
         "".join(f"{node_id}\n" for node_id in solution.schedule), encoding="utf-8"
     )
-    (out_dir / f"{CASE}_memory.txt").write_text(
+    (out_dir / f"{case}_memory.txt").write_text(
         "".join(
             f"{buf_id}:{solution.initial_offsets[buf_id]}\n"
             for buf_id in sorted(solution.initial_offsets)
         ),
         encoding="utf-8",
     )
-    (out_dir / f"{CASE}_spill.txt").write_text(
+    (out_dir / f"{case}_spill.txt").write_text(
         "".join(f"{spill.buf_id}:{spill.new_offset}\n" for spill in solution.spills),
         encoding="utf-8",
     )
@@ -68,6 +75,7 @@ def _write_solution(out_dir: Path, solution: Q2Solution) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="One checkpointed single-switch Q3 probe")
     ap.add_argument("--data-dir", type=Path, required=True)
+    ap.add_argument("--case", choices=CASES, required=True)
     ap.add_argument("--input-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--max-switches", type=int, default=4)
@@ -77,8 +85,8 @@ def main() -> int:
     if args.max_switches <= 0:
         raise ValueError("max-switches must be positive")
 
-    graph: ComputeGraph = load_case(args.data_dir, CASE)
-    solution = _read_solution(args.input_dir)
+    graph: ComputeGraph = load_case(args.data_dir, args.case)
+    solution = _read_solution(args.input_dir, args.case)
     q2 = validate_q2_solution(graph, solution)
     q2.require_ok()
     baseline_official = evaluate_q3_solution(
@@ -117,10 +125,10 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     next_dir = args.out_dir / "next"
-    _write_solution(next_dir, result.best_solution)
+    _write_solution(next_dir, args.case, result.best_solution)
 
     payload = {
-        "case": CASE,
+        "case": args.case,
         "operator": "critical_spill_single_switch_bubble",
         "max_switches": args.max_switches,
         "baseline": {
