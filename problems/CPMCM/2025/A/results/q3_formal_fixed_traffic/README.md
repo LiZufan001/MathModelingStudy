@@ -36,7 +36,9 @@ Conv0 随后增加第二类 fixed-traffic 邻域：`critical SPILL single-switch
 4. 每个候选都要求 strict Q2 replay、SPILL/traffic 不变量、official 严格改善、residency-safe 合法；
 5. 每轮重新计算 critical path，首个 no-improvement round 停止。
 
-Conv0 当前在上述主链后追加一个已正式验收的 single-switch post-pass。它不是 Conv 模板硬编码：候选来自当前 critical path 与 SPILL/Pipe 结构；是否对其它 case 有收益仍需分别实测，不能由 Conv0 结果外推。
+Conv0 当前在上述主链后追加一个已正式验收的 single-switch post-pass。它不是 Conv 模板硬编码：候选来自当前 critical path 与 SPILL/Pipe 结构。
+
+横向核查已经把 Matmul0 / Matmul1 / FA0 / FA1 从 `max_switches=4` 扩到 **top-8 单轮**。四组都得到 `candidate_count=0`：当前 official critical path 上根本不存在该算子要求的 `SPILL_OUT(MTE3) -> SPILL_IN(MTE2)` 可翻转边。因此这四组不再继续机械扩宽到 16/32；它们在当前解结构下属于“算子不适用”，不是“搜索宽度不够”。
 
 ## Conv1 双路线复现
 
@@ -46,6 +48,8 @@ Conv1 是最大的 Appendix-E case。最终 `3,767,326` 已由两条独立路径
 - full formal chain：直接从 promoted Q2 经 deep formal zero-traffic 得到 `3,781,664`，再由正式 `src/q3_spill_batch_optimizer.py` 得到同样的 `3,767,326`。
 
 两条路径的 final safe cycles 均为 `4,112,665`，spill count 均为 `9,646`，extra traffic 均为 `721,464`。
+
+Conv1 的 single-switch 只做 bounded top-4 单轮 checkpoint，用来判断 batch 饱和后是否还存在第二邻域收益；不再启动以前那种不可恢复的长 greedy run。
 
 ## Problem3 输出
 
@@ -69,6 +73,7 @@ Conv0 新晋升点由 single-switch formal acceptance 重新生成完整 Problem
 - Conv1 targeted Problem3 acceptance：run `34747404506`，artifact `10315405008`，digest `sha256:7d64c9ff2d80a2b51d40b8e47abfb662dae58ca6daddcb8ffd125f7f36b12756`；
 - Conv1 full formal：run `34745747473`，artifact `10314199173`，digest `sha256:dda2514dcb6764ddcfa8361ed513acd7494c7ab6c4fc1b0add09aecb95c2a7e7`；
 - Conv0 single-switch formal acceptance：run `34748384017`，artifact `10315385596`，digest `sha256:b7919290c4205ff75d83720abea7020bba57c14bc6489979816caff60d72df90`；
+- Matmul/FA single-switch top-8 width check：run `34748782874`，4/4 success，四组 `candidate_count=0`；
 - 完整 Q2 回归：run `34747286667`，success；
 - 当前 published-results consistency：run `34748431634`，success；
 - Pareto dominance 只允许 `strict_valid=true` 候选参与支配判断，修复提交 `88263a87c0bad9b3221fb1598058210f0acee3cc`。
@@ -79,6 +84,7 @@ Conv0 新晋升点由 single-switch formal acceptance 重新生成完整 Problem
 
 - 六组均对当前 fresh-rerank critical-SPILL batch 达到局部饱和；
 - Conv0 额外对 `max_switches=4` single-switch bubble 达到局部饱和；
+- M0/M1/FA0/FA1 的 single-switch top-8 检查为 `candidate_count=0`，因此停止扩宽；
 - 这些都**不是 Q3 全局最优证明**。
 
-后续继续优化时，应优先横向验证 single-switch 对其它 case 的收益，再决定是否扩大候选宽度或开发新的 schedule operator。
+后续继续优化时，应以 Conv1 bounded single-switch 的真实结果为下一分叉点；若 no-op，则转向新的 schedule operator，而不是继续扩大当前 single-switch 宽度。
