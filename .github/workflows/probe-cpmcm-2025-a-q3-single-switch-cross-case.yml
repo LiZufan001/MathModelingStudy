@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Single-Switch Top8 Width Check
+name: Probe CPMCM 2025 A Q3 Conv1 Single-Switch And Cycle Witness
 
 on:
   workflow_dispatch:
@@ -13,25 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  single-switch-top8-width-check:
+  conv1-bounded-probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - case: Matmul_Case0
-            artifact: cpmcm-2025-a-q3-formal-output-Matmul_Case0
-            expected: 133682
-          - case: Matmul_Case1
-            artifact: cpmcm-2025-a-q3-formal-output-Matmul_Case1
-            expected: 1531946
-          - case: FlashAttention_Case0
-            artifact: cpmcm-2025-a-q3-formal-output-FlashAttention_Case0
-            expected: 187945
-          - case: FlashAttention_Case1
-            artifact: cpmcm-2025-a-q3-formal-output-FlashAttention_Case1
-            expected: 962022
+    timeout-minutes: 20
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -41,32 +25,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download accepted formal Problem3 output
+      - name: Download accepted Conv1 Problem3 output
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: cpmcm-2025-a-q3-conv1-formal-acceptance
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34747455829
-      - name: Single-switch top8 gates
+          run-id: 34747404506
+      - name: Probe gates
         run: |
           python -m pip install --disable-pip-version-check pytest
           python -m pytest problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py -q
-          python -m py_compile problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py
-      - name: Probe one top8 single-switch round
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
+            problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py
+      - name: Probe Conv1 top4 single-switch
         run: |
           python problems/CPMCM/2025/A/experiments/probe_q3_single_switch_checkpoint.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
-            --case "${{ matrix.case }}" \
-            --input-dir /tmp/source/Problem3 \
-            --out-dir "/tmp/q3-single-switch-top8-${{ matrix.case }}" \
-            --max-switches 8 \
-            --expected-official "${{ matrix.expected }}"
-      - name: Upload top8 width-check evidence
+            --case Conv_Case1 \
+            --input-dir /tmp/source/Conv_Case1 \
+            --out-dir /tmp/q3-conv1-single-switch-top4 \
+            --max-switches 4 \
+            --expected-official 3767326
+      - name: Diagnose Conv1 blocked batch prefixes
+        run: |
+          python problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --case Conv_Case1 \
+            --input-dir /tmp/source/Conv_Case1 \
+            --out /tmp/q3-conv1-cycle-blockers.json \
+            --max-switches 16 \
+            --prefix-sizes 1,2,4,8,11
+      - name: Upload Conv1 bounded evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-single-switch-top8-${{ matrix.case }}
-          path: /tmp/q3-single-switch-top8-${{ matrix.case }}
+          name: cpmcm-2025-a-q3-conv1-bounded-probe
+          path: |
+            /tmp/q3-conv1-single-switch-top4
+            /tmp/q3-conv1-cycle-blockers.json
           if-no-files-found: warn
