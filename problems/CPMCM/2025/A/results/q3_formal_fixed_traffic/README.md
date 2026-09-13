@@ -12,26 +12,31 @@
 | Matmul_Case1 | 1,534,618 | 1,531,946 | **1,531,946** | **-0.174115%** | 1,669,574 | 3,361 | 430,208 |
 | FlashAttention_Case0 | 194,265 | 188,562 | **187,945** | **-3.253288%** | 204,875 | 316 | 54,016 |
 | FlashAttention_Case1 | 962,746 | 962,022 | **962,022** | **-0.075202%** | 1,026,634 | 1,782 | 242,552 |
-| Conv_Case0 | 636,114 | 603,405 | **597,969** | **-5.996567%** | 787,783 | 522 | 177,904 |
+| Conv_Case0 | 636,114 | 603,405 | **595,302** | **-6.415831%** | 789,619 | 522 | 177,904 |
 | Conv_Case1 | 3,852,543 | 3,781,664 | **3,767,326** | **-2.211968%** | 4,112,665 | 9,646 | 721,464 |
 
-其中第二阶段 critical-SPILL batch 对 Matmul0、Matmul1、FA1 第一轮即 no-op；对 FA0、Conv0、Conv1 分别额外降低 **617 / 5,436 / 14,338 cycles**。六组均在 fresh-rerank 后出现首个 no-improvement round，因此对当前 batch 算子均有局部饱和证据。
+第一阶段 fresh-rerank critical-SPILL batch 对 Matmul0、Matmul1、FA1 第一轮即 no-op；对 FA0、Conv0、Conv1 分别额外降低 **617 / 5,436 / 14,338 cycles**。六组均在该 batch 算子上出现首个 no-improvement round。
+
+Conv0 随后增加第二类 fixed-traffic 邻域：`critical SPILL single-switch bubble`。它只尝试把 critical path 上匹配的 `SPILL_OUT(MTE3)` / `SPILL_IN(MTE2)` 端点沿同 Pipe 向前冒泡一格，并对每个候选重新执行 strict Q2、official 与 residency-safe replay。以 `max_switches=4` 做 checkpointed saturation：
+
+- `597,969 -> 597,051`：-918 cycles；
+- `597,051 -> 596,988`：-63 cycles；
+- `596,988 -> 595,302`：-1,686 cycles；
+- 下一轮 no-op。
+
+因此 Conv0 在 single-switch 邻域又累计降低 **2,667 cycles**，traffic/spill 完全不变；该点已由 formal acceptance 从旧正式 Problem3 输出完整重放并晋升。
 
 ## 正式算法链
 
-1. 从 `solve_q2_promoted()` 取得固定 Q2 SPILL 方案；
-2. 运行现有 formal zero-traffic optimizer：地址 portfolio、critical pipeline reschedule、critical-reuse recolor；
-3. 在当前 `official_literal` critical path 上识别 `SPILL_OUT -> SPILL_IN` 串行边界；
-4. 按相邻 MTE3/MTE2 串行段权重对可移动 SPILL_OUT 排序；
-5. 对 `1,2,4,8,16,24,32,48,64` 个候选前缀反转可变 MTE3 serialization edges，重新拓扑排序；
-6. 候选只有同时满足以下条件才可接受：
-   - strict Q2 replay 通过；
-   - SPILL 身份/顺序、spill count、extra traffic 不变；
-   - `official_literal` 周期严格下降；
-   - `residency_safe` replay 通过且无 physical overlap；
-7. 每接受一轮后重新计算 critical path 和候选排序，直到首个无改善轮停止。
+通用主链：
 
-这个 post-pass 不依赖 Matmul / FlashAttention / Conv 模板名。FA0 与 Conv0 的真实改善、Matmul/FA1 的自然 no-op 共同构成其通用性证据。
+1. 从 `solve_q2_promoted()` 取得固定 Q2 SPILL 方案；
+2. formal zero-traffic optimizer：地址 portfolio、critical pipeline reschedule、critical-reuse recolor；
+3. fresh-rerank critical-SPILL batch：按关键路径重新排序批量 SPILL serialization 变换；
+4. 每个候选都要求 strict Q2 replay、SPILL/traffic 不变量、official 严格改善、residency-safe 合法；
+5. 每轮重新计算 critical path，首个 no-improvement round 停止。
+
+Conv0 当前在上述主链后追加一个已正式验收的 single-switch post-pass。它不是 Conv 模板硬编码：候选来自当前 critical path 与 SPILL/Pipe 结构；是否对其它 case 有收益仍需分别实测，不能由 Conv0 结果外推。
 
 ## Conv1 双路线复现
 
@@ -48,7 +53,7 @@ Conv1 是最大的 Appendix-E case。最终 `3,767,326` 已由两条独立路径
 
 `src/export_q3_formal_fixed_traffic.py`
 
-它输出题面提交需要的三类文件：
+基础 formal fixed-traffic 六组均已实际生成题面提交需要的：
 
 ```text
 Problem3/<case>_schedule.txt
@@ -56,16 +61,24 @@ Problem3/<case>_memory.txt
 Problem3/<case>_spill.txt
 ```
 
-非 Conv1 五组已由 workflow `Export CPMCM 2025 A Q3 Formal Fixed-Traffic Outputs` 实际导出并通过 cycles ceiling、局部饱和、strict replay 与 residency-safe gate。Conv1 使用单独 targeted acceptance 同时生成最终三文件，避免再次运行更慢的完整 deep formal chain。
+Conv0 新晋升点由 single-switch formal acceptance 重新生成完整 Problem3 三文件；旧 `597,969` 附件仍只作为该 post-pass 的可复现输入基线。
 
 ## 验收证据
 
-- 五组正式 Problem3 导出：run `34747455829`，5/5 success；
+- 五组基础 Problem3 导出：run `34747455829`，5/5 success；
+- Conv1 targeted Problem3 acceptance：run `34747404506`，artifact `10315405008`，digest `sha256:7d64c9ff2d80a2b51d40b8e47abfb662dae58ca6daddcb8ffd125f7f36b12756`；
 - Conv1 full formal：run `34745747473`，artifact `10314199173`，digest `sha256:dda2514dcb6764ddcfa8361ed513acd7494c7ab6c4fc1b0add09aecb95c2a7e7`；
+- Conv0 single-switch formal acceptance：run `34748384017`，artifact `10315385596`，digest `sha256:b7919290c4205ff75d83720abea7020bba57c14bc6489979816caff60d72df90`；
 - 完整 Q2 回归：run `34747286667`，success；
-- refined-frontier reconciliation gate：run `34747219856`，success；
-- Pareto dominance 已修正为只允许 `strict_valid=true` 候选参与支配判断，修复提交 `88263a87c0bad9b3221fb1598058210f0acee3cc`。
+- 当前 published-results consistency：run `34748431634`，success；
+- Pareto dominance 只允许 `strict_valid=true` 候选参与支配判断，修复提交 `88263a87c0bad9b3221fb1598058210f0acee3cc`。
 
 ## 结论边界
 
-这里的 `saturated` 只表示 **当前 fresh-rerank critical-SPILL batch 算子** 已到首个无改善轮，不等于证明问题 3 的全局最优。此前 single-switch greedy 长 run 因超时取消，没有形成 no-op 证明；因此后续若继续优化，应视为探索新的 schedule operator，而不是继续堆当前 batch 深度。
+`saturated` 永远只针对指定邻域：
+
+- 六组均对当前 fresh-rerank critical-SPILL batch 达到局部饱和；
+- Conv0 额外对 `max_switches=4` single-switch bubble 达到局部饱和；
+- 这些都**不是 Q3 全局最优证明**。
+
+后续继续优化时，应优先横向验证 single-switch 对其它 case 的收益，再决定是否扩大候选宽度或开发新的 schedule operator。
