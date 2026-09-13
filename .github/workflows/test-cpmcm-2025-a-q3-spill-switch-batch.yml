@@ -7,7 +7,9 @@ on:
       - "agent/q3-pipeline-20260911"
     paths:
       - "problems/CPMCM/2025/A/experiments/q3_critical_spill_switch_batch.py"
+      - "problems/CPMCM/2025/A/experiments/q3_conv_iterative_spill_batch.py"
       - "problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_batch.py"
+      - "problems/CPMCM/2025/A/experiments/test_q3_conv_iterative_spill_batch.py"
       - ".github/workflows/test-cpmcm-2025-a-q3-spill-switch-batch.yml"
 
 permissions:
@@ -32,4 +34,5 @@ jobs:
           python -m pytest \
             problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch.py \
             problems/CPMCM/2025/A/experiments/test_q3_critical_spill_switch_batch.py \
+            problems/CPMCM/2025/A/experiments/test_q3_conv_iterative_spill_batch.py \
             -q
