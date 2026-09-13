@@ -1,0 +1,81 @@
+name: Export CPMCM 2025 A Q3 Formal Fixed-Traffic Outputs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/src/export_q3_formal_fixed_traffic.py"
+      - ".github/workflows/export-cpmcm-2025-a-q3-formal-fixed-traffic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Formal export gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py \
+            -q
+          python -m py_compile problems/CPMCM/2025/A/src/export_q3_formal_fixed_traffic.py
+
+  export-five:
+    needs: gates
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include:
+          - case: Matmul_Case0
+            ceiling: 133682
+          - case: Matmul_Case1
+            ceiling: 1531946
+          - case: FlashAttention_Case0
+            ceiling: 187945
+          - case: FlashAttention_Case1
+            ceiling: 962022
+          - case: Conv_Case0
+            ceiling: 597969
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Export formal Problem3 files
+        run: |
+          python problems/CPMCM/2025/A/src/export_q3_formal_fixed_traffic.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --case "${{ matrix.case }}" \
+            --out-dir "/tmp/q3-formal-output-${{ matrix.case }}" \
+            --official-ceiling "${{ matrix.ceiling }}" \
+            --spill-max-rounds 12 \
+            --require-spill-saturated
+      - name: Upload formal Problem3 output
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-formal-output-${{ matrix.case }}
+          path: "/tmp/q3-formal-output-${{ matrix.case }}"
+          if-no-files-found: error
