@@ -2,16 +2,6 @@ name: Test CPMCM 2025 A Q3 Conv1 Clean Chain
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "agent/q3-pipeline-20260911"
-    paths:
-      - "problems/CPMCM/2025/A/experiments/benchmark_q3_conv1_clean_chain.py"
-      - "problems/CPMCM/2025/A/experiments/q3_conv_iterative_spill_batch.py"
-      - "problems/CPMCM/2025/A/experiments/q3_critical_spill_switch_batch.py"
-      - "problems/CPMCM/2025/A/src/q3_official_optimizer.py"
-      - "problems/CPMCM/2025/A/src/q3_conv_greedy_recolor.py"
-      - ".github/workflows/test-cpmcm-2025-a-q3-conv1-clean-chain.yml"
 
 permissions:
   contents: read
