@@ -16,6 +16,7 @@ from parser import load_case
 from probe_q3_single_switch_checkpoint import _read_solution, _write_solution
 from q2_validator import validate_q2_solution
 from q3_critical_spill_switch import search_q3_critical_spill_switch_bubbles
+from q3_critical_spill_switch_recipe import replay_q3_critical_spill_switch_move
 from q3_evaluator import evaluate_q3_solution
 
 
@@ -28,9 +29,16 @@ def main() -> int:
     ap.add_argument("--max-switches", type=int, default=4)
     ap.add_argument("--max-rounds", type=int, default=12)
     ap.add_argument("--expected-official", type=int)
+    ap.add_argument("--target-spill-index", type=int)
+    ap.add_argument(
+        "--target-mode",
+        choices=("out_earlier", "in_earlier", "both_earlier"),
+    )
     args = ap.parse_args()
     if args.max_switches <= 0 or args.max_rounds <= 0:
         raise ValueError("max-switches and max-rounds must be positive")
+    if (args.target_spill_index is None) != (args.target_mode is None):
+        raise ValueError("target-spill-index and target-mode must be provided together")
 
     graph: ComputeGraph = load_case(args.data_dir, args.case)
     current = _read_solution(args.input_dir, args.case)
@@ -52,62 +60,149 @@ def main() -> int:
     initial_official = official.total_cycles
     history: list[dict[str, object]] = []
     saturated = False
+    stop_reason = "max_rounds_reached"
     t0 = time.perf_counter()
 
     for round_no in range(1, args.max_rounds + 1):
         rt0 = time.perf_counter()
-        result = search_q3_critical_spill_switch_bubbles(
-            graph,
-            current,
-            max_switches=args.max_switches,
-            baseline_official=official,
-            baseline_safe=safe,
-        )
-        next_q2 = validate_q2_solution(graph, result.best_solution)
+        if args.target_spill_index is not None:
+            try:
+                replay = replay_q3_critical_spill_switch_move(
+                    graph,
+                    current,
+                    spill_index=args.target_spill_index,
+                    mode=args.target_mode,
+                )
+            except ValueError as exc:
+                record = {
+                    "round": round_no,
+                    "baseline_official_cycles": official.total_cycles,
+                    "baseline_safe_cycles": safe.total_cycles,
+                    "improved": False,
+                    "best_move": None,
+                    "attempted_move": {
+                        "spill_index": args.target_spill_index,
+                        "mode": args.target_mode,
+                    },
+                    "official_cycles": official.total_cycles,
+                    "safe_cycles": safe.total_cycles,
+                    "improvement_cycles": 0,
+                    "candidate_count": 1,
+                    "trial_count": 1,
+                    "changed_positions": 0,
+                    "reversed_edges": [],
+                    "error": f"{type(exc).__name__}: {exc}",
+                    "seconds": round(time.perf_counter() - rt0, 6),
+                }
+                round_dir = args.out_dir / f"round-{round_no:02d}"
+                _write_solution(round_dir / "next", args.case, current)
+                (round_dir / "round.json").write_text(
+                    json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                history.append(record)
+                saturated = True
+                stop_reason = "target_blocked"
+                break
+
+            improved = replay.official.total_cycles < official.total_cycles
+            record = {
+                "round": round_no,
+                "baseline_official_cycles": official.total_cycles,
+                "baseline_safe_cycles": safe.total_cycles,
+                "improved": improved,
+                "best_move": (
+                    {"spill_index": args.target_spill_index, "mode": args.target_mode}
+                    if improved
+                    else None
+                ),
+                "attempted_move": {
+                    "spill_index": args.target_spill_index,
+                    "mode": args.target_mode,
+                },
+                "official_cycles": replay.official.total_cycles,
+                "safe_cycles": replay.safe.total_cycles,
+                "improvement_cycles": official.total_cycles - replay.official.total_cycles,
+                "candidate_count": 1,
+                "trial_count": 1,
+                "changed_positions": replay.changed_positions,
+                "reversed_edges": [list(edge) for edge in replay.reversed_edges],
+                "seconds": round(time.perf_counter() - rt0, 6),
+            }
+            if improved:
+                next_solution = replay.solution
+                next_official = replay.official
+                next_safe = replay.safe
+            else:
+                next_solution = current
+                next_official = official
+                next_safe = safe
+        else:
+            result = search_q3_critical_spill_switch_bubbles(
+                graph,
+                current,
+                max_switches=args.max_switches,
+                baseline_official=official,
+                baseline_safe=safe,
+            )
+            next_solution = result.best_solution
+            next_official = result.best_official
+            next_safe = result.best_safe
+            improved = result.improved
+            record = {
+                "round": round_no,
+                "baseline_official_cycles": official.total_cycles,
+                "baseline_safe_cycles": safe.total_cycles,
+                "improved": improved,
+                "best_move": None
+                if result.best_move is None
+                else {"spill_index": result.best_move[0], "mode": result.best_move[1]},
+                "official_cycles": result.best_official.total_cycles,
+                "safe_cycles": result.best_safe.total_cycles,
+                "improvement_cycles": official.total_cycles - result.best_official.total_cycles,
+                "candidate_count": len(result.candidates),
+                "trial_count": len(result.trials),
+                "seconds": round(time.perf_counter() - rt0, 6),
+            }
+
+        next_q2 = validate_q2_solution(graph, next_solution)
         next_q2.require_ok()
-        if result.best_solution.spills != base_spills:
+        if next_solution.spills != base_spills:
             raise AssertionError("single-switch saturation changed exact SPILL records")
         if next_q2.extra_traffic != base_traffic or next_q2.spill_count != base_count:
             raise AssertionError("single-switch saturation changed Q2 metrics")
-        result.best_official.require_ok()
-        result.best_safe.require_ok()
+        next_official.require_ok()
+        next_safe.require_ok()
 
         round_dir = args.out_dir / f"round-{round_no:02d}"
-        _write_solution(round_dir / "next", args.case, result.best_solution)
-        record = {
-            "round": round_no,
-            "baseline_official_cycles": official.total_cycles,
-            "baseline_safe_cycles": safe.total_cycles,
-            "improved": result.improved,
-            "best_move": None
-            if result.best_move is None
-            else {"spill_index": result.best_move[0], "mode": result.best_move[1]},
-            "official_cycles": result.best_official.total_cycles,
-            "safe_cycles": result.best_safe.total_cycles,
-            "improvement_cycles": official.total_cycles - result.best_official.total_cycles,
-            "candidate_count": len(result.candidates),
-            "trial_count": len(result.trials),
-            "seconds": round(time.perf_counter() - rt0, 6),
-        }
+        _write_solution(round_dir / "next", args.case, next_solution)
         (round_dir / "round.json").write_text(
             json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         history.append(record)
 
-        current = result.best_solution
-        official = result.best_official
-        safe = result.best_safe
-        if not result.improved:
+        if not improved:
             saturated = True
+            stop_reason = "no_improvement"
             break
+
+        current = next_solution
+        official = next_official
+        safe = next_safe
 
     final_dir = args.out_dir / "Problem3"
     _write_solution(final_dir, args.case, current)
     payload = {
         "case": args.case,
-        "operator": "checkpointed_critical_spill_single_switch_bubble",
+        "operator": (
+            "targeted_critical_spill_single_switch_bubble"
+            if args.target_spill_index is not None
+            else "checkpointed_critical_spill_single_switch_bubble"
+        ),
         "max_switches": args.max_switches,
         "max_rounds": args.max_rounds,
+        "target_spill_index": args.target_spill_index,
+        "target_mode": args.target_mode,
         "initial_official_cycles": initial_official,
         "final_official_cycles": official.total_cycles,
         "final_safe_cycles": safe.total_cycles,
@@ -117,6 +212,7 @@ def main() -> int:
         "safe_overlap_errors": len(safe.physical_overlap_errors),
         "valid": official.ok and safe.ok,
         "saturated": saturated,
+        "stop_reason": stop_reason,
         "round_count": len(history),
         "accepted_rounds": sum(1 for r in history if r["improved"]),
         "rounds": history,
