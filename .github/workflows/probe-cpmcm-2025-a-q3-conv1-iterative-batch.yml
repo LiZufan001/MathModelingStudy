@@ -18,7 +18,7 @@ permissions:
 jobs:
   iterative-batch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -61,11 +61,14 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --solution /tmp/batch-source/q3-conv1-batch-switch-solution.json \
             --polish-evidence /tmp/polish-evidence/q3-conv1-batch-greedy-polish.json \
-            --max-rounds 4 \
+            --max-rounds 12 \
+            --solution-out /tmp/q3-conv1-iterative-batch-solution.json \
             --out /tmp/q3-conv1-iterative-batch.json
       - name: Upload iterative batch evidence
         uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-q3-conv1-iterative-batch
-          path: /tmp/q3-conv1-iterative-batch.json
+          path: |
+            /tmp/q3-conv1-iterative-batch.json
+            /tmp/q3-conv1-iterative-batch-solution.json
           if-no-files-found: error
