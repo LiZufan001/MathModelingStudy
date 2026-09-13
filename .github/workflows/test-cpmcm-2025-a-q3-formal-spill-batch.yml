@@ -7,7 +7,9 @@ on:
       - "agent/q3-pipeline-20260911"
     paths:
       - "problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py"
+      - "problems/CPMCM/2025/A/src/q3_official_spill_optimizer.py"
       - "problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py"
+      - "problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py"
       - ".github/workflows/test-cpmcm-2025-a-q3-formal-spill-batch.yml"
 
 permissions:
@@ -31,5 +33,8 @@ jobs:
           python -m pip install --disable-pip-version-check pytest
           python -m pytest \
             problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py \
             -q
-          python -m py_compile problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py
+          python -m py_compile \
+            problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/src/q3_official_spill_optimizer.py
