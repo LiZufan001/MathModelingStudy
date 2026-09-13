@@ -1,5 +1,8 @@
 {
-  "generated_by": "problems/CPMCM/2025/A/experiments/reconcile_q3_refined_frontier.py",
+  "generated_by": [
+    "problems/CPMCM/2025/A/experiments/reconcile_q3_refined_frontier.py",
+    "Conv0 single-switch formal promotion"
+  ],
   "dominance_fix_commit": "88263a87c0bad9b3221fb1598058210f0acee3cc",
   "fixed_cases": [
     "Conv_Case0",
@@ -31,9 +34,10 @@
       "digest": "sha256:e3ea8116751023076264559558aa75dc08f001d3febc7a1d331b79fc73417b8d"
     },
     "Conv_Case0": {
-      "run": 34747455829,
-      "artifact": 10314676829,
-      "digest": "sha256:947ae8e7b496b59d91336b541c657b567299368f62d638b0858fb57e6825856f"
+      "run": 34748384017,
+      "artifact": 10315385596,
+      "digest": "sha256:b7919290c4205ff75d83720abea7020bba57c14bc6489979816caff60d72df90",
+      "route": "formal fixed-traffic -> checkpointed critical-SPILL single-switch saturation"
     },
     "Conv_Case1": {
       "run": 34745747473,
@@ -47,9 +51,9 @@
       "variant": "zero_traffic",
       "sequence": "0",
       "extra_traffic": 177904,
-      "official_cycles": 597969,
-      "official_improvement_pct": 5.996567,
-      "safe_cycles": 787783
+      "official_cycles": 595302,
+      "official_improvement_pct": 6.415831,
+      "safe_cycles": 789619
     },
     {
       "case": "Conv_Case1",
