@@ -1,4 +1,4 @@
-name: Probe CPMCM 2025 A Q3 Conv1 Cycle-Aware Exchange
+name: Diagnose CPMCM 2025 A Q3 Conv1 Spill 6565 Cycle
 
 on:
   workflow_dispatch:
@@ -13,9 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  conv1-cycle-aware-exchange:
+  conv1-cycle-diagnosis:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -25,42 +25,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download single-switch saturated Conv1 checkpoint
+      - name: Download current Conv1 checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-top4-after-6334
+          name: cpmcm-2025-a-q3-conv1-cycle-aware
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34773656926
-      - name: Cycle-aware gates
+          run-id: 34773837415
+      - name: Diagnose rank-1 spill reversal cycle
         run: |
-          python -m py_compile \
-            problems/CPMCM/2025/A/experiments/q3_cycle_aware_spill_exchange.py \
-            problems/CPMCM/2025/A/experiments/probe_q3_cycle_aware_exchange_checkpoint.py
-          python - <<'PY'
-          import sys
-          from pathlib import Path
-          exp = Path('problems/CPMCM/2025/A/experiments').resolve()
-          sys.path.insert(0, str(exp))
-          from q3_cycle_aware_spill_exchange import _find_path
-          assert _find_path({1, 2, 3}, {(1, 2), (2, 3)}, 1, 3) == (1, 2, 3)
-          assert _find_path({1, 2, 3}, {(1, 2)}, 1, 3) is None
-          PY
-      - name: Probe spill 6565 cycle-aware two-edge exchange
-        run: |
-          python problems/CPMCM/2025/A/experiments/probe_q3_cycle_aware_exchange_checkpoint.py \
+          python problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
             --input-dir /tmp/source/next \
-            --out-dir /tmp/q3-conv1-cycle-aware \
-            --max-targets 1 \
-            --max-blockers-per-target 8 \
-            --expected-official 3765227
-      - name: Upload Conv1 cycle-aware evidence
+            --out /tmp/q3-conv1-cycle-diagnosis.json \
+            --max-switches 1 \
+            --prefix-sizes 1
+      - name: Upload Conv1 cycle diagnosis
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-aware
-          path: /tmp/q3-conv1-cycle-aware
+          name: cpmcm-2025-a-q3-conv1-cycle-diagnosis
+          path: /tmp/q3-conv1-cycle-diagnosis.json
           if-no-files-found: warn
