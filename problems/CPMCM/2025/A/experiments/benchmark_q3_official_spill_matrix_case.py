@@ -25,9 +25,8 @@ CASES = (
     "Conv_Case1",
 )
 
-# These are the already-promoted formal zero-traffic baselines.  The matrix is
-# allowed to improve them, but the first-stage optimizer must reproduce them
-# exactly before the new spill-batch post-pass is trusted.
+# Already-promoted formal zero-traffic baselines. The new post-pass may improve
+# them, but the first stage must reproduce them exactly before promotion.
 EXPECTED_CORE = {
     "Matmul_Case0": (133_682, 160_005),
     "Matmul_Case1": (1_531_946, 1_669_574),
@@ -81,7 +80,7 @@ def main() -> int:
     promoted.allocation.validation.require_ok()
     promoted_q2 = validate_q2_solution(graph, promoted.solution)
     promoted_q2.require_ok()
-    promoted_spills = tuple((spill.buf_id, spill.new_offset) for spill in promoted.solution.spills)
+    promoted_spill_ids = tuple(spill.buf_id for spill in promoted.solution.spills)
     t1 = time.perf_counter()
 
     result = optimize_q3_official_with_spill_batches(
@@ -109,11 +108,23 @@ def main() -> int:
             f"{result.core.safe_timing.total_cycles} != {expected_core_safe}"
         )
 
+    core_q2 = validate_q2_solution(graph, result.core.solution)
+    core_q2.require_ok()
+    core_spills = tuple((spill.buf_id, spill.new_offset) for spill in result.core.solution.spills)
+    if tuple(spill.buf_id for spill in result.core.solution.spills) != promoted_spill_ids:
+        raise AssertionError("formal core changed promoted-Q2 SPILL identity/order")
+    if core_q2.spill_count != promoted_q2.spill_count:
+        raise AssertionError("formal core changed promoted-Q2 spill count")
+    if core_q2.extra_traffic != promoted_q2.extra_traffic:
+        raise AssertionError("formal core changed promoted-Q2 extra traffic")
+
     final_q2 = validate_q2_solution(graph, result.solution)
     final_q2.require_ok()
     final_spills = tuple((spill.buf_id, spill.new_offset) for spill in result.solution.spills)
-    if final_spills != promoted_spills:
-        raise AssertionError("formal matrix changed exact promoted-Q2 spill records")
+    if final_spills != core_spills:
+        raise AssertionError("formal spill-batch post-pass changed core SPILL records")
+    if tuple(spill.buf_id for spill in result.solution.spills) != promoted_spill_ids:
+        raise AssertionError("formal matrix changed promoted-Q2 SPILL identity/order")
     if final_q2.spill_count != promoted_q2.spill_count:
         raise AssertionError("formal matrix changed promoted-Q2 spill count")
     if final_q2.extra_traffic != promoted_q2.extra_traffic:
@@ -145,6 +156,9 @@ def main() -> int:
             "expected_official_cycles": expected_core_official,
             "expected_safe_cycles": expected_core_safe,
             "step_count": len(result.core.steps),
+            "spill_offsets_recolored": core_spills != tuple(
+                (spill.buf_id, spill.new_offset) for spill in promoted.solution.spills
+            ),
         },
         "spill_batch": {
             "enabled": spill is not None,
