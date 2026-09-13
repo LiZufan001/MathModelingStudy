@@ -50,6 +50,10 @@ def _fixed_row(payload: dict, raw_cycles: int) -> dict[str, str]:
     }
 
 
+def _is_strict_valid(row: dict[str, str]) -> bool:
+    return row.get("strict_valid", "True").lower() == "true"
+
+
 def _dominates(a: dict[str, str], b: dict[str, str]) -> bool:
     a_t, a_c = int(a["extra_traffic"]), int(a["official_cycles"])
     b_t, b_c = int(b["extra_traffic"]), int(b["official_cycles"])
@@ -57,12 +61,11 @@ def _dominates(a: dict[str, str], b: dict[str, str]) -> bool:
 
 
 def _pareto(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    valid_rows = [row for row in rows if _is_strict_valid(row)]
     kept: list[dict[str, str]] = []
     dominated: list[dict[str, str]] = []
-    for row in rows:
-        if row.get("strict_valid", "True").lower() != "true":
-            continue
-        if any(other is not row and _dominates(other, row) for other in rows):
+    for row in valid_rows:
+        if any(other is not row and _dominates(other, row) for other in valid_rows):
             dominated.append(row)
         else:
             kept.append(row)
