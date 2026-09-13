@@ -1,5 +1,5 @@
 case,variant,sequence,extra_traffic,traffic_delta,traffic_delta_pct,official_cycles,official_improvement_pct,safe_cycles,strict_valid
-Conv_Case0,zero_traffic,0,177904,0,0.0,597969,5.996567,787783,True
+Conv_Case0,zero_traffic,0,177904,0,0.0,595302,6.415831,789619,True
 Conv_Case1,zero_traffic,0,721464,0,0.0,3767326,2.211968,4112665,True
 FlashAttention_Case0,zero_traffic,0,54016,0,0.0,187945,3.253288,204875,True
 FlashAttention_Case1,zero_traffic,0,242552,0,0.0,962022,0.075202,1026634,True
