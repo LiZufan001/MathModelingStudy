@@ -11,7 +11,7 @@ SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(EXP))
 sys.path.insert(0, str(SRC))
 
-from benchmark_q3_spill_switch_batch_snapshot import _load_solution
+from benchmark_q3_spill_switch_batch_snapshot import _load_solution, _serialize_solution
 from parser import load_case
 from q2_validator import validate_q2_solution
 from q3_conv_iterative_spill_batch import optimize_q3_critical_spill_batch_iterative
@@ -60,6 +60,7 @@ def main() -> int:
     ap.add_argument("--solution", type=Path, required=True)
     ap.add_argument("--polish-evidence", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--solution-out", type=Path, required=True)
     ap.add_argument("--max-rounds", type=int, default=4)
     args = ap.parse_args()
 
@@ -157,6 +158,28 @@ def main() -> int:
     ):
         raise AssertionError("iterative batches changed spill records")
 
+    snapshot = _serialize_solution(
+        evidence["case"],
+        iterative.final_solution,
+        iterative.final_official,
+        iterative.final_safe,
+        final_q2,
+        {
+            "source_solution": str(args.solution),
+            "polish_evidence": str(args.polish_evidence),
+            "second_batch_prefix": 8,
+            "iterative_max_rounds": args.max_rounds,
+            "iterative_accepted_rounds": iterative.accepted_rounds,
+            "iterative_saturated": iterative.saturated,
+            "round_best_prefixes": [result.best_prefix_size for result in iterative.rounds],
+        },
+    )
+    args.solution_out.parent.mkdir(parents=True, exist_ok=True)
+    args.solution_out.write_text(
+        json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
     payload = {
         "case": evidence["case"],
         "polish_official_cycles": current_official.total_cycles,
@@ -180,6 +203,7 @@ def main() -> int:
         "total_seconds": round(t2 - t0, 6),
         "rounds": [_round_payload(i, result) for i, result in enumerate(iterative.rounds, 1)],
         "replayed_polish_rounds": replayed_polish,
+        "solution_snapshot_written": str(args.solution_out),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
