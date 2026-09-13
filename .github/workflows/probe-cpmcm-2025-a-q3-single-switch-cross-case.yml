@@ -1,4 +1,4 @@
-name: Diagnose CPMCM 2025 A Q3 Conv1 Spill 6565 Cycle
+name: Probe CPMCM 2025 A Q3 Conv1 Coordinate Descent
 
 on:
   workflow_dispatch:
@@ -13,9 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  conv1-cycle-diagnosis:
+  conv1-coordinate-descent:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Sparse checkout 2025 A only
         uses: actions/checkout@v4
@@ -33,19 +33,31 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: 34773837415
-      - name: Diagnose rank-1 spill reversal cycle
+      - name: Coordinate probe gates
         run: |
-          python problems/CPMCM/2025/A/experiments/diagnose_q3_spill_cycle_blockers.py \
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/probe_q3_checkpoint_coordinate_descent.py \
+            problems/CPMCM/2025/A/src/q3_official_optimizer.py \
+            problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/src/q3_official_spill_optimizer.py
+      - name: Probe bounded coordinate descent
+        run: |
+          python problems/CPMCM/2025/A/experiments/probe_q3_checkpoint_coordinate_descent.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
             --input-dir /tmp/source/next \
-            --out /tmp/q3-conv1-cycle-diagnosis.json \
-            --max-switches 1 \
-            --prefix-sizes 1
-      - name: Upload Conv1 cycle diagnosis
+            --out-dir /tmp/q3-conv1-coordinate \
+            --expected-official 3765227 \
+            --core-max-rounds 1 \
+            --recolor-max-rounds 2 \
+            --recolor-max-targets 6 \
+            --recolor-max-starts 12 \
+            --spill-max-rounds 4 \
+            --spill-max-switches 64
+      - name: Upload Conv1 coordinate evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-diagnosis
-          path: /tmp/q3-conv1-cycle-diagnosis.json
+          name: cpmcm-2025-a-q3-conv1-coordinate
+          path: /tmp/q3-conv1-coordinate
           if-no-files-found: warn
