@@ -1,4 +1,4 @@
-name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch From Round 7
+name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch From 3757592
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-cycle-filtered-saturation-continuation:
+  conv1-cycle-filtered-saturation-continuation-2:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,14 +25,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download latest complete saturation checkpoints
+      - name: Download latest Conv1 saturation checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34774614940
+          run-id: 34793847649
       - name: Saturation continuation gates
         run: |
           python -m py_compile \
@@ -44,15 +44,15 @@ jobs:
           python problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch_saturation.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/round-07/next \
-            --out-dir /tmp/q3-conv1-cycle-filtered-saturation-continuation \
-            --expected-official 3759115 \
+            --input-dir /tmp/source/Problem3 \
+            --out-dir /tmp/q3-conv1-cycle-filtered-saturation-continuation-2 \
+            --expected-official 3757592 \
             --max-switches 16 \
             --max-rounds 4
       - name: Upload Conv1 continuation checkpoints
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation
-          path: /tmp/q3-conv1-cycle-filtered-saturation-continuation
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-2
+          path: /tmp/q3-conv1-cycle-filtered-saturation-continuation-2
           if-no-files-found: warn
