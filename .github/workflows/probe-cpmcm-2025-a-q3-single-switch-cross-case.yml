@@ -1,4 +1,4 @@
-name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch
+name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch From Round 7
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-cycle-filtered-saturation:
+  conv1-cycle-filtered-saturation-continuation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,34 +25,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download accepted cycle-filtered checkpoint
+      - name: Download latest complete saturation checkpoints
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-batch
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 34774417835
-      - name: Saturation gates
+          run-id: 34774614940
+      - name: Saturation continuation gates
         run: |
           python -m py_compile \
             problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py \
             problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch_saturation.py \
             problems/CPMCM/2025/A/src/q3_spill_batch_optimizer.py
-      - name: Fresh-rerank cycle-filtered batches to saturation
+      - name: Continue fresh-rerank cycle-filtered batches
         run: |
           python problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch_saturation.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
-            --input-dir /tmp/source/next \
-            --out-dir /tmp/q3-conv1-cycle-filtered-saturation \
-            --expected-official 3763979 \
+            --input-dir /tmp/source/round-07/next \
+            --out-dir /tmp/q3-conv1-cycle-filtered-saturation-continuation \
+            --expected-official 3759115 \
             --max-switches 16 \
-            --max-rounds 8
-      - name: Upload Conv1 cycle-filtered saturation checkpoints
+            --max-rounds 4
+      - name: Upload Conv1 continuation checkpoints
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation
-          path: /tmp/q3-conv1-cycle-filtered-saturation
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation
+          path: /tmp/q3-conv1-cycle-filtered-saturation-continuation
           if-no-files-found: warn
