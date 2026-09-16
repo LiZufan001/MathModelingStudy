@@ -1,0 +1,20 @@
+[submodule "resources/paper_templates/candidates/01_latexstudio_gmcm_2024"]
+	path = resources/paper_templates/candidates/01_latexstudio_gmcm_2024
+	url = https://github.com/latexstudio/GMCMthesis.git
+	branch = master
+[submodule "resources/paper_templates/candidates/02_gmcm_2022_bw_color"]
+	path = resources/paper_templates/candidates/02_gmcm_2022_bw_color
+	url = https://github.com/wsr1998/2022-China_post-graduate_mathematical_contest_in_modeling_thesis_template_Latex.git
+	branch = main
+[submodule "resources/paper_templates/candidates/03_cpipc_2023_modular"]
+	path = resources/paper_templates/candidates/03_cpipc_2023_modular
+	url = https://github.com/mathliuyang/CPIPC.git
+	branch = main
+[submodule "resources/paper_templates/candidates/04_cpgmcm_2023_full_paper"]
+	path = resources/paper_templates/candidates/04_cpgmcm_2023_full_paper
+	url = https://github.com/spiritysdx/CPGMCM_2023.git
+	branch = main
+[submodule "resources/paper_templates/references/05_national_first_2021_problem_e"]
+	path = resources/paper_templates/references/05_national_first_2021_problem_e
+	url = https://github.com/hiyouga/HuaweiCup2021-MCM-ProblemE.git
+	branch = main
