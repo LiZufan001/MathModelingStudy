@@ -2,6 +2,7 @@
 
 > 状态：写作前结构冻结草案。这里只规定章节职责、公式、证据与图表，不撰写正式正文。
 > 版式基线：2025 华为杯 LaTeX 模板；2026 官方《竞赛论文标准文档》发布后再做格式校准。
+> 获奖论文结构学习：见 [`STYLE_STUDY.md`](STYLE_STUDY.md)。
 
 ## 0. 写作总原则
 
@@ -9,7 +10,11 @@
 - 所有数值只引用 `results/` 正式发布数据；实验目录、日志和 README 中的中间点不直接当正式结果。
 - 每个“最优”“提升”“不变”“饱和”都必须能落到 `CLAIM_LEDGER.md` 的证据条目。
 - `best-known / promoted / locally saturated` 与“全局最优”严格区分。
+- 六组 case 在正文里优先**合并成总表/总图**，不逐 case 重复写六段结果分析。
+- Q1/Q2/Q3 每一问末尾显式设置“本问结果与小结”，用一段话收束“方法—结果—边界”。
 - 摘要最后写；先完成方法、结果、验证，再从正文反向压缩摘要。
+
+相对篇幅暂按正文比例控制，不冻结绝对页数：问题重述+假设符号+总体框架约 15%，Q1 约 18%~20%，Q2 约 22%~25%，Q3+trade-off 约 28%~30%，验证+优缺点+结论约 15%。最终以 2026 官方格式为准。
 
 ---
 
@@ -181,9 +186,9 @@ s.t. S 为 DAG 合法拓扑序；
 - Q1 详细表：`../tables/generated/q1_summary.tex`，优先放附录；
 - Q1 六组柱图 `q1_peak_residency.pdf` 可放附录，不占正文版面。
 
-### 结论边界
+### 5.6 本问结果与小结
 
-使用“当前确定性四策略 portfolio 的 promoted best-known 点”；禁止写“Q1 全局最优”。
+用一段话收束：四策略共享同一合法性 evaluator；五组保持 baseline，Conv1 得到严格但幅度较小的改善；因此 Q1 给后续两问提供稳定、可复现的逻辑调度起点。最后一句明确“不宣称全局最优”。
 
 ---
 
@@ -231,7 +236,7 @@ extra_traffic 最小
 
 避免把实验参数堆成主体；具体参数可以附录。
 
-### 6.4 结果
+### 6.4 六组结果
 
 正式数据：`results/q2_optimized/q2_optimized_summary.csv`。
 
@@ -240,7 +245,6 @@ extra_traffic 最小
 - 六组 promoted extra traffic：`28,800 / 430,208 / 54,016 / 242,552 / 177,904 / 721,464`；
 - Matmul 两组总 traffic `495,616 -> 459,008`，降低 `36,608`（`7.386%`）；
 - Matmul 两组 SPILL `3,872 -> 3,586`；
-- FlashAttention / Conv 四组 promotion 保持既有指标；
 - “SPILL 次数”不是唯一目标，真正比较 byte traffic。
 
 ### 6.5 验证
@@ -255,9 +259,9 @@ extra_traffic 最小
 - `q2_spill_count.pdf` / `q2_extra_traffic.pdf` 优先放附录；
 - Q2 详细表：`q2_summary.tex`。
 
-### 结论边界
+### 6.6 本问结果与小结
 
-写“promoted / best-known in tested portfolio”，不写“全局最少搬运量”。
+用一段话说明：Q2 将 Q1 的逻辑生命周期映射为有限连续地址空间，在 strict replay 下以 extra traffic 为主目标进行优化；六组均得到可提交的地址/SPILL 方案。明确“promoted / best-known in tested portfolio”，不写“全局最少搬运量”。
 
 ---
 
@@ -330,6 +334,7 @@ f_v = s_v + Cycles_v
 ### 正文图表
 
 - F1：`../figures/generated/q3_official_improvement_pct.pdf`；
+- **F4：`../figures/generated/q3_stage_contribution.pdf`，展示 raw → formal core → post-pass final 的贡献拆分；**
 - T1：`../tables/generated/key_results.tex`；
 - F2：`q3_raw_vs_final_cycles.pdf`，版面宽松时用，否则附录。
 
@@ -341,6 +346,10 @@ f_v = s_v + Cycles_v
 - Conv1 cycle-filtered `max_switches=16` 邻域到首个 no-improvement，并由独立 formal acceptance 再跑一次得到 `improved=false`。
 
 必须用“该邻域局部饱和”，不能把它扩写成 Q3 全局最优证明。
+
+### 7.7 本问结果与小结
+
+正文只用六组总表 + F1/F4 解释整体改善和分阶段贡献，再用 Conv0/Conv1 两个代表 case 说明 post-pass 机制。结尾强调：正式主链全程保持 Q2 traffic/SPILL 不变量，因此周期改善具有清晰的因果解释。
 
 ---
 
@@ -407,6 +416,8 @@ f_v = s_v + Cycles_v
 
 ## 10. 模型优点、局限与改进方向
 
+采用获奖论文中阅读效率较高的平行结构：每一点用短标题 + 一小段解释，不写成长篇自评。
+
 ### 优点应围绕
 
 - 三问统一、递进而非割裂；
@@ -442,16 +453,14 @@ f_v = s_v + Cycles_v
 
 ## 12. 参考文献
 
-待正文方法术语确定后补 BibTeX。优先引用：
+参考文献层已经建立，不再是待办状态：
 
-- DAG scheduling / list scheduling；
-- register allocation / graph coloring / spilling；
-- Belady / cache replacement（仅在对应模型处）；
-- memory planning / contiguous allocation；
-- heterogeneous pipeline scheduling；
-- 多目标/Pareto（FA1 权衡节）。
+- BibTeX：`../references/references.bib`；
+- 文献 → 正文用途映射：`../references/REFERENCE_MAP.md`；
+- 来源审计：`../references/SOURCE_AUDIT.md`；
+- CI validator：`../references/validate_references.py`。
 
-不为了“文献数量”引入与正文算法无关的论文。
+正文只引用实际使用到的方法背景：DAG/list scheduling、register allocation/spilling、Belady/cache replacement、memory planning/contiguous allocation、heterogeneous scheduling、Pareto/multicriteria optimization。禁止为了“数量”加入无关文献，也禁止把背景类比写成“本队采用了该论文算法”。
 
 ---
 
