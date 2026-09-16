@@ -44,7 +44,9 @@ paper/
 ├─ tables/
 │  ├─ scripts/generate_tables.py
 │  └─ generated/        # LaTeX tabular 片段
-├─ diagrams/            # 后续 draw.io / TikZ 方法框图
+├─ diagrams/
+│  ├─ scripts/generate_diagrams.py
+│  └─ generated/        # 方法框图，PDF + PNG
 ├─ references/          # 后续 BibTeX 与文献笔记
 └─ manuscript/          # 2026 官方格式发布后建立正式 tex 工程
 ```
@@ -66,8 +68,10 @@ make -C problems/CPMCM/2025/A/paper assets
 - Q3 promoted-Q2 raw cycles 与 final-Q3 cycles 对比图；
 - FA1 refined Traffic–Cycles 局部权衡图；
 - Q3 全局 Pareto 诊断图；
+- D1 三问统一 solution pipeline 方法图；
+- D2 Q2 buffer 生命周期/SPILL 机制图；
 - Q1/Q2/Q3 三张详细 LaTeX 表；
 - 一张跨 Q1/Q2/Q3 的 consolidated key-results 表；
 - FA1 trade-off 精确数值表。
 
-所有数据图同时输出矢量 `PDF` 和预览 `PNG`。
+所有数据图和方法图同时输出矢量 `PDF` 和预览 `PNG`。

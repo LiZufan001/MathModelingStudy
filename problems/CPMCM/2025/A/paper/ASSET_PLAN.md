@@ -16,8 +16,8 @@
 
 | ID | 类型 | 暂定内容 | 状态 | 数据/证据来源 | 目的 |
 |---|---|---|---|---|---|
-| D1 | 方法框图 | Q1 调度 → Q2 地址/SPILL → Q3 timing 优化的完整 pipeline | 待绘制 | `src/` + 已验收流程 | 让评委一页看懂三问关系 |
-| D2 | 机制图 | Q2 连续地址分配、resident/SPILL/reload 生命周期示意 | 待绘制 | `q2_allocator.py` / `q2_validator.py` | 解释第二问核心机制 |
+| D1 | 方法框图 | Q1 调度 → Q2 地址/SPILL → Q3 timing 优化的完整 pipeline | 已生成 | `diagrams/scripts/generate_diagrams.py` + `src/` | 让评委一页看懂三问关系 |
+| D2 | 机制图 | Q2 连续地址分配、resident/SPILL/reload 生命周期示意 | 已生成 | `diagrams/scripts/generate_diagrams.py` + Q2 allocator/validator | 解释第二问核心机制 |
 | F1 | 数据图 | 六组 Q3 fixed-traffic official-cycle 改善百分比 | 已生成 | `q3_formal_fixed_traffic_summary.csv` | 横向展示 Q3 有效性 |
 | F2 | 数据图 | promoted Q2 raw cycles vs final Q3 cycles（log 轴） | 已生成 | 同上 | 同时体现绝对规模与改善 |
 | F3 | 数据图 | FA1 refined Traffic–Cycles 局部权衡 | 已生成 | `q3_refined_official_frontier.csv` | 展示第三问“性能-搬运量”权衡 |
@@ -45,7 +45,12 @@
 - Conv0 / Conv1 的局部搜索“no-improvement”饱和证据：保留在 acceptance/provenance 与实验记录中。除非正文需要说明局部搜索收敛过程，否则放附录证据，不为了好看人工拼曲线。
 - CI run ID、artifact digest、SHA-256：用于可复现性说明/附录，不进入正文主图。
 
-## 计划中的方法图
+## 方法图
+
+当前输出：
+
+- D1: `diagrams/generated/pipeline_overview.pdf`
+- D2: `diagrams/generated/q2_buffer_lifecycle.pdf`
 
 ### D1 — 三问统一框架
 

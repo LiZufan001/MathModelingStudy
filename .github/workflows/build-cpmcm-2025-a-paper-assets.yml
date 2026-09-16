@@ -22,6 +22,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+          sparse-checkout-cone-mode: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -31,7 +35,8 @@ jobs:
         run: |
           python -m py_compile \
             problems/CPMCM/2025/A/paper/figures/scripts/generate_figures.py \
-            problems/CPMCM/2025/A/paper/tables/scripts/generate_tables.py
+            problems/CPMCM/2025/A/paper/tables/scripts/generate_tables.py \
+            problems/CPMCM/2025/A/paper/diagrams/scripts/generate_diagrams.py
       - name: Generate paper assets
         run: make -C problems/CPMCM/2025/A/paper assets
       - name: Verify expected outputs
@@ -48,11 +53,14 @@ jobs:
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_summary.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/key_results.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_fa1_tradeoff.tex
+          test -s problems/CPMCM/2025/A/paper/diagrams/generated/pipeline_overview.pdf
+          test -s problems/CPMCM/2025/A/paper/diagrams/generated/q2_buffer_lifecycle.pdf
       - uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-paper-assets
           path: |
             problems/CPMCM/2025/A/paper/figures/generated
             problems/CPMCM/2025/A/paper/tables/generated
+            problems/CPMCM/2025/A/paper/diagrams/generated
           if-no-files-found: error
           retention-days: 14
