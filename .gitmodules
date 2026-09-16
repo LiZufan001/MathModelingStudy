@@ -10,15 +10,15 @@
 	path = resources/paper_templates/candidates/03_cpipc_2023_modular
 	url = https://github.com/mathliuyang/CPIPC.git
 	branch = main
-[submodule "resources/paper_templates/candidates/04_cpgmcm_2023_full_paper"]
-	path = resources/paper_templates/candidates/04_cpgmcm_2023_full_paper
-	url = https://github.com/spiritysdx/CPGMCM_2023.git
-	branch = main
-[submodule "resources/paper_templates/candidates/05_gmcm_2025_overleaf"]
-	path = resources/paper_templates/candidates/05_gmcm_2025_overleaf
+[submodule "resources/paper_templates/candidates/04_gmcm_2025_overleaf"]
+	path = resources/paper_templates/candidates/04_gmcm_2025_overleaf
 	url = https://github.com/springli07/GMCM_LaTeX_overleaf.git
 	branch = main
-[submodule "resources/paper_templates/references/05_national_first_2021_problem_e"]
-	path = resources/paper_templates/references/05_national_first_2021_problem_e
+[submodule "resources/paper_templates/references/01_cpgmcm_2023_full_paper"]
+	path = resources/paper_templates/references/01_cpgmcm_2023_full_paper
+	url = https://github.com/spiritysdx/CPGMCM_2023.git
+	branch = main
+[submodule "resources/paper_templates/references/02_national_first_2021_problem_e"]
+	path = resources/paper_templates/references/02_national_first_2021_problem_e
 	url = https://github.com/hiyouga/HuaweiCup2021-MCM-ProblemE.git
 	branch = main
