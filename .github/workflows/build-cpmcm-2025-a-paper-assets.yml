@@ -48,6 +48,7 @@ jobs:
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_spill_count.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_extra_traffic.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_official_improvement_pct.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q3_stage_contribution.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_raw_vs_final_cycles.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_fa1_tradeoff.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_refined_pareto.pdf
