@@ -1,4 +1,4 @@
-name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch From 3752127
+name: Continue CPMCM 2025 A Q3 Conv1 Cycle-Filtered Batch From 3750473
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  conv1-cycle-filtered-saturation-continuation-7:
+  conv1-cycle-filtered-saturation-continuation-8:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -28,11 +28,11 @@ jobs:
       - name: Download latest Conv1 saturation checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-6
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-7
           path: /tmp/source
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: 35053304722
+          run-id: 35053947030
       - name: Saturation continuation gates
         run: |
           python -m py_compile \
@@ -45,14 +45,14 @@ jobs:
             --data-dir problems/CPMCM/2025/A/data/csv \
             --case Conv_Case1 \
             --input-dir /tmp/source/Problem3 \
-            --out-dir /tmp/q3-conv1-cycle-filtered-saturation-continuation-7 \
-            --expected-official 3752127 \
+            --out-dir /tmp/q3-conv1-cycle-filtered-saturation-continuation-8 \
+            --expected-official 3750473 \
             --max-switches 16 \
             --max-rounds 8
       - name: Upload Conv1 continuation checkpoints
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-7
-          path: /tmp/q3-conv1-cycle-filtered-saturation-continuation-7
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-8
+          path: /tmp/q3-conv1-cycle-filtered-saturation-continuation-8
           if-no-files-found: warn
