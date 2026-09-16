@@ -1,0 +1,31 @@
+{
+  "case": "Conv_Case1",
+  "source_solution": {
+    "workflow_run": 34683136280,
+    "artifact_id": 10294866363,
+    "artifact_name": "cpmcm-2025-a-q3-conv1-third-switch",
+    "file": "q3-conv1-two-switch-solution.json",
+    "head_sha": "4017da5d0ba25946c96522cb278e992bc9ffcf33"
+  },
+  "baseline": {
+    "official_cycles": 3780545,
+    "safe_cycles": 4113775,
+    "spill_count": 9646,
+    "extra_traffic": 721464
+  },
+  "move": {
+    "spill_index": 5977,
+    "mode": "out_earlier",
+    "reversed_edges": [[47102, 48040]],
+    "expected_after": {
+      "official_cycles": 3780267,
+      "safe_cycles": 4113497,
+      "changed_positions": 2
+    }
+  },
+  "evidence": {
+    "workflow_run": 34683136280,
+    "artifact_id": 10294866363,
+    "head_sha": "4017da5d0ba25946c96522cb278e992bc9ffcf33"
+  }
+}

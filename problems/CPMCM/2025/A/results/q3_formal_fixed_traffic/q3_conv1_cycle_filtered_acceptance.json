@@ -1,0 +1,63 @@
+{
+  "case": "Conv_Case1",
+  "accepted": true,
+  "route": "cycle_filtered_artifact->fresh_promoted_q2_rebuild->dual_evaluator->independent_no_improvement_recheck",
+  "source_provenance": {
+    "run_id": 35056138452,
+    "head_sha": "eb53dbae05bdefb2534d94e71a42f5977712e542",
+    "artifact_id": 10430574025,
+    "artifact_digest": "sha256:71eb5c172cec9910877e70032a558911cb0e8b2076595ff2668554ded9a18d8a",
+    "artifact_name": "cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-9",
+    "operator": "fresh_rerank_cycle_filtered_critical_spill_batch",
+    "saturated": true,
+    "stop_reason": "no_improvement",
+    "round_count": 4,
+    "accepted_rounds": 3,
+    "max_switches": 16
+  },
+  "promoted_q2": {
+    "spill_count": 9646,
+    "extra_traffic": 721464
+  },
+  "candidate": {
+    "official_cycles": 3749777,
+    "safe_cycles": 4114811,
+    "reference_official_cycles": 3767326,
+    "improvement_vs_reference_cycles": 17549,
+    "spill_count": 9646,
+    "extra_traffic": 721464,
+    "safe_overlap_errors": 0,
+    "exact_spill_records_match": true,
+    "fixed_q2_metrics_match": true
+  },
+  "independent_saturation_recheck": {
+    "operator": "cycle_filtered_critical_spill_prefix_batch",
+    "improved": false,
+    "official_cycles": 3749777,
+    "safe_cycles": 4114811,
+    "valid": true,
+    "safe_overlap_errors": 0
+  },
+  "outputs": {
+    "schedule": {
+      "path": "Problem3/Conv_Case1_schedule.txt",
+      "sha256": "54afb1046cd578bbee0597deafd8b3856202f039509fcb522ec5c9ffeeda302e"
+    },
+    "memory": {
+      "path": "Problem3/Conv_Case1_memory.txt",
+      "sha256": "73272121bc6889751d466c263493a7650981c83c898fef4fee77eb2dce4bf1e5"
+    },
+    "spill": {
+      "path": "Problem3/Conv_Case1_spill.txt",
+      "sha256": "cf705111ba94928b129d0a6c0c31fdc125415bd485c30abba65a96647cbf473c"
+    }
+  },
+  "formal_acceptance_artifact": {
+    "run_id": 35064897835,
+    "head_sha": "48c8fc08aa669add5998d0d9d1d73b8614c64239",
+    "artifact_id": 10434077125,
+    "artifact_name": "cpmcm-2025-a-q3-conv1-cycle-filtered-formal-acceptance",
+    "artifact_digest": "sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10",
+    "expires_at": "2026-12-15T06:41:52Z"
+  }
+}
