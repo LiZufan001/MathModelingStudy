@@ -1,0 +1,60 @@
+# CPMCM 2025 A 论文工程
+
+本目录是 2025 A 题正式论文工程的工作区。当前阶段只建立可复现的论文资产链，不开始撰写正文。
+
+## 模板
+
+已选定 2025 华为杯 LaTeX 模板作为版式基线：
+
+`resources/paper_templates/candidates/04_gmcm_2025_overleaf/`
+
+主文件示例：`MathModel.tex`；编译示例：`MathModel.pdf`。
+
+正式论文不会直接修改第三方 submodule。待 2026 官方《竞赛论文标准文档》发布后，再把所选模板的必要版式迁入本目录并逐项校准。
+
+## 单一可信数据源
+
+论文中的数值、表格和数据图只读取已经验收并进入 `main` 的正式结果：
+
+- Q1: `results/q1_baseline/q1_baseline_summary.csv`
+- Q2: `results/q2_optimized/q2_optimized_summary.csv`
+- Q3: `results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv`
+- Q3 Pareto: `results/q3_pareto/q3_refined_official_frontier.csv`
+
+不在论文脚本中重新求解模型，不手抄正式指标。
+
+## 目录
+
+```text
+paper/
+├─ README.md
+├─ Makefile
+├─ figures/
+│  ├─ scripts/generate_figures.py
+│  └─ generated/        # 脚本输出，PDF + PNG
+├─ tables/
+│  ├─ scripts/generate_tables.py
+│  └─ generated/        # LaTeX tabular 片段
+├─ diagrams/            # 后续 draw.io / TikZ 方法框图
+├─ references/          # 后续 BibTeX 与文献笔记
+└─ manuscript/          # 2026 官方格式发布后建立正式 tex 工程
+```
+
+## 本地生成资产
+
+从仓库根目录：
+
+```bash
+python -m pip install matplotlib
+make -C problems/CPMCM/2025/A/paper assets
+```
+
+生成内容包括：
+
+- Q1 六组峰值驻留量图；
+- Q2 六组 SPILL 次数 / extra traffic 图；
+- Q3 raw→final official cycles 改善图；
+- Q3 refined Traffic–Cycles Pareto 图；
+- Q1/Q2/Q3 三张 LaTeX 数据表片段。
+
+所有图同时输出矢量 `PDF` 和预览 `PNG`。
