@@ -1,0 +1,70 @@
+name: Accept CPMCM 2025 A Q3 Conv1 Cycle-Filtered Saturated Artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - ".github/workflows/accept-cpmcm-2025-a-q3-conv1-cycle-filtered.yml"
+      - "problems/CPMCM/2025/A/experiments/accept_q3_conv1_cycle_filtered_artifact.py"
+      - "problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py"
+      - "problems/CPMCM/2025/A/src/q2_promoted.py"
+      - "problems/CPMCM/2025/A/src/q2_validator.py"
+      - "problems/CPMCM/2025/A/src/q3_evaluator.py"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  conv1-cycle-filtered-formal-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download saturated Conv1 search artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-9
+          path: /tmp/source
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 35056138452
+      - name: Acceptance regression gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py \
+            -q
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/accept_q3_conv1_cycle_filtered_artifact.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py
+      - name: Independently accept saturated Conv1 artifact
+        run: |
+          python problems/CPMCM/2025/A/experiments/accept_q3_conv1_cycle_filtered_artifact.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --input-dir /tmp/source \
+            --out-dir /tmp/q3-conv1-cycle-filtered-acceptance \
+            --source-run-id 35056138452 \
+            --source-head-sha eb53dbae05bdefb2534d94e71a42f5977712e542 \
+            --source-artifact-id 10430574025 \
+            --source-artifact-digest sha256:71eb5c172cec9910877e70032a558911cb0e8b2076595ff2668554ded9a18d8a \
+            --source-artifact-name cpmcm-2025-a-q3-conv1-cycle-filtered-saturation-continuation-9 \
+            --reference-official 3767326
+      - name: Upload accepted Problem3 and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q3-conv1-cycle-filtered-formal-acceptance
+          path: /tmp/q3-conv1-cycle-filtered-acceptance
+          if-no-files-found: error
