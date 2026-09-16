@@ -1,0 +1,123 @@
+name: Test CPMCM 2025 A Q2
+
+on:
+  push:
+    branches:
+      - main
+      - "integration/cpmcm-2025-a-*"
+    paths:
+      - "problems/CPMCM/2025/A/src/**"
+      - "problems/CPMCM/2025/A/tests/**"
+      - "problems/CPMCM/2025/A/README.md"
+      - "problems/CPMCM/2025/A/A题：通用神经网络处理器下的核内调度问题.docx"
+      - ".github/workflows/test-cpmcm-2025-a-q2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  q2-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Extract authoritative Q2/SPILL statement excerpts
+        run: |
+          python problems/CPMCM/2025/A/src/extract_statement_rules.py \
+            --docx "problems/CPMCM/2025/A/A题：通用神经网络处理器下的核内调度问题.docx" \
+            --window 5 \
+            --json-out /tmp/q2-statement-records.json
+      - name: Unit, oracle, and regression tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest problems/CPMCM/2025/A/tests -q
+      - name: Run Q2 baseline on all six official Appendix-E cases
+        run: |
+          python problems/CPMCM/2025/A/src/batch_q2.py \
+            --strategy baseline \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q2-baseline-results
+      - name: Compare Matmul strict allocator with exact uniform-page Belady oracle
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_matmul_oracle.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --baseline-summary /tmp/q2-baseline-results/q2_baseline_summary.csv \
+            --out /tmp/q2-matmul-belady-oracle.csv
+      - name: Benchmark Q2-aware reuse scheduler and replay winner on all six cases
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_reuse_scheduler.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --baseline-summary /tmp/q2-baseline-results/q2_baseline_summary.csv \
+            --out-dir /tmp/q2-reuse
+      - name: Generate promoted Q2 optimized solutions with exact regression gates
+        run: |
+          python problems/CPMCM/2025/A/src/batch_q2.py \
+            --strategy optimized \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --out-dir /tmp/q2-optimized-results
+      - name: Download archived 2025-09-25 competition Problem 2 attachment
+        run: |
+          mkdir -p /tmp/public-q2
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/archive/submission_packages/extracted_A25100550012/A25100550012/Attachment/Problem2"
+          for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
+            for kind in schedule memory spill; do
+              curl --fail --location --silent --show-error \
+                "$base/Q2_${case}_${kind}.txt" \
+                --output "/tmp/public-q2/${case}_${kind}.txt"
+            done
+          done
+      - name: Strictly re-evaluate archived competition Problem 2 solutions
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_solutions.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --solution-dir /tmp/public-q2 \
+            --out /tmp/q2-public-benchmark.csv
+      - name: Profile strict and archived spill victims
+        run: |
+          python problems/CPMCM/2025/A/src/analyze_q2_spill_profiles.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --baseline-dir /tmp/q2-baseline-results \
+            --external-dir /tmp/public-q2 \
+            --out /tmp/q2-spill-profiles.csv
+      - name: Download archived competition Problem 1 schedules
+        run: |
+          mkdir -p /tmp/public-q1
+          base="https://raw.githubusercontent.com/Zysishuiyears/2025Huaweicup_Cachenpuscheduling/main/archive/submission_packages/extracted_A25100550012/A25100550012/Attachment/Problem1"
+          for case in Matmul_Case0 Matmul_Case1 FlashAttention_Case0 FlashAttention_Case1 Conv_Case0 Conv_Case1; do
+            curl --fail --location --silent --show-error \
+              "$base/Q1_${case}_schedule.txt" \
+              --output "/tmp/public-q1/Q1_${case}_schedule.txt"
+          done
+      - name: Hold Q2 allocator fixed and ablate schedule order
+        run: |
+          python problems/CPMCM/2025/A/src/benchmark_q2_order_ablation.py \
+            --data-dir problems/CPMCM/2025/A/data/csv \
+            --external-q1-dir /tmp/public-q1 \
+            --external-q2-dir /tmp/public-q2 \
+            --out /tmp/q2-order-ablation.csv
+      - name: Upload Q2 acceptance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-q2-validation
+          path: |
+            /tmp/q2-statement-records.json
+            /tmp/q2-baseline-results
+            /tmp/q2-optimized-results
+            /tmp/q2-matmul-belady-oracle.csv
+            /tmp/q2-matmul-belady-oracle.json
+            /tmp/q2-reuse
+            /tmp/q2-public-benchmark.csv
+            /tmp/q2-public-benchmark.json
+            /tmp/q2-spill-profiles.csv
+            /tmp/q2-spill-profiles.json
+            /tmp/q2-order-ablation.csv
+            /tmp/q2-order-ablation.json
+          if-no-files-found: error

@@ -1,0 +1,7 @@
+case,raw_official_cycles,core_official_cycles,final_official_cycles,improvement_vs_core_cycles,improvement_vs_raw_pct,core_safe_cycles,final_safe_cycles,spill_count,extra_traffic,accepted_spill_batch_rounds,spill_batch_round_count,spill_batch_saturated,safe_overlap_errors,valid
+Matmul_Case0,135082,133682,133682,0,1.036408,160005,160005,225,28800,0,1,True,0,True
+Matmul_Case1,1534618,1531946,1531946,0,0.174115,1669574,1669574,3361,430208,0,1,True,0,True
+FlashAttention_Case0,194265,188562,187945,617,3.253288,204875,204875,316,54016,5,6,True,0,True
+FlashAttention_Case1,962746,962022,962022,0,0.075202,1026634,1026634,1782,242552,0,1,True,0,True
+Conv_Case0,636114,603405,595302,8103,6.415831,785635,789619,522,177904,10,11,True,0,True
+Conv_Case1,3852543,3781664,3749777,31887,2.667485,4113775,4114811,9646,721464,7,8,True,0,True

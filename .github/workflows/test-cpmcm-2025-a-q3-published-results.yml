@@ -1,0 +1,39 @@
+name: Test CPMCM 2025 A Q3 Published Results
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "integration/cpmcm-2025-a-*"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/verify_q3_published_results.py"
+      - "problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv"
+      - "problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.json"
+      - "problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier.csv"
+      - "problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier_reconcile.json"
+      - ".github/workflows/test-cpmcm-2025-a-q3-published-results.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  published-results:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify published Q3 results
+        run: |
+          python problems/CPMCM/2025/A/experiments/verify_q3_published_results.py \
+            --formal-summary problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv \
+            --formal-summary-json problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.json \
+            --frontier problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier.csv \
+            --reconcile-report problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier_reconcile.json

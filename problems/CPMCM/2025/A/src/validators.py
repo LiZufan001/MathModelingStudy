@@ -48,27 +48,44 @@ def validate_buffer_lifetimes(graph: ComputeGraph, order: list[int] | tuple[int,
     errors: list[str] = []
     live: dict[int, int] = {}
     l0_live: dict[str, int] = {kind: 0 for kind in L0_TYPES}
+
     for node_id in order:
         node = graph.nodes[node_id]
         if node.is_alloc:
-            assert node.buf_id is not None and node.memory_type is not None
-            if node.buf_id in live:
-                errors.append(f"buffer {node.buf_id} allocated while already live")
-            live[node.buf_id] = node_id
-            if node.memory_type in L0_TYPES:
-                l0_live[node.memory_type] += 1
-                if l0_live[node.memory_type] > 1:
-                    errors.append(f"{node.memory_type} has >1 live buffer at node {node_id}")
-        elif node.is_free:
-            assert node.buf_id is not None and node.memory_type is not None
-            if node.buf_id not in live:
-                errors.append(f"buffer {node.buf_id} freed before allocation / after prior free")
+            if node.buf_id is None or node.memory_type is None:
+                errors.append(f"ALLOC node {node_id} is missing BufId/Type")
             else:
-                live.pop(node.buf_id)
-            if node.memory_type in L0_TYPES:
-                l0_live[node.memory_type] -= 1
-                if l0_live[node.memory_type] < 0:
-                    errors.append(f"{node.memory_type} live count became negative at node {node_id}")
+                if node.buf_id in live:
+                    errors.append(f"buffer {node.buf_id} allocated while already live")
+                live[node.buf_id] = node_id
+                if node.memory_type in L0_TYPES:
+                    l0_live[node.memory_type] += 1
+                    if l0_live[node.memory_type] > 1:
+                        errors.append(f"{node.memory_type} has >1 live buffer at node {node_id}")
+
+        elif node.is_free:
+            if node.buf_id is None or node.memory_type is None:
+                errors.append(f"FREE node {node_id} is missing BufId/Type")
+            else:
+                if node.buf_id not in live:
+                    errors.append(f"buffer {node.buf_id} freed before allocation / after prior free")
+                else:
+                    live.pop(node.buf_id)
+                if node.memory_type in L0_TYPES:
+                    l0_live[node.memory_type] -= 1
+                    if l0_live[node.memory_type] < 0:
+                        errors.append(f"{node.memory_type} live count became negative at node {node_id}")
+
+        else:
+            # Bufs is part of the official operation-node description. Checking only
+            # graph edges is not enough for an independent oracle: every referenced
+            # buffer must actually be resident throughout the operation's schedule point.
+            for buf_id in node.bufs:
+                if buf_id not in live:
+                    errors.append(f"node {node_id} references buffer {buf_id} while it is not live")
+                    if len(errors) >= 20:
+                        break
+
         if len(errors) >= 20:
             break
 

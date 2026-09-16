@@ -1,0 +1,141 @@
+{
+  "generated_by": [
+    "problems/CPMCM/2025/A/experiments/reconcile_q3_refined_frontier.py",
+    "Conv0 single-switch formal promotion",
+    "Conv1 cycle-filtered formal promotion"
+  ],
+  "dominance_fix_commit": "88263a87c0bad9b3221fb1598058210f0acee3cc",
+  "fixed_cases": [
+    "Conv_Case0",
+    "Conv_Case1",
+    "FlashAttention_Case0",
+    "FlashAttention_Case1",
+    "Matmul_Case0",
+    "Matmul_Case1"
+  ],
+  "formal_evidence": {
+    "Matmul_Case0": {
+      "run": 34747455829,
+      "artifact": 10314960252,
+      "digest": "sha256:a72268893be90a4944bcc57fbe8dec06be6545c0f2b51491e8e24a0f24aaa825"
+    },
+    "Matmul_Case1": {
+      "run": 34747455829,
+      "artifact": 10314493422,
+      "digest": "sha256:52325fef927cc7e3f648e4b8cd53f5a985c714cda5c41308124b085519b152ec"
+    },
+    "FlashAttention_Case0": {
+      "run": 34747455829,
+      "artifact": 10314796506,
+      "digest": "sha256:1d1ef5790ae01f69f9ecc86562a9bbaffb8d2236e3b568d2da3c9dadabd207a2"
+    },
+    "FlashAttention_Case1": {
+      "run": 34747455829,
+      "artifact": 10314227624,
+      "digest": "sha256:e3ea8116751023076264559558aa75dc08f001d3febc7a1d331b79fc73417b8d"
+    },
+    "Conv_Case0": {
+      "run": 34748384017,
+      "artifact": 10315385596,
+      "digest": "sha256:b7919290c4205ff75d83720abea7020bba57c14bc6489979816caff60d72df90",
+      "route": "formal fixed-traffic -> checkpointed critical-SPILL single-switch saturation"
+    },
+    "Conv_Case1": {
+      "run": 35064897835,
+      "artifact": 10434077125,
+      "digest": "sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10",
+      "route": "formal fixed-traffic -> checkpointed cycle-filtered critical-SPILL saturation -> independent artifact acceptance",
+      "source_search": {
+        "run": 35056138452,
+        "head_sha": "eb53dbae05bdefb2534d94e71a42f5977712e542",
+        "artifact": 10430574025,
+        "digest": "sha256:71eb5c172cec9910877e70032a558911cb0e8b2076595ff2668554ded9a18d8a"
+      }
+    }
+  },
+  "kept": [
+    {
+      "case": "Conv_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 177904,
+      "official_cycles": 595302,
+      "official_improvement_pct": 6.415831,
+      "safe_cycles": 789619
+    },
+    {
+      "case": "Conv_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 721464,
+      "official_cycles": 3749777,
+      "official_improvement_pct": 2.667485,
+      "safe_cycles": 4114811
+    },
+    {
+      "case": "FlashAttention_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 54016,
+      "official_cycles": 187945,
+      "official_improvement_pct": 3.253288,
+      "safe_cycles": 204875
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 242552,
+      "official_cycles": 962022,
+      "official_improvement_pct": 0.075202,
+      "safe_cycles": 1026634
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "refined_tradeoff",
+      "sequence": "1>1",
+      "extra_traffic": 244048,
+      "official_cycles": 947002,
+      "official_improvement_pct": 1.635322,
+      "safe_cycles": 958676
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "variant": "refined_tradeoff",
+      "sequence": "2>1",
+      "extra_traffic": 245060,
+      "official_cycles": 912556,
+      "official_improvement_pct": 5.213213,
+      "safe_cycles": 936070
+    },
+    {
+      "case": "Matmul_Case0",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 28800,
+      "official_cycles": 133682,
+      "official_improvement_pct": 1.036408,
+      "safe_cycles": 160005
+    },
+    {
+      "case": "Matmul_Case1",
+      "variant": "zero_traffic",
+      "sequence": "0",
+      "extra_traffic": 430208,
+      "official_cycles": 1531946,
+      "official_improvement_pct": 0.174115,
+      "safe_cycles": 1669574
+    }
+  ],
+  "dominated_removed": [
+    {
+      "case": "FlashAttention_Case0",
+      "variant": "refined_tradeoff",
+      "sequence": "1",
+      "extra_traffic": 55036,
+      "official_cycles": 191230,
+      "safe_cycles": 205617,
+      "reason": "strictly dominated by fixed-traffic 54016 / 187945"
+    }
+  ]
+}

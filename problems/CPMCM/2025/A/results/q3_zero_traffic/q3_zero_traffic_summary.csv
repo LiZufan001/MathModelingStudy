@@ -1,0 +1,7 @@
+case,baseline_cycles,optimized_cycles,cycle_delta,cycle_ratio,improvement_pct,spill_count,extra_traffic,accepted_steps,safe_overlap_errors,valid
+Matmul_Case0,195024,160005,-35019,0.820437,17.956252,225,28800,2,0,True
+Matmul_Case1,1771302,1669574,-101728,0.942569,5.743120,3361,430208,2,0,True
+FlashAttention_Case0,212425,212425,0,1.000000,0.000000,301,55188,0,0,True
+FlashAttention_Case1,1026762,1026762,0,1.000000,0.000000,1782,242552,0,0,True
+Conv_Case0,798190,798190,0,1.000000,0.000000,493,178212,0,0,True
+Conv_Case1,4214554,4083189,-131365,0.968831,3.116937,9550,724630,1,0,True
