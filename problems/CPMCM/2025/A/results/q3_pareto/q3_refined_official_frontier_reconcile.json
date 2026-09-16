@@ -1,7 +1,8 @@
 {
   "generated_by": [
     "problems/CPMCM/2025/A/experiments/reconcile_q3_refined_frontier.py",
-    "Conv0 single-switch formal promotion"
+    "Conv0 single-switch formal promotion",
+    "Conv1 cycle-filtered formal promotion"
   ],
   "dominance_fix_commit": "88263a87c0bad9b3221fb1598058210f0acee3cc",
   "fixed_cases": [
@@ -40,9 +41,16 @@
       "route": "formal fixed-traffic -> checkpointed critical-SPILL single-switch saturation"
     },
     "Conv_Case1": {
-      "run": 34745747473,
-      "artifact": 10314199173,
-      "digest": "sha256:dda2514dcb6764ddcfa8361ed513acd7494c7ab6c4fc1b0add09aecb95c2a7e7"
+      "run": 35064897835,
+      "artifact": 10434077125,
+      "digest": "sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10",
+      "route": "formal fixed-traffic -> checkpointed cycle-filtered critical-SPILL saturation -> independent artifact acceptance",
+      "source_search": {
+        "run": 35056138452,
+        "head_sha": "eb53dbae05bdefb2534d94e71a42f5977712e542",
+        "artifact": 10430574025,
+        "digest": "sha256:71eb5c172cec9910877e70032a558911cb0e8b2076595ff2668554ded9a18d8a"
+      }
     }
   },
   "kept": [
@@ -60,9 +68,9 @@
       "variant": "zero_traffic",
       "sequence": "0",
       "extra_traffic": 721464,
-      "official_cycles": 3767326,
-      "official_improvement_pct": 2.211968,
-      "safe_cycles": 4112665
+      "official_cycles": 3749777,
+      "official_improvement_pct": 2.667485,
+      "safe_cycles": 4114811
     },
     {
       "case": "FlashAttention_Case0",

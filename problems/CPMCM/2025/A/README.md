@@ -44,6 +44,8 @@ Q1 baseline 的完整结果与历史证据见 [`results/q1_baseline/README.md`](
 - `src/export_q3_formal_fixed_traffic.py`：输出正式 `Problem3/<case>_schedule|memory|spill.txt`；
 - `experiments/q3_critical_spill_switch.py`：critical-SPILL single-switch bubble 邻域；
 - `experiments/probe_q3_single_switch_saturation.py`：checkpointed single-switch 饱和搜索；
+- `experiments/probe_q3_cycle_filtered_batch.py` / `probe_q3_cycle_filtered_batch_saturation.py`：Conv1 cycle-filtered critical-SPILL checkpointed 饱和搜索；
+- `experiments/accept_q3_conv1_cycle_filtered_artifact.py`：从搜索 artifact 独立重建 promoted Q2、双 evaluator 重放并复查 no-improvement 的正式验收入口；
 - `experiments/reconcile_q3_refined_frontier.py`：把 fixed-traffic evidence 与已有 trade-off 重新做 strict-valid-only Pareto reconciliation；
 - `tests/test_q3_*`：evaluator、official optimizer、spill-batch、formal wrapper 与 frontier reconciliation 回归。
 
@@ -75,11 +77,13 @@ Q3 主目标按 `official_literal_cycles` 排序，`residency_safe` 只作为硬
 | FlashAttention_Case0 | **187,945** | 204,875 | 54,016 |
 | FlashAttention_Case1 | **962,022** | 1,026,634 | 242,552 |
 | Conv_Case0 | **595,302** | 789,619 | 177,904 |
-| Conv_Case1 | **3,767,326** | 4,112,665 | 721,464 |
+| Conv_Case1 | **3,749,777** | 4,114,811 | 721,464 |
 
-六组 critical-SPILL batch 均已到首个 no-improvement round；这是该 batch 算子族的**局部饱和**，不是全局最优证明。Conv0 在 batch 终点 `597,969` 后再用 checkpointed single-switch bubble 降到 `595,302`，随后该 `max_switches=4` 邻域 no-op；正式 acceptance run `34748384017` 已从旧正式 Problem3 完整重放并通过。Conv1 `3,767,326` 已由 deterministic saturated shortcut 与完整 promoted-Q2 -> deep formal chain 独立复现。
+六组基础 critical-SPILL batch 均已到首个 no-improvement round；这是对应算子族的**局部饱和**，不是全局最优证明。Conv0 在 batch 终点 `597,969` 后再用 checkpointed single-switch bubble 降到 `595,302`，随后该 `max_switches=4` 邻域 no-op，并由 formal acceptance 完整重放通过。
 
-当前 refined Pareto 共 8 行。FA0 原 `w=1 = 55,036 / 191,230` 已被新 fixed-traffic 点 `54,016 / 187,945` 严格支配并删除；FA1 的 `1>1`、`2>1` 两个 higher-traffic trade-off 仍保留。当前 published-results consistency run `34748431634` 为 success。
+Conv1 先由 deterministic saturated shortcut 与完整 promoted-Q2 -> deep formal chain 独立复现旧正式点 `3,767,326`。在这个已验证起点上，新的 cycle-filtered critical-SPILL post-pass 继续 checkpoint 搜索到 **`3,749,777`**，相对旧正式点再减少 `17,549` cycles；最后一轮首次 no-improvement。formal acceptance run `35064897835` 又从搜索 artifact 独立重建 promoted Q2、重放 strict/official/safe，并再次得到 no-improvement，确认 exact SPILL records、spill count `9,646` 与 extra traffic `721,464` 均不变。
+
+当前 refined Pareto 仍为 8 行。FA0 原 `w=1 = 55,036 / 191,230` 已被 fixed-traffic 点 `54,016 / 187,945` 严格支配并删除；FA1 的 `1>1`、`2>1` 两个 higher-traffic trade-off 仍保留。发布数据由 `verify_q3_published_results.py` 同时检查 CSV / JSON / refined frontier / reconcile report 以及 improvement arithmetic。
 
 ## 本地运行
 
@@ -118,6 +122,6 @@ python problems/CPMCM/2025/A/src/export_q3_formal_fixed_traffic.py \
   --require-spill-saturated
 ```
 
-大规模 Conv1 推荐使用仓库中的 targeted acceptance workflow：它从已验证 deterministic saturated baseline 重建正式起点，再调用 `src/q3_spill_batch_optimizer.py`，同时保存最终 Problem3 三文件，避免重复执行更慢的 deep recolor 全链。
+Conv1 的当前正式 post-pass 使用 checkpointed cycle-filtered workflow，并以 `accept_q3_conv1_cycle_filtered_artifact.py` 做 artifact-native 独立验收。永久 provenance 与三份 accepted Problem3 的 SHA-256 见 `results/q3_formal_fixed_traffic/q3_conv1_cycle_filtered_acceptance.json`。
 
 任何后续候选都必须先通过独立 validator/evaluator、六组官方数据真实 replay、固定 Q2 traffic/SPILL 不变量和指标回归门禁，才能替换当前正式结果。
