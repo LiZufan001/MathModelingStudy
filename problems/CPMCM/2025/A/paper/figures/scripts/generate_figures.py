@@ -32,16 +32,30 @@ def short_case(name: str) -> str:
     )
 
 
+def annotate_bars(ax, bars, values, fmt="{:.2f}"):
+    for bar, value in zip(bars, values):
+        ax.annotate(
+            fmt.format(value),
+            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            xytext=(0, 4),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+
+
 def q1_peak_residency():
     rows = read_csv(RESULTS / "q1_baseline" / "q1_baseline_summary.csv")
     labels = [short_case(r["case"]) for r in rows]
     values = [int(r["peak_residency"]) for r in rows]
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    ax.bar(labels, values)
+    bars = ax.bar(labels, values)
     ax.set_ylabel("Peak residency")
     ax.set_title("Q1 peak L1+UB residency across Appendix-E cases")
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
+    annotate_bars(ax, bars, values, fmt="{:,.0f}")
     save(fig, "q1_peak_residency")
 
 
@@ -49,20 +63,24 @@ def q2_spill_and_traffic():
     rows = read_csv(RESULTS / "q2_optimized" / "q2_optimized_summary.csv")
     labels = [short_case(r["case"]) for r in rows]
 
+    spill = [int(r["spill_count"]) for r in rows]
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    ax.bar(labels, [int(r["spill_count"]) for r in rows])
+    bars = ax.bar(labels, spill)
     ax.set_ylabel("SPILL count")
     ax.set_title("Q2 promoted SPILL count")
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
+    annotate_bars(ax, bars, spill, fmt="{:,.0f}")
     save(fig, "q2_spill_count")
 
+    traffic = [int(r["extra_traffic"]) for r in rows]
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    ax.bar(labels, [int(r["extra_traffic"]) for r in rows])
+    bars = ax.bar(labels, traffic)
     ax.set_ylabel("Extra traffic")
     ax.set_title("Q2 promoted extra DDR traffic")
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
+    annotate_bars(ax, bars, traffic, fmt="{:,.0f}")
     save(fig, "q2_extra_traffic")
 
 
@@ -76,15 +94,50 @@ def q3_improvement():
     pct = [100.0 * (a - b) / a for a, b in zip(raw, final)]
 
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    ax.bar(labels, pct)
+    bars = ax.bar(labels, pct)
     ax.set_ylabel("Official-cycle reduction (%)")
     ax.set_title("Q3 fixed-traffic improvement over promoted Q2")
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
+    annotate_bars(ax, bars, pct, fmt="{:.2f}%")
     save(fig, "q3_official_improvement_pct")
 
 
-def q3_pareto():
+def q3_raw_vs_final():
+    rows = read_csv(
+        RESULTS / "q3_formal_fixed_traffic" / "q3_formal_fixed_traffic_summary.csv"
+    )
+    labels = [short_case(r["case"]) for r in rows]
+    raw = [int(r["raw_official_cycles"]) for r in rows]
+    final = [int(r["final_official_cycles"]) for r in rows]
+    pct = [100.0 * (a - b) / a for a, b in zip(raw, final)]
+
+    x = list(range(len(labels)))
+    width = 0.36
+    fig, ax = plt.subplots(figsize=(7.6, 4.6))
+    raw_bars = ax.bar([i - width / 2 for i in x], raw, width, label="Promoted Q2")
+    final_bars = ax.bar([i + width / 2 for i in x], final, width, label="Final Q3")
+    ax.set_yscale("log")
+    ax.set_ylabel("Official cycles (log scale)")
+    ax.set_title("Q3 official cycles before and after fixed-traffic optimization")
+    ax.set_xticks(x, labels, rotation=25)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend()
+    for i, (a, b, p) in enumerate(zip(raw, final, pct)):
+        ax.annotate(
+            f"-{p:.2f}%",
+            xy=(i, max(a, b)),
+            xytext=(0, 8),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+    _ = raw_bars, final_bars
+    save(fig, "q3_raw_vs_final_cycles")
+
+
+def q3_pareto_overview():
     rows = read_csv(RESULTS / "q3_pareto" / "q3_refined_official_frontier.csv")
     fig, ax = plt.subplots(figsize=(7.2, 4.6))
     for case in sorted({r["case"] for r in rows}):
@@ -94,17 +147,44 @@ def q3_pareto():
         ax.plot(xs, ys, marker="o", label=short_case(case))
     ax.set_xlabel("Extra traffic")
     ax.set_ylabel("Official cycles")
-    ax.set_title("Q3 refined Traffic–Cycles frontier")
+    ax.set_title("Q3 refined Traffic–Cycles frontier (diagnostic overview)")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     save(fig, "q3_refined_pareto")
+
+
+def q3_fa1_tradeoff():
+    rows = read_csv(RESULTS / "q3_pareto" / "q3_refined_official_frontier.csv")
+    pts = [r for r in rows if r["case"] == "FlashAttention_Case1"]
+    pts.sort(key=lambda r: float(r["traffic_delta_pct"]))
+    xs = [float(r["traffic_delta_pct"]) for r in pts]
+    ys = [float(r["official_improvement_pct"]) for r in pts]
+
+    fig, ax = plt.subplots(figsize=(6.8, 4.4))
+    ax.plot(xs, ys, marker="o")
+    ax.set_xlabel("Extra traffic increase vs promoted Q2 (%)")
+    ax.set_ylabel("Official-cycle reduction vs promoted Q2 (%)")
+    ax.set_title("FA1 refined Traffic–Cycles trade-off")
+    ax.grid(alpha=0.25)
+    for r, x, y in zip(pts, xs, ys):
+        label = "fixed traffic" if r["variant"] == "zero_traffic" else r["sequence"].replace(">", "→")
+        ax.annotate(
+            label,
+            xy=(x, y),
+            xytext=(6, 6),
+            textcoords="offset points",
+            fontsize=8,
+        )
+    save(fig, "q3_fa1_tradeoff")
 
 
 def main():
     q1_peak_residency()
     q2_spill_and_traffic()
     q3_improvement()
-    q3_pareto()
+    q3_raw_vs_final()
+    q3_pareto_overview()
+    q3_fa1_tradeoff()
     print(f"generated figures in {OUT}")
 
 

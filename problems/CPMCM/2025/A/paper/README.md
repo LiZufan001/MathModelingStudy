@@ -23,11 +23,20 @@
 
 不在论文脚本中重新求解模型，不手抄正式指标。
 
+## 图表规划
+
+正文/附录的图表取舍、数据源和当前状态统一维护在：
+
+[`ASSET_PLAN.md`](ASSET_PLAN.md)
+
+原则是正文只保留解释方法和支撑核心结论的资产，完整六组明细与诊断图优先放附录。
+
 ## 目录
 
 ```text
 paper/
 ├─ README.md
+├─ ASSET_PLAN.md
 ├─ Makefile
 ├─ figures/
 │  ├─ scripts/generate_figures.py
@@ -49,12 +58,16 @@ python -m pip install matplotlib
 make -C problems/CPMCM/2025/A/paper assets
 ```
 
-生成内容包括：
+当前生成内容包括：
 
 - Q1 六组峰值驻留量图；
 - Q2 六组 SPILL 次数 / extra traffic 图；
-- Q3 raw→final official cycles 改善图；
-- Q3 refined Traffic–Cycles Pareto 图；
-- Q1/Q2/Q3 三张 LaTeX 数据表片段。
+- Q3 fixed-traffic 改善百分比图；
+- Q3 promoted-Q2 raw cycles 与 final-Q3 cycles 对比图；
+- FA1 refined Traffic–Cycles 局部权衡图；
+- Q3 全局 Pareto 诊断图；
+- Q1/Q2/Q3 三张详细 LaTeX 表；
+- 一张跨 Q1/Q2/Q3 的 consolidated key-results 表；
+- FA1 trade-off 精确数值表。
 
-所有图同时输出矢量 `PDF` 和预览 `PNG`。
+所有数据图同时输出矢量 `PDF` 和预览 `PNG`。

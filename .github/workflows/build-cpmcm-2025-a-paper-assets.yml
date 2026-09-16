@@ -40,10 +40,14 @@ jobs:
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_spill_count.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_extra_traffic.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_official_improvement_pct.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q3_raw_vs_final_cycles.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q3_fa1_tradeoff.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_refined_pareto.pdf
           test -s problems/CPMCM/2025/A/paper/tables/generated/q1_summary.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q2_summary.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/key_results.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q3_fa1_tradeoff.tex
       - uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-paper-assets
