@@ -32,7 +32,8 @@ Q1 的目标就是最小化峰值驻留量。Conv1 的 improvement 虽然只有�
 - 使用同一独立 evaluator 重算；
 - 改善是严格的 `310,408 -> 310,344`；
 - 方法是通用 bounded lookahead，而不是手工改一个 NodeId；
-- 结果在完整六组 CI 的 policy comparison 中产生。
+- 结果在完整六组 CI 的 policy comparison 中产生；
+- fresh `main` run 再次复现同一数值，并且六份 promoted schedule 的 SHA-256 与先前独立 validation 完全一致。
 
 所以论文和正式 Q1 结果应报告当前已验证的 best-known portfolio 点，而不是为了运行更快故意退回较差的 baseline。
 
@@ -44,20 +45,21 @@ Q1 workflow 还下载了一套公开 Problem1 六组 schedule，并用本仓库 
 
 恰好与我们的 baseline 六组一致。这个外部结果只说明 baseline 有很强的横向参照价值，**不构成全局最优证明**，也不参与 promoted policy 的选择。
 
-## 验收 provenance
+## 最新 main 验收 provenance
 
-- source head：`1e567ecd5481e419beca4b7f536f69050bdae4a8`
+- source head：`8b1f610dd219cc8441f39e4ca7adacb08e14550c`
 - workflow：`Test CPMCM 2025 A Q1`
-- run：`35066858672`
+- run：`35077306473`
 - conclusion：success
 - unit / oracle tests：76 passed
 - 六组 baseline：success
 - 六组四策略 comparison：success
+- published-result verifier：success
 - 公开 schedule strict replay：6/6 valid
-- artifact：`10434447193`
-- digest：`sha256:75f2bb1c643ef8ba7926292378cf41cca9f49d6fc5e4497efc002df3a23969d8`
+- artifact：`10439355947`
+- digest：`sha256:40b9d9834dae2660c88d56a0f18cea95b2a5640fad0905a19cfe27d7cd81c45e`
 
-`q1_promoted_summary.json` 额外永久记录六份 promoted best schedule 的 SHA-256。
+`q1_promoted_summary.json` 永久记录六份 promoted best schedule 的 SHA-256；fresh main run 与先前 integration validation 的六份 SHA-256 完全一致。
 
 ## 结论边界
 

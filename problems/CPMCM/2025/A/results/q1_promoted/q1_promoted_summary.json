@@ -8,10 +8,17 @@
     "trigger_ratio": 0.5
   },
   "source_validation": {
+    "head_sha": "8b1f610dd219cc8441f39e4ca7adacb08e14550c",
+    "workflow_run_id": 35077306473,
+    "artifact_id": 10439355947,
+    "artifact_name": "cpmcm-2025-a-q1-validation",
+    "artifact_digest": "sha256:40b9d9834dae2660c88d56a0f18cea95b2a5640fad0905a19cfe27d7cd81c45e",
+    "published_result_verifier": "success"
+  },
+  "previous_independent_validation": {
     "head_sha": "1e567ecd5481e419beca4b7f536f69050bdae4a8",
     "workflow_run_id": 35066858672,
     "artifact_id": 10434447193,
-    "artifact_name": "cpmcm-2025-a-q1-validation",
     "artifact_digest": "sha256:75f2bb1c643ef8ba7926292378cf41cca9f49d6fc5e4497efc002df3a23969d8"
   },
   "public_reference_benchmark": {
@@ -65,5 +72,8 @@
       "schedule_sha256": "dd649c958477ef2631cb7327ee092553738f066c9ea876594d8ba9db89eed410"
     }
   ],
+  "deterministic_reproduction": {
+    "fresh_main_run_schedule_hashes_match_previous_validation": true
+  },
   "claim_boundary": "This is the best point in the named four-policy deterministic portfolio on the six Appendix-E cases. It is not a proof of global Q1 optimality."
 }
