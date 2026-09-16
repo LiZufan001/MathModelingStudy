@@ -1,0 +1,54 @@
+name: Build CPMCM 2025 A Paper Assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "problems/CPMCM/2025/A/paper/**"
+      - "problems/CPMCM/2025/A/results/q1_baseline/q1_baseline_summary.csv"
+      - "problems/CPMCM/2025/A/results/q2_optimized/q2_optimized_summary.csv"
+      - "problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv"
+      - "problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier.csv"
+      - ".github/workflows/build-cpmcm-2025-a-paper-assets.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-paper-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install plotting dependency
+        run: python -m pip install --disable-pip-version-check matplotlib
+      - name: Compile paper asset scripts
+        run: |
+          python -m py_compile \
+            problems/CPMCM/2025/A/paper/figures/scripts/generate_figures.py \
+            problems/CPMCM/2025/A/paper/tables/scripts/generate_tables.py
+      - name: Generate paper assets
+        run: make -C problems/CPMCM/2025/A/paper assets
+      - name: Verify expected outputs
+        run: |
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q1_peak_residency.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q2_spill_count.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q2_extra_traffic.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q3_official_improvement_pct.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q3_refined_pareto.pdf
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q1_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q2_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q3_summary.tex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-paper-assets
+          path: |
+            problems/CPMCM/2025/A/paper/figures/generated
+            problems/CPMCM/2025/A/paper/tables/generated
+          if-no-files-found: error
+          retention-days: 14
