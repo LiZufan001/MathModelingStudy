@@ -1,6 +1,6 @@
 # CPMCM 2025 A 论文工程
 
-本目录是 2025 A 题正式论文工程的工作区。当前阶段先建立可复现的论文资产链和章节施工图，再进入正文写作。
+本目录是 2025 A 题正式论文工程的工作区。当前阶段已经完成可复现论文资产链、章节施工图、Claim Ledger、理论文献层和获奖论文结构学习，再进入正文写作。
 
 ## 模板
 
@@ -23,13 +23,25 @@
 
 不在论文脚本中重新求解模型，不手抄正式指标。
 
-## 图表规划
+## 写作结构与证据约束
 
-正文/附录的图表取舍、数据源和当前状态统一维护在：
+- 章节施工图：[`manuscript/OUTLINE.md`](manuscript/OUTLINE.md)
+- 关键结论证据账本：[`manuscript/CLAIM_LEDGER.md`](manuscript/CLAIM_LEDGER.md)
+- 2025 A 题获奖论文结构学习：[`manuscript/STYLE_STUDY.md`](manuscript/STYLE_STUDY.md)
+- 图表规划：[`ASSET_PLAN.md`](ASSET_PLAN.md)
 
-[`ASSET_PLAN.md`](ASSET_PLAN.md)
+核心写作原则是：三问形成“逻辑调度 → 物理内存 → 时间流水”的统一递进；正文六组 case 优先合表/合图，详细结果和诊断资产进入附录；任何 `best-known / promoted / locally saturated` 结论都不能越界写成全局最优。
 
-原则是正文只保留解释方法和支撑核心结论的资产，完整六组明细与诊断图优先放附录。
+## 参考文献层
+
+参考文献已经建立并纳入 CI：
+
+- `references/references.bib`
+- `references/REFERENCE_MAP.md`
+- `references/SOURCE_AUDIT.md`
+- `references/validate_references.py`
+
+BibTeX 条目必须能回到 DOI / arXiv / 出版来源，并且在 `REFERENCE_MAP.md` 中说明“支持什么、不能支持什么”。
 
 ## 目录
 
@@ -40,15 +52,15 @@ paper/
 ├─ Makefile
 ├─ figures/
 │  ├─ scripts/generate_figures.py
-│  └─ generated/        # 脚本输出，PDF + PNG
+│  └─ generated/        # 数据图，PDF + PNG
 ├─ tables/
 │  ├─ scripts/generate_tables.py
 │  └─ generated/        # LaTeX tabular 片段
 ├─ diagrams/
 │  ├─ scripts/generate_diagrams.py
 │  └─ generated/        # 方法框图，PDF + PNG
-├─ references/          # 后续 BibTeX 与文献笔记
-└─ manuscript/          # 正式 tex 工程与章节施工图
+├─ references/          # BibTeX、来源审计与引用映射
+└─ manuscript/          # 章节施工图、Claim Ledger、结构学习与正式 tex 工程
 ```
 
 ## 本地生成资产
@@ -65,6 +77,7 @@ make -C problems/CPMCM/2025/A/paper assets
 - Q1 六组 promoted 峰值驻留量图；
 - Q2 六组 SPILL 次数 / extra traffic 图；
 - Q3 fixed-traffic 改善百分比图；
+- **Q3 `raw → formal core → post-pass final` 阶段贡献分解图；**
 - Q3 promoted-Q2 raw cycles 与 final-Q3 cycles 对比图；
 - FA1 refined Traffic–Cycles 局部权衡图；
 - Q3 全局 Pareto 诊断图；
@@ -74,4 +87,4 @@ make -C problems/CPMCM/2025/A/paper assets
 - 一张跨 Q1/Q2/Q3 的 consolidated key-results 表；
 - FA1 trade-off 精确数值表。
 
-所有数据图和方法图同时输出矢量 `PDF` 和预览 `PNG`。
+所有数据图和方法图同时输出矢量 `PDF` 和预览 `PNG`。Paper Assets workflow 会同时验证图表、方法图和 bibliography metadata。
