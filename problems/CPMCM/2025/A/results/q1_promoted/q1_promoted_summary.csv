@@ -1,0 +1,7 @@
+case,nodes,edges,baseline_peak,promoted_peak,promoted_method,absolute_reduction_vs_baseline,improvement_vs_baseline_pct,valid
+Matmul_Case0,4160,7104,9216,9216,q1_baseline,0,0.000000,True
+Matmul_Case1,30976,55040,34816,34816,q1_baseline,0,0.000000,True
+FlashAttention_Case0,1716,2712,26728,26728,q1_baseline,0,0.000000,True
+FlashAttention_Case1,6952,11184,106992,106992,q1_baseline,0,0.000000,True
+Conv_Case0,2580,3869,80170,80170,q1_baseline,0,0.000000,True
+Conv_Case1,36086,85653,310408,310344,q1_lookahead,64,0.020618,True

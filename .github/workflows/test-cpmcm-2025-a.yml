@@ -8,6 +8,7 @@ on:
     paths:
       - "problems/CPMCM/2025/A/src/**"
       - "problems/CPMCM/2025/A/tests/**"
+      - "problems/CPMCM/2025/A/results/q1_promoted/**"
       - "problems/CPMCM/2025/A/README.md"
       - ".github/workflows/test-cpmcm-2025-a.yml"
   workflow_dispatch:
@@ -42,6 +43,12 @@ jobs:
           python problems/CPMCM/2025/A/src/compare_q1.py \
             --data-dir problems/CPMCM/2025/A/data/csv \
             --out-dir /tmp/q1-greedy-results
+      - name: Verify published promoted Q1 results
+        run: |
+          python problems/CPMCM/2025/A/src/verify_q1_promoted_results.py \
+            --comparison /tmp/q1-greedy-results/q1_policy_comparison.csv \
+            --published problems/CPMCM/2025/A/results/q1_promoted/q1_promoted_summary.csv \
+            --baseline problems/CPMCM/2025/A/results/q1_baseline/q1_baseline_summary.csv
       - name: Download public canonical Problem 1 schedules for independent benchmarking
         run: |
           mkdir -p /tmp/public-q1

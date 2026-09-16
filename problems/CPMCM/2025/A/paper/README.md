@@ -1,6 +1,6 @@
 # CPMCM 2025 A 论文工程
 
-本目录是 2025 A 题正式论文工程的工作区。当前阶段只建立可复现的论文资产链，不开始撰写正文。
+本目录是 2025 A 题正式论文工程的工作区。当前阶段先建立可复现的论文资产链和章节施工图，再进入正文写作。
 
 ## 模板
 
@@ -16,7 +16,7 @@
 
 论文中的数值、表格和数据图只读取已经验收并进入 `main` 的正式结果：
 
-- Q1: `results/q1_baseline/q1_baseline_summary.csv`
+- Q1: `results/q1_promoted/q1_promoted_summary.csv`
 - Q2: `results/q2_optimized/q2_optimized_summary.csv`
 - Q3: `results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv`
 - Q3 Pareto: `results/q3_pareto/q3_refined_official_frontier.csv`
@@ -48,7 +48,7 @@ paper/
 │  ├─ scripts/generate_diagrams.py
 │  └─ generated/        # 方法框图，PDF + PNG
 ├─ references/          # 后续 BibTeX 与文献笔记
-└─ manuscript/          # 2026 官方格式发布后建立正式 tex 工程
+└─ manuscript/          # 正式 tex 工程与章节施工图
 ```
 
 ## 本地生成资产
@@ -62,7 +62,7 @@ make -C problems/CPMCM/2025/A/paper assets
 
 当前生成内容包括：
 
-- Q1 六组峰值驻留量图；
+- Q1 六组 promoted 峰值驻留量图；
 - Q2 六组 SPILL 次数 / extra traffic 图；
 - Q3 fixed-traffic 改善百分比图；
 - Q3 promoted-Q2 raw cycles 与 final-Q3 cycles 对比图；

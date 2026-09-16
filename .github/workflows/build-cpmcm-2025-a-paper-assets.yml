@@ -7,7 +7,7 @@ on:
       - main
     paths:
       - "problems/CPMCM/2025/A/paper/**"
-      - "problems/CPMCM/2025/A/results/q1_baseline/q1_baseline_summary.csv"
+      - "problems/CPMCM/2025/A/results/q1_promoted/q1_promoted_summary.csv"
       - "problems/CPMCM/2025/A/results/q2_optimized/q2_optimized_summary.csv"
       - "problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv"
       - "problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier.csv"

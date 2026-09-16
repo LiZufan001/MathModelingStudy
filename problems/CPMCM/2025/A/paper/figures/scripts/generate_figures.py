@@ -46,13 +46,13 @@ def annotate_bars(ax, bars, values, fmt="{:.2f}"):
 
 
 def q1_peak_residency():
-    rows = read_csv(RESULTS / "q1_baseline" / "q1_baseline_summary.csv")
+    rows = read_csv(RESULTS / "q1_promoted" / "q1_promoted_summary.csv")
     labels = [short_case(r["case"]) for r in rows]
-    values = [int(r["peak_residency"]) for r in rows]
+    values = [int(r["promoted_peak"]) for r in rows]
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
     bars = ax.bar(labels, values)
     ax.set_ylabel("Peak residency")
-    ax.set_title("Q1 peak L1+UB residency across Appendix-E cases")
+    ax.set_title("Q1 promoted peak L1+UB residency across Appendix-E cases")
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
     annotate_bars(ax, bars, values, fmt="{:,.0f}")

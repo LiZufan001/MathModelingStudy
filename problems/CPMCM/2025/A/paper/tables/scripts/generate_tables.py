@@ -42,15 +42,22 @@ def write_table(name: str, headers: list[str], rows: list[list[str]], align: str
 
 
 def main():
-    q1 = read_csv(RESULTS / "q1_baseline" / "q1_baseline_summary.csv")
+    q1 = read_csv(RESULTS / "q1_promoted" / "q1_promoted_summary.csv")
     write_table(
         "q1_summary.tex",
-        ["Case", "Nodes", "Edges", "Peak residency"],
+        ["Case", "Nodes", "Edges", "Baseline peak", "Promoted peak", "Method"],
         [
-            [esc(r["case"]), fint(r["nodes"]), fint(r["edges"]), fint(r["peak_residency"])]
+            [
+                esc(r["case"]),
+                fint(r["nodes"]),
+                fint(r["edges"]),
+                fint(r["baseline_peak"]),
+                fint(r["promoted_peak"]),
+                esc(r["promoted_method"]),
+            ]
             for r in q1
         ],
-        "lrrr",
+        "lrrrrl",
     )
 
     q2 = read_csv(RESULTS / "q2_optimized" / "q2_optimized_summary.csv")
@@ -102,7 +109,7 @@ def main():
             [
                 esc(case),
                 fint(q1_by[case]["nodes"]),
-                fint(q1_by[case]["peak_residency"]),
+                fint(q1_by[case]["promoted_peak"]),
                 fint(q2_by[case]["spill_count"]),
                 fint(q2_by[case]["extra_traffic"]),
                 fint(q3_by[case]["final_official_cycles"]),

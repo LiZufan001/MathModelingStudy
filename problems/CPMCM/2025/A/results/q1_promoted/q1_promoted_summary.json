@@ -1,0 +1,69 @@
+{
+  "schema": "cpmcm-2025-a-q1-promoted-v1",
+  "selection_rule": "minimum valid peak_residency across deterministic q1_baseline, q1_pressure, q1_frontier and bounded q1_lookahead policies; ties use the comparison runner's deterministic runtime/name rule only after equal peak",
+  "lookahead_parameters": {
+    "depth": 2,
+    "candidate_limit": 6,
+    "rollout_horizon": 96,
+    "trigger_ratio": 0.5
+  },
+  "source_validation": {
+    "head_sha": "1e567ecd5481e419beca4b7f536f69050bdae4a8",
+    "workflow_run_id": 35066858672,
+    "artifact_id": 10434447193,
+    "artifact_name": "cpmcm-2025-a-q1-validation",
+    "artifact_digest": "sha256:75f2bb1c643ef8ba7926292378cf41cca9f49d6fc5e4497efc002df3a23969d8"
+  },
+  "public_reference_benchmark": {
+    "scope": "independent strict re-evaluation of the six public Problem1 schedules used by the Q1 workflow; not used to select the promoted solution",
+    "all_valid": true,
+    "all_six_match_baseline_peak": true
+  },
+  "cases": [
+    {
+      "case": "Matmul_Case0",
+      "baseline_peak": 9216,
+      "promoted_peak": 9216,
+      "promoted_method": "q1_baseline",
+      "schedule_sha256": "161d045e0279ee39ab840cdb05999fb03ba4b2e68feb45fc9fce6a84ec11adcc"
+    },
+    {
+      "case": "Matmul_Case1",
+      "baseline_peak": 34816,
+      "promoted_peak": 34816,
+      "promoted_method": "q1_baseline",
+      "schedule_sha256": "d5a8221a112b6d2e7bd33351112cb06f4485f7f658d40c1a287ba204bc82038f"
+    },
+    {
+      "case": "FlashAttention_Case0",
+      "baseline_peak": 26728,
+      "promoted_peak": 26728,
+      "promoted_method": "q1_baseline",
+      "schedule_sha256": "b82ba5b73e7dffc881347a3021f0554ee7909b2ff97ccf74e52ab6fe53c2cf18"
+    },
+    {
+      "case": "FlashAttention_Case1",
+      "baseline_peak": 106992,
+      "promoted_peak": 106992,
+      "promoted_method": "q1_baseline",
+      "schedule_sha256": "25e260446363db90e4b31dbb5d04a530eb647a5ca9e7bb5c6eb1254a3185b177"
+    },
+    {
+      "case": "Conv_Case0",
+      "baseline_peak": 80170,
+      "promoted_peak": 80170,
+      "promoted_method": "q1_baseline",
+      "schedule_sha256": "8fe72deea2384872722564e2d1165d73e7d71a717361b6fc7542901aacdcd97d"
+    },
+    {
+      "case": "Conv_Case1",
+      "baseline_peak": 310408,
+      "promoted_peak": 310344,
+      "promoted_method": "q1_lookahead",
+      "absolute_reduction_vs_baseline": 64,
+      "improvement_vs_baseline_pct": 0.020618,
+      "schedule_sha256": "dd649c958477ef2631cb7327ee092553738f066c9ea876594d8ba9db89eed410"
+    }
+  ],
+  "claim_boundary": "This is the best point in the named four-policy deterministic portfolio on the six Appendix-E cases. It is not a proof of global Q1 optimality."
+}
