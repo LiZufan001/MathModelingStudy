@@ -36,7 +36,10 @@ jobs:
           python -m py_compile \
             problems/CPMCM/2025/A/paper/figures/scripts/generate_figures.py \
             problems/CPMCM/2025/A/paper/tables/scripts/generate_tables.py \
-            problems/CPMCM/2025/A/paper/diagrams/scripts/generate_diagrams.py
+            problems/CPMCM/2025/A/paper/diagrams/scripts/generate_diagrams.py \
+            problems/CPMCM/2025/A/paper/references/validate_references.py
+      - name: Validate bibliography metadata
+        run: python problems/CPMCM/2025/A/paper/references/validate_references.py
       - name: Generate paper assets
         run: make -C problems/CPMCM/2025/A/paper assets
       - name: Verify expected outputs
@@ -55,6 +58,9 @@ jobs:
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_fa1_tradeoff.tex
           test -s problems/CPMCM/2025/A/paper/diagrams/generated/pipeline_overview.pdf
           test -s problems/CPMCM/2025/A/paper/diagrams/generated/q2_buffer_lifecycle.pdf
+          test -s problems/CPMCM/2025/A/paper/references/references.bib
+          test -s problems/CPMCM/2025/A/paper/references/REFERENCE_MAP.md
+          test -s problems/CPMCM/2025/A/paper/references/SOURCE_AUDIT.md
       - uses: actions/upload-artifact@v4
         with:
           name: cpmcm-2025-a-paper-assets
@@ -62,5 +68,8 @@ jobs:
             problems/CPMCM/2025/A/paper/figures/generated
             problems/CPMCM/2025/A/paper/tables/generated
             problems/CPMCM/2025/A/paper/diagrams/generated
+            problems/CPMCM/2025/A/paper/references/references.bib
+            problems/CPMCM/2025/A/paper/references/REFERENCE_MAP.md
+            problems/CPMCM/2025/A/paper/references/SOURCE_AUDIT.md
           if-no-files-found: error
           retention-days: 14
