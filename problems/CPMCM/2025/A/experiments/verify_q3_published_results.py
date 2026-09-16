@@ -28,19 +28,71 @@ def _key(row: dict) -> tuple[str, str, str, int, int, int]:
     )
 
 
+def _csv_bool(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise AssertionError(f"unexpected CSV boolean {value!r}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--formal-summary", type=Path, required=True)
+    ap.add_argument("--formal-summary-json", type=Path, required=True)
     ap.add_argument("--frontier", type=Path, required=True)
     ap.add_argument("--reconcile-report", type=Path, required=True)
     args = ap.parse_args()
 
     formal = _read_csv(args.formal_summary)
+    formal_json = json.loads(args.formal_summary_json.read_text(encoding="utf-8"))
     frontier = _read_csv(args.frontier)
     report = json.loads(args.reconcile_report.read_text(encoding="utf-8"))
 
     if len(formal) != 6:
         raise AssertionError(f"expected 6 formal fixed-traffic rows, got {len(formal)}")
+
+    json_cases = formal_json.get("cases")
+    if not isinstance(json_cases, list) or len(json_cases) != 6:
+        raise AssertionError("formal JSON must contain exactly 6 case rows")
+    json_by_case = {str(row["case"]): row for row in json_cases}
+    csv_cases = {row["case"] for row in formal}
+    if len(json_by_case) != 6 or set(json_by_case) != csv_cases:
+        raise AssertionError("formal CSV and JSON case sets differ")
+
+    int_fields = (
+        "raw_official_cycles",
+        "core_official_cycles",
+        "final_official_cycles",
+        "core_safe_cycles",
+        "final_safe_cycles",
+        "spill_count",
+        "extra_traffic",
+        "accepted_spill_batch_rounds",
+        "spill_batch_round_count",
+        "safe_overlap_errors",
+    )
+    bool_fields = ("spill_batch_saturated", "valid")
+    for csv_row in formal:
+        json_row = json_by_case[csv_row["case"]]
+        for field in int_fields:
+            csv_value = int(csv_row[field])
+            json_value = int(json_row[field])
+            if csv_value != json_value:
+                raise AssertionError(
+                    f"formal CSV/JSON drift for {csv_row['case']} {field}: "
+                    f"{csv_value} != {json_value}"
+                )
+        for field in bool_fields:
+            csv_value = _csv_bool(csv_row[field])
+            json_value = bool(json_row[field])
+            if csv_value != json_value:
+                raise AssertionError(
+                    f"formal CSV/JSON drift for {csv_row['case']} {field}: "
+                    f"{csv_value} != {json_value}"
+                )
+
     if not frontier:
         raise AssertionError("refined frontier is empty")
     if any(row.get("strict_valid", "").lower() != "true" for row in frontier):
@@ -51,7 +103,7 @@ def main() -> int:
         for row in frontier
         if row["variant"] == "zero_traffic" and row["sequence"] == "0"
     }
-    if set(zero_rows) != {row["case"] for row in formal}:
+    if set(zero_rows) != csv_cases:
         raise AssertionError("formal summary and refined zero-traffic case sets differ")
 
     for row in formal:
@@ -88,6 +140,7 @@ def main() -> int:
         json.dumps(
             {
                 "formal_rows": len(formal),
+                "formal_json_rows": len(json_cases),
                 "frontier_rows": len(frontier),
                 "cases": sorted(zero_rows),
                 "dominated_removed": len(report.get("dominated_removed", [])),
