@@ -17,13 +17,14 @@ def _dominates(a: dict[str, str], b: dict[str, str]) -> bool:
     return a_t <= b_t and a_c <= b_c and (a_t < b_t or a_c < b_c)
 
 
-def _key(row: dict) -> tuple[str, str, str, int, int, int]:
+def _key(row: dict) -> tuple[str, str, str, int, int, float, int]:
     return (
         str(row["case"]),
         str(row["variant"]),
         str(row["sequence"]),
         int(row["extra_traffic"]),
         int(row["official_cycles"]),
+        round(float(row["official_improvement_pct"]), 6),
         int(row["safe_cycles"]),
     )
 
@@ -35,6 +36,11 @@ def _csv_bool(value: str) -> bool:
     if normalized == "false":
         return False
     raise AssertionError(f"unexpected CSV boolean {value!r}")
+
+
+def _assert_close(actual: float, expected: float, *, label: str) -> None:
+    if abs(actual - expected) > 5e-7:
+        raise AssertionError(f"{label}: {actual:.6f} != {expected:.6f}")
 
 
 def main() -> int:
@@ -75,13 +81,14 @@ def main() -> int:
     )
     bool_fields = ("spill_batch_saturated", "valid")
     for csv_row in formal:
-        json_row = json_by_case[csv_row["case"]]
+        case = csv_row["case"]
+        json_row = json_by_case[case]
         for field in int_fields:
             csv_value = int(csv_row[field])
             json_value = int(json_row[field])
             if csv_value != json_value:
                 raise AssertionError(
-                    f"formal CSV/JSON drift for {csv_row['case']} {field}: "
+                    f"formal CSV/JSON drift for {case} {field}: "
                     f"{csv_value} != {json_value}"
                 )
         for field in bool_fields:
@@ -89,9 +96,26 @@ def main() -> int:
             json_value = bool(json_row[field])
             if csv_value != json_value:
                 raise AssertionError(
-                    f"formal CSV/JSON drift for {csv_row['case']} {field}: "
+                    f"formal CSV/JSON drift for {case} {field}: "
                     f"{csv_value} != {json_value}"
                 )
+
+        raw_cycles = int(csv_row["raw_official_cycles"])
+        core_cycles = int(csv_row["core_official_cycles"])
+        final_cycles = int(csv_row["final_official_cycles"])
+        expected_vs_core = core_cycles - final_cycles
+        actual_vs_core = int(csv_row["improvement_vs_core_cycles"])
+        if actual_vs_core != expected_vs_core:
+            raise AssertionError(
+                f"formal improvement_vs_core drift for {case}: "
+                f"{actual_vs_core} != {expected_vs_core}"
+            )
+        expected_vs_raw_pct = round((raw_cycles - final_cycles) * 100.0 / raw_cycles, 6)
+        _assert_close(
+            float(csv_row["improvement_vs_raw_pct"]),
+            expected_vs_raw_pct,
+            label=f"formal improvement_vs_raw_pct drift for {case}",
+        )
 
     if not frontier:
         raise AssertionError("refined frontier is empty")
@@ -107,7 +131,8 @@ def main() -> int:
         raise AssertionError("formal summary and refined zero-traffic case sets differ")
 
     for row in formal:
-        published = zero_rows[row["case"]]
+        case = row["case"]
+        published = zero_rows[case]
         expected = (
             int(row["extra_traffic"]),
             int(row["final_official_cycles"]),
@@ -120,8 +145,13 @@ def main() -> int:
         )
         if actual != expected:
             raise AssertionError(
-                f"published zero-traffic row drifted for {row['case']}: {actual} != {expected}"
+                f"published zero-traffic row drifted for {case}: {actual} != {expected}"
             )
+        _assert_close(
+            float(published["official_improvement_pct"]),
+            float(row["improvement_vs_raw_pct"]),
+            label=f"published zero-traffic improvement pct drift for {case}",
+        )
 
     for case in sorted({row["case"] for row in frontier}):
         rows = [row for row in frontier if row["case"] == case]
