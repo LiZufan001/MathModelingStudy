@@ -43,6 +43,11 @@ def main() -> int:
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--input-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, required=True)
+    ap.add_argument("--source-run-id", type=int, required=True)
+    ap.add_argument("--source-head-sha", required=True)
+    ap.add_argument("--source-artifact-id", type=int, required=True)
+    ap.add_argument("--source-artifact-digest", required=True)
+    ap.add_argument("--source-artifact-name", required=True)
     ap.add_argument(
         "--reference-official",
         type=int,
@@ -50,6 +55,16 @@ def main() -> int:
         help="Current published Conv1 official-cycle ceiling that the candidate must beat",
     )
     args = ap.parse_args()
+
+    if args.source_run_id <= 0 or args.source_artifact_id <= 0:
+        raise AssertionError("source run/artifact ids must be positive")
+    if len(args.source_head_sha) != 40:
+        raise AssertionError("source head SHA must be a 40-character commit SHA")
+    if not args.source_artifact_digest.startswith("sha256:"):
+        raise AssertionError("source artifact digest must use sha256:<hex> form")
+    digest_hex = args.source_artifact_digest.removeprefix("sha256:")
+    if len(digest_hex) != 64 or any(ch not in "0123456789abcdef" for ch in digest_hex.lower()):
+        raise AssertionError("source artifact digest is not a valid SHA-256 digest")
 
     summary_path = args.input_dir / "cycle-filtered-saturation.json"
     if not summary_path.is_file():
@@ -116,7 +131,7 @@ def main() -> int:
             f"{candidate_official.total_cycles} >= {args.reference_official}"
         )
 
-    # Independently rerun one fresh-rerank neighborhood from the candidate.  Promotion
+    # Independently rerun one fresh-rerank neighborhood from the candidate. Promotion
     # requires a real no-improvement round, not only a provenance flag produced by the
     # search workflow that generated the artifact.
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -184,6 +199,11 @@ def main() -> int:
         "accepted": True,
         "route": "cycle_filtered_artifact->fresh_promoted_q2_rebuild->dual_evaluator->independent_no_improvement_recheck",
         "source_provenance": {
+            "run_id": args.source_run_id,
+            "head_sha": args.source_head_sha,
+            "artifact_id": args.source_artifact_id,
+            "artifact_digest": args.source_artifact_digest,
+            "artifact_name": args.source_artifact_name,
             "operator": summary["operator"],
             "saturated": summary["saturated"],
             "stop_reason": summary["stop_reason"],
