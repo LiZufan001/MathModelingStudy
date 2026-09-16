@@ -1,0 +1,44 @@
+name: Test CPMCM 2025 A Q3 Conv1 Cycle-Filtered Acceptance Tooling
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "agent/q3-pipeline-20260911"
+    paths:
+      - "problems/CPMCM/2025/A/experiments/accept_q3_conv1_cycle_filtered_artifact.py"
+      - "problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py"
+      - "problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch_saturation.py"
+      - ".github/workflows/test-cpmcm-2025-a-q3-cycle-filtered-acceptance-tooling.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance-tooling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile acceptance chain
+        run: |
+          python -m py_compile \
+            problems/CPMCM/2025/A/experiments/accept_q3_conv1_cycle_filtered_artifact.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch.py \
+            problems/CPMCM/2025/A/experiments/probe_q3_cycle_filtered_batch_saturation.py
+      - name: Run evaluator and optimizer regression gates
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest \
+            problems/CPMCM/2025/A/tests/test_q3_evaluator.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_spill_batch_optimizer.py \
+            problems/CPMCM/2025/A/tests/test_q3_official_spill_optimizer.py \
+            -q
