@@ -103,6 +103,40 @@ def q3_improvement():
     save(fig, "q3_official_improvement_pct")
 
 
+def q3_stage_contribution():
+    rows = read_csv(
+        RESULTS / "q3_formal_fixed_traffic" / "q3_formal_fixed_traffic_summary.csv"
+    )
+    labels = [short_case(r["case"]) for r in rows]
+    raw = [int(r["raw_official_cycles"]) for r in rows]
+    core = [int(r["core_official_cycles"]) for r in rows]
+    final = [int(r["final_official_cycles"]) for r in rows]
+
+    core_pct = [100.0 * (a - b) / a for a, b in zip(raw, core)]
+    post_pct = [100.0 * (b - c) / a for a, b, c in zip(raw, core, final)]
+    total_pct = [x + y for x, y in zip(core_pct, post_pct)]
+
+    fig, ax = plt.subplots(figsize=(7.4, 4.5))
+    ax.bar(labels, core_pct, label="Formal zero-traffic core")
+    ax.bar(labels, post_pct, bottom=core_pct, label="Critical-SPILL post-pass")
+    ax.set_ylabel("Official-cycle reduction vs promoted Q2 (%)")
+    ax.set_title("Q3 contribution by optimization stage (fixed traffic)")
+    ax.tick_params(axis="x", rotation=25)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8)
+    for i, total in enumerate(total_pct):
+        ax.annotate(
+            f"{total:.2f}%",
+            xy=(i, total),
+            xytext=(0, 4),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+    save(fig, "q3_stage_contribution")
+
+
 def q3_raw_vs_final():
     rows = read_csv(
         RESULTS / "q3_formal_fixed_traffic" / "q3_formal_fixed_traffic_summary.csv"
@@ -182,6 +216,7 @@ def main():
     q1_peak_residency()
     q2_spill_and_traffic()
     q3_improvement()
+    q3_stage_contribution()
     q3_raw_vs_final()
     q3_pareto_overview()
     q3_fa1_tradeoff()
