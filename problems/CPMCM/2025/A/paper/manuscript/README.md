@@ -1,8 +1,10 @@
 # manuscript
 
-2025 A 题第一版完整 LaTeX 工作稿已经形成，并纳入独立 XeLaTeX CI。
+2025 A 题 LaTeX 论文已经从“完整结构稿”扩充为一版可持续审阅的比赛论文工作稿，并纳入独立 XeLaTeX CI。
 
 ## 当前状态
+
+当前扩充稿共 **47 页 A4**（ctex/Fandol 工作外壳口径），其中正文、参考文献与附录均已形成。页数不是优化目标；本轮新增内容来自模型推导、消融、机制解释、复杂度/可扩展性、验证与附录，而不是通过字号、空白或大段源码撑页数。
 
 正文已覆盖：
 
@@ -10,13 +12,17 @@
 - `sections/02_assumptions_symbols.tex`：模型假设与符号说明；
 - `sections/03_analysis.tex`：问题分析；
 - `sections/04_framework.tex`：总体求解框架；
-- `sections/05_q1.tex`：问题一建模、四策略 portfolio、六组结果与验证；
-- `sections/06_q2.tex`：问题二连续地址/SPILL、footprint-aware 调度、polish、六组结果；
-- `sections/07_q3.tex`：问题三双 evaluator、fixed-traffic 优化、六组结果与 FA1 trade-off；
-- `sections/08_validation.tex`：统一验证与可复现性；
+- `sections/04b_experiment_protocol.tex`：六组规模、正式指标、候选/评价/晋升协议；
+- `sections/05_q1.tex`：问题一建模、四策略 portfolio、策略消融、复杂度、六组结果与验证；
+- `sections/06_q2.tex`：连续地址/碎片、SPILL、footprint-aware 调度、三阶段消融、复杂度与六组结果；
+- `sections/07_q3.tex`：双 evaluator、时序边分解、fixed-traffic 优化、局部终止性、阶段贡献、FA1 trade-off 与复杂度；
+- `sections/08_validation.tex`：验证矩阵、典型失败模式、自动化复现与论文数字防漂移；
 - `sections/09_evaluation.tex`：模型优点、局限与改进方向；
 - `sections/10_conclusion.tex`：结论；
-- `draft.tex`：包含正式第一版摘要、关键词与全部章节的当前工作稿外壳。
+- `sections/11_appendix_results.tex`：详细结果与消融表；
+- `sections/12_appendix_algorithms.tex`：关键算法补充说明与伪代码；
+- `sections/13_appendix_repro.tex`：正式 run/artifact/SHA 与复现入口；
+- `draft.tex`：摘要、关键词、正文、参考文献与附录的当前工作稿外壳。
 
 写作与证据控制文件：
 
@@ -24,7 +30,16 @@
 - `CLAIM_LEDGER.md`：关键结论与证据边界；
 - `STYLE_STUDY.md`：2025 A 题获奖论文结构学习记录。
 
-当前稿已经能够在 GitHub Actions 的完整 TeX Live 环境中自动生成 PDF。后续工作以内容润色、附录整理和 2026 官方格式迁移为主，而不是重新搭建正文结构。
+## 最新验收
+
+当前扩充稿 source head：`4e6f3fa928a51fdbee8f8595d69fec2cc7356ab0`。
+
+- Paper Assets run：`35224816450`，success；
+- Paper Draft run：`35224816467`，success；
+- Draft artifact：`10498673465`；
+- Artifact digest：`sha256:f9cc391ea6e51d29e13cc6122901ae8955f26a4bf0d38c38bb3d6b27e5f071da`；
+- 当前 PDF：47 pages，777,408 bytes；
+- 最终 XeLaTeX 日志无 `Overfull \\hbox`；仅有少量窄表格的 `Underfull`，视觉检查无裁切或越界。
 
 ## 版式策略
 
