@@ -11,7 +11,7 @@
 
 \subsection{问题一验证}
 
-问题一首先检查完整拓扑序、buffer 的 ALLOC--USE--FREE 生命周期以及 L0A/L0B/L0C 的同类单驻留约束，再由独立 evaluator 仅根据输出 schedule 重新累计 $R_k$ 与 $R_{\max}$。小规模随机图使用 exact solver/oracle 对照，用于发现 ready-set 处理、生命周期边界和 L0 prerequisite 等实现错误；六组 Appendix-E 大实例则统一运行四个确定性策略并重新比较正式峰值。
+问题一首先检查完整拓扑序和 buffer 生命周期，即 \texttt{ALLOC}、\texttt{USE}、\texttt{FREE} 的先后关系；随后分别检查 L0A、L0B、L0C 的同类单驻留约束。独立 evaluator 仅根据输出 schedule 重新累计 $R_k$ 与 $R_{\max}$。小规模随机图使用 exact solver/oracle 对照，用于发现 ready-set 处理、生命周期边界和 L0 prerequisite 等实现错误；六组 Appendix-E 大实例则统一运行四个确定性策略并重新比较正式峰值。
 
 此外，本文还对一套公开 Problem1 六组 schedule 进行独立重放。其六组结果均通过本地合法性检查，峰值与本文 baseline 恰好一致。该实验只作为评价口径和基准强度的外部参照，不用于证明全局最优。
 

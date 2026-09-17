@@ -1,19 +1,30 @@
 # manuscript
 
-正式 LaTeX 正文已经开始施工。
+2025 A 题第一版完整 LaTeX 工作稿已经形成，并纳入独立 XeLaTeX CI。
 
 ## 当前状态
 
-已完成第一批可编译正文：
+正文已覆盖：
 
-- `draft.tex`：当前工作稿外壳；
+- `sections/01_problem.tex`：问题重述；
+- `sections/02_assumptions_symbols.tex`：模型假设与符号说明；
+- `sections/03_analysis.tex`：问题分析；
 - `sections/04_framework.tex`：总体求解框架；
 - `sections/05_q1.tex`：问题一建模、四策略 portfolio、六组结果与验证；
+- `sections/06_q2.tex`：问题二连续地址/SPILL、footprint-aware 调度、polish、六组结果；
+- `sections/07_q3.tex`：问题三双 evaluator、fixed-traffic 优化、六组结果与 FA1 trade-off；
+- `sections/08_validation.tex`：统一验证与可复现性；
+- `sections/09_evaluation.tex`：模型优点、局限与改进方向；
+- `sections/10_conclusion.tex`：结论；
+- `draft.tex`：包含正式第一版摘要、关键词与全部章节的当前工作稿外壳。
+
+写作与证据控制文件：
+
 - `OUTLINE.md`：章节施工图；
 - `CLAIM_LEDGER.md`：关键结论与证据边界；
 - `STYLE_STUDY.md`：2025 A 题获奖论文结构学习记录。
 
-下一批按 `Q2 -> Q3 -> trade-off -> 验证` 的顺序继续，摘要最后写。
+当前稿已经能够在 GitHub Actions 的完整 TeX Live 环境中自动生成 PDF。后续工作以内容润色、附录整理和 2026 官方格式迁移为主，而不是重新搭建正文结构。
 
 ## 版式策略
 

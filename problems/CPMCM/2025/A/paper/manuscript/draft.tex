@@ -14,6 +14,7 @@
 
 \setlength{\parindent}{2em}
 \setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{3em}
 \captionsetup{font=small}
 \graphicspath{{../figures/generated/}{../diagrams/generated/}}
 
@@ -25,7 +26,15 @@
 \maketitle
 
 \begin{abstract}
-本工作稿暂不撰写正式摘要。摘要将在问题一至问题三的方法、结果与验证章节全部定稿后，根据正文反向压缩形成；最终版式与封面信息将在 2026 年竞赛官方《竞赛论文标准文档》发布后统一校准。
+针对通用神经网络处理器核内执行过程中逻辑调度、连续片上存储与异构流水相互耦合的问题，本文建立“逻辑调度--物理内存--时间流水”的三层统一优化框架，并将候选生成与独立评价严格分离。
+
+问题一以 L1+UB 峰值逻辑驻留量为目标，在 DAG 与 L0 硬约束下构造 baseline、pressure、frontier 和 bounded lookahead 四个确定性调度策略，经统一 evaluator 择优；最大规模的 Conv\_Case1 峰值由 $310\,408$ 降至 $310\,344$。问题二进一步考虑真实缓存容量、连续地址与外部碎片，提出 footprint-aware 合法拓扑调度、best-fit 连续区间分配及最小 traffic 窗口 SPILL，并以小窗口 polish 做严格重放筛选；六组总额外 DDR traffic 由 $1\,696\,198$ 降至 $1\,654\,944$，其中 Matmul 两组总 traffic 降低 $7.386\%$。
+
+问题三固定问题二的 SPILL 身份/顺序、spill count 和 extra traffic，以题面 official-literal cycles 为优化目标、residency-safe evaluator 为硬可行性门禁，通过地址组合、关键流水重调度与 critical-SPILL 局部搜索减少执行周期。六组 official cycles 均严格下降，其中 Conv0、Conv1 分别降低 $6.415831\%$ 和 $2.667485\%$，且最终 physical overlap error 均为 0；对 FlashAttention\_Case1 还给出了少量额外 traffic 与更低周期之间的 strict-valid Pareto 权衡点。
+
+所有正式结果均通过独立 validator/evaluator、六组真实数据 replay 与自动化回归门禁。本文只将当前结果表述为 promoted / best-known 或指定邻域下的局部饱和结果，不将其扩张为全局最优结论。
+
+\noindent\textbf{关键词：}DAG 调度；连续地址分配；SPILL；异构流水；多目标优化
 \end{abstract}
 
 \tableofcontents
@@ -42,7 +51,7 @@
 \input{sections/09_evaluation}
 \input{sections/10_conclusion}
 
-\bibliographystyle{gbt7714-numerical}
+\bibliographystyle{gbt7714-numeric}
 \bibliography{../references/references}
 
 \end{document}
