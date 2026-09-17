@@ -1,0 +1,130 @@
+\section{问题二：连续地址分配与最小额外数据搬运}
+
+\subsection{物理缓存模型}
+
+问题二在问题一的合法调度语义基础上进一步引入真实缓存容量与连续地址约束。需要强调的是，问题二并不机械固定问题一 promoted 的唯一顺序；只要调度序列仍满足问题一的拓扑、生命周期与 L0 硬约束，就允许针对物理缓存复用重新优化顺序。因此，问题一给出了逻辑生命周期的建模与合法性基础，问题二则在同一合法调度空间内加入物理地址与 SPILL 决策。
+
+对任意 buffer $b$，记其大小为 $z_b$、缓存类型为 $t(b)$、对应缓存容量为 $C_{t(b)}$，分配起始偏移为 $o_b$。其物理地址区间为
+\[
+I_b=[o_b,o_b+z_b),
+\]
+并满足
+\[
+0\le o_b,\qquad o_b+z_b\le C_{t(b)}.
+\]
+若两个 buffer 属于同一缓存池且在某一时刻同时 resident，则其区间必须互不相交：
+\[
+I_b\cap I_c=\varnothing.
+\]
+题目给定的容量分别为 L1: 4096、UB: 1024、L0A: 256、L0B: 256、L0C: 512（均按题面容量单位计）。与只检查总占用量不同，连续区间约束会产生 external fragmentation：即使空闲总量足够，也可能不存在长度达到 $z_b$ 的单一连续区间。动态存储分配中这种“总空闲量足够但大块不可用”的现象是经典碎片问题\cite{wilson1995dynamic}。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{q2_buffer_lifecycle.pdf}
+    \caption{问题二中的 buffer 生命周期、连续地址与 SPILL 机制}
+    \label{fig:q2-buffer-lifecycle}
+\end{figure}
+
+\subsection{严格连续地址分配与 SPILL}
+
+对固定的合法拓扑序，本文首先为每个缓存池独立维护空闲区间集合，并采用 best-fit 将新 buffer 放入最小可容纳空闲区间。FREE 发生时释放对应区间，并立即合并相邻空洞。当不存在可直接放置的区间时，不采用“换出最大 buffer”或“换出最远使用 buffer”这样的单一 victim 规则，而是直接搜索一个长度为 $q$ 的目标窗口 $W=[x,x+q)$。
+
+设当前与窗口 $W$ 相交的 resident buffer 集合为 $B(W)$。根据题面额外 DDR 搬运规则，定义 buffer $b$ 的一次换出代价为
+\[
+c_b=
+\begin{cases}
+z_b, & b\text{ 可直接由原始 COPY\_IN 从 DDR 重新获得},\\
+2z_b, & \text{其他 buffer}.
+\end{cases}
+\]
+则清空该窗口的官方额外搬运代价为
+\[
+J(W)=\sum_{b\in B(W)}c_b.
+\]
+主目标直接最小化 $J(W)$，而不是最小化 victim 数量。若多个窗口具有相同 traffic，则依次优先 victim 数量更少、下一次使用距离更远、最终偏移更小的方案。
+
+对于一个已占用区间 $[s,e)$ 和长度为 $q$ 的滑动窗口，窗口起点 $x$ 与该区间发生相交的取值范围是 $[s-q+1,e-1]$。因此 victim 集合只会在每个 resident buffer 的两个事件点附近发生变化。本文对这些事件排序后做一次扫描即可枚举所有不同 victim 集合，使单次窗口选择从朴素的“每个起点重新扫描所有 resident buffer”降低为约 $O(R\log R)$，其中 $R$ 为当前 resident buffer 数量。
+
+选择窗口后，对 victim 依次插入 \texttt{SPILL\_OUT}，释放其片上区间；在 buffer 下一次被操作节点需要前，再插入 \texttt{SPILL\_IN} 并重新分配地址。题面规定 SPILL\_OUT 使用 MTE3、SPILL\_IN 使用 MTE2。若一个操作同时需要同一缓存池内的多个 buffer，已满足该操作需求的 resident buffer 会被保护，不能为了装入另一个 buffer 而再次换出；若顺序 reload 仍因碎片无法完成，则将该操作的 required set 作为一个整体重新紧凑布局，作为严格可行性的兜底机制。
+
+编译器中的 live range、register allocation 与 spilling 也体现了“有限快速资源不足时将活跃对象暂存到慢层级”的相似结构\cite{chaitin1981coloring,poletto1999linear}。本文仅借用这一抽象理解问题，不采用图着色算法求解题目二；正式地址与 SPILL 决策仍由上述连续区间模型和题面 traffic 目标直接驱动。
+
+\begin{algorithm}[H]
+\caption{连续地址不足时的最小 traffic 窗口选择}
+\label{alg:q2-window}
+\begin{algorithmic}[1]
+\Require 当前地址池 $P$，申请大小 $q$，traffic 代价 $c_b$
+\Ensure 目标起点 $x^*$ 与 victim 集合 $B^*$
+\If{$P$ 中存在长度不小于 $q$ 的连续空闲区间}
+    \State \Return best-fit 起点与空 victim 集合
+\EndIf
+\State 根据每个 resident 区间构造 overlap-enter / overlap-leave 事件
+\State 按起点从小到大扫描事件，维护当前 victim 集合 $B(x)$
+\ForAll{不同 victim 集合对应的有效窗口起点 $x$}
+    \State 计算 $J(x)=\sum_{b\in B(x)}c_b$
+    \State 以 $(J,|B|,-d_{\min},-\sum d_b,x)$ 为字典序评分
+\EndFor
+\State \Return 字典序最小的 $(x^*,B^*)$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{面向缓存复用的合法拓扑顺序}
+
+仅优化固定顺序上的地址分配仍会受到生命周期重叠方式的限制。因此本文在问题一合法性约束不变的条件下，进一步构造 Q2-aware 拓扑调度器。其核心思想不是识别特定算子模板，而是由计算图自身提取 buffer 共现关系。
+
+对于每个 L0 allocation，以操作节点 \texttt{Bufs} 中的共现关系构造无向 buffer 邻接，并向外扩展两跳，得到与该 L0 buffer 相关联的 L1/UB footprint。若一个 L0C allocation 的 footprint 足够大，则将其作为当前 task anchor；在该 anchor 存活期间，后续 L0A/L0B allocation 及 L1/UB counted allocation 优先选择与 anchor footprint 重叠更大的候选。L0C 释放后，再根据与刚完成 footprint 的重叠程度选择下一任务。这样可以在不硬编码 Matmul、Conv 或 FlashAttention 名称的情况下，让相互关联的数据块尽量聚集执行，从而减少重复载入与 SPILL 压力。
+
+正式 promoted 配置中，直接热度 affinity 和 release 权重被关闭，主要保留 footprint 路由，避免多个启发式同时作用导致不可解释的偏置。所有候选顺序仍需通过问题一 evaluator；因此 Q2-aware 调度改变的是合法拓扑序中的选择偏好，而不是放宽问题一约束。
+
+\subsection{通用小窗口 polish 与晋升规则}
+
+在 footprint-aware 基础顺序上，本文再尝试一个很小的通用 polish portfolio，窗口参数取
+\[
+w\in\{0,1,2,3\}.
+\]
+其中 $w=0$ 表示不修改基础顺序，$w=1,2,3$ 通过图结构通用的 critical-window 重排产生少量邻域候选。每个候选必须满足：
+\begin{enumerate}[label=(\arabic*)]
+    \item 拓扑与 buffer 生命周期合法；
+    \item Q1 峰值不高于 footprint 基础顺序；
+    \item 完整运行严格连续地址 allocator；
+    \item 独立 Q2 validator replay 通过。
+\end{enumerate}
+在所有严格有效候选中，按
+\[
+(\text{extra traffic},\;\text{spill count},\;R_{\max},\;\text{changed positions},\;w)
+\]
+做字典序选择。由此保证题面官方 extra traffic 始终是主目标；SPILL 次数只在 traffic 完全相同时作为第二级解释性指标。
+
+\subsection{六组实例结果}
+
+表~\ref{tab:q2-summary} 给出六组 Appendix-E 实例的正式 promoted 结果。
+
+\begin{table}[H]
+    \centering
+    \caption{问题二六组实例的正式 SPILL 与额外 DDR traffic}
+    \label{tab:q2-summary}
+    \resizebox{0.92\textwidth}{!}{\input{../tables/generated/q2_summary.tex}}
+\end{table}
+
+六组 promoted extra traffic 依次为
+\[
+28\,800,\;430\,208,\;54\,016,\;242\,552,\;177\,904,\;721\,464.
+\]
+相对原始六组 baseline，traffic 总量由 $1\,696\,198$ 降至 $1\,654\,944$，减少 $41\,254$，即 $2.432145\%$。其中 Matmul 两组总 traffic 由 $495\,616$ 降至 $459\,008$，减少 $36\,608$（$7.386\%$），说明 footprint 路由对具有明显块复用结构的算子最有效。
+
+在 footprint-only 基础顺序之上，小窗口 polish 又将六组总 traffic 从 $1\,659\,590$ 降至 $1\,654\,944$，额外减少 $4\,646$（$0.279949\%$）。FA0、Conv0、Conv1 分别选择 $w=1,2,3$，而 Matmul0、Matmul1 和 FA1 自动保留 $w=0$，说明 portfolio 并不会为了“所有实例都要改动”而接受退化候选。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{q2_extra_traffic.pdf}
+    \caption{问题二六组实例的 promoted 额外 DDR traffic}
+    \label{fig:q2-traffic}
+\end{figure}
+
+一个值得单独强调的现象是，SPILL 次数与官方 traffic 并不等价。例如 FA0 的 spill count 从 301 增至 316，但 traffic 从 $55\,188$ 降至 $54\,016$；Conv1 的 spill count 从 9550 增至 9646，但 traffic 从 $724\,630$ 降至 $721\,464$。由于不同 buffer 的大小与 COPY\_IN 可重载属性不同，“次数更少”并不保证“搬运字节更少”。因此本文始终直接优化 extra traffic，不使用 spill count 替代题面目标。
+
+\subsection{验证与本问小结}
+
+问题二使用独立 validator 对最终输出进行完整 replay，逐步检查地址区间、resident 状态、SPILL\_OUT / SPILL\_IN 顺序和额外 traffic。对于 Matmul 等大小 page 的特殊简化场景，还使用 Belady 的离线最优 replacement 思想构造 exact oracle\cite{belady1966replacement}，用于核对 allocator 在该受限模型下的换出逻辑；该 oracle 只验证特殊场景，不构成一般 Q2 全局最优证明。除此之外，已有比赛 Problem2 输出也使用同一 validator 做独立重放，以检查评价口径是否一致。
+
+综上，问题二通过“Q2-aware 合法拓扑顺序 + 连续地址 best-fit + 最小 traffic 窗口 SPILL + 小窗口 polish”形成可复现的 promoted 解。六组实例均保持严格有效，且正式选择始终以题面 extra traffic 为第一目标。该地址与 SPILL 方案随后作为问题三时间优化的物理基础。
