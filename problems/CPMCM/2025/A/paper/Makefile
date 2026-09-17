@@ -1,6 +1,7 @@
 PYTHON ?= python
+LATEXMK ?= latexmk
 
-.PHONY: assets figures tables diagrams
+.PHONY: assets figures tables diagrams manuscript clean-manuscript
 
 assets: figures tables diagrams
 
@@ -12,3 +13,9 @@ tables:
 
 diagrams:
 	$(PYTHON) diagrams/scripts/generate_diagrams.py
+
+manuscript: assets
+	cd manuscript && $(LATEXMK) -xelatex -file-line-error -halt-on-error -interaction=nonstopmode draft.tex
+
+clean-manuscript:
+	cd manuscript && $(LATEXMK) -C draft.tex

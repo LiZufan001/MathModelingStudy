@@ -1,0 +1,103 @@
+\section{问题一：面向峰值驻留量的拓扑调度}
+
+\subsection{问题建模}
+
+问题一要求在满足原始 DAG 前驱关系与 L0 约束的前提下重新排列节点执行顺序，使 L1 与 UB 缓冲区的逻辑驻留峰值尽可能小。对任意合法调度序列
+\[
+S=(s_1,s_2,\ldots,s_n),
+\]
+定义节点 $v$ 对 L1+UB 驻留量的增量为
+\[
+m(v)=
+\begin{cases}
++\operatorname{Size}(v), & v\text{ 为 L1/UB 的 ALLOC},\\
+-\operatorname{Size}(v), & v\text{ 为 L1/UB 的 FREE},\\
+0, & \text{其他节点}.
+\end{cases}
+\]
+于是调度到位置 $k$ 后的逻辑驻留量和峰值分别为
+\[
+R_k=\sum_{i=1}^{k}m(s_i),\qquad
+R_{\max}(S)=\max_{1\le k\le n}R_k .
+\]
+问题一可写为
+\[
+\min_{S}\;R_{\max}(S),
+\]
+并满足以下约束：
+\begin{align}
+&\operatorname{pos}_S(u)<\operatorname{pos}_S(v), && \forall (u,v)\in E,\\
+&\operatorname{ALLOC}(b)\prec_S\operatorname{USE}(b)\prec_S\operatorname{FREE}(b), && \forall b,\\
+&|\mathcal L_{\ell}(k)|\le 1, && \ell\in\{\mathrm{L0A,L0B,L0C}\},\;\forall k.
+\end{align}
+其中 $\mathcal L_{\ell}(k)$ 表示位置 $k$ 之后仍处于逻辑生命周期内的同类 L0 缓冲区集合。L0 不计入 $R_k$，但其“同类同时最多驻留一个 buffer”的限制作为硬约束参与可行性判定。
+
+这一目标与普通“FREE 优先”的局部规则并不等价。某个普通计算节点虽然有 $m(v)=0$，却可能解锁一个大 buffer 的 FREE；反之，过早执行新的 ALLOC 会扩大多个生命周期的重叠。因此候选排序不仅要看当前内存增量，还要考虑其对后继可调度集合的影响。
+
+\subsection{确定性四策略组合}
+
+为兼顾计算规模与搜索质量，本文采用由四个确定性策略构成的 portfolio。各策略均在 Kahn 拓扑调度框架内维护 ready set，并显式检查 buffer 生命周期和 L0 可行性；最终结果统一交给独立 evaluator 重算，而不是使用启发式内部估计值作为正式指标。
+
+\subsubsection{基准策略}
+
+基准策略按 FREE、普通节点、计入驻留量的 ALLOC 三类依次排序。对于多个同时 ready 的 L1/UB ALLOC，优先选择即时内存增量较小的节点；对于 L0 ALLOC，则仅在对应 L0 类型当前空闲时允许进入候选集合。该策略计算开销低，且天然倾向于尽早释放已存活 buffer，因此作为后续策略的稳定上界基线。
+
+\subsubsection{释放压力策略}
+
+仅依据即时增量可能忽略“先执行哪个普通节点才能更快解锁 FREE”。因此第二个策略对每个 ready 节点预先计算最近的下游释放提示，包括到最近 L1/UB FREE 的拓扑距离、可释放大小以及是否能直接解锁 L0/FREE。排序时仍保持 FREE 的最高优先级，但对普通节点和 ALLOC 加入 release/downstream pressure 作为 tie-break，从而优先推进更可能缩短大 buffer 生命周期的分支。
+
+此外，对于 L0 ALLOC，算法从其匹配 FREE 反向分析同类型 L0 的传递前置关系。只有这些前置 allocation 已经完成，新的 L0 allocation 才允许进入可执行集合。该机制属于正确性门禁，而非优化评分，可避免因错误的 L0 占用顺序形成不可恢复的调度死锁。
+
+\subsubsection{前沿优先策略}
+
+第三个策略使用 frontier/depth-first 思路。每个节点记录其进入 ready set 的时刻；在 FREE 与普通节点优先处理后，算法更偏向最近被推进分支上的候选，使局部计算链尽快走到后续 FREE，而不是同时打开大量彼此无关的生命周期。该策略与“最小 ALLOC 优先”形成不同的搜索偏好，但仍使用与释放压力策略相同的 L0 硬约束检查。
+
+\subsubsection{有界前瞻策略}
+
+第四个策略只在真正可能影响峰值的分叉处付出额外搜索开销：当当前不存在可直接执行的非正内存节点，而 ready set 中同时出现多个正内存 L1/UB ALLOC 时，才触发 bounded rollout。候选池同时保留“小 ALLOC”与“下游释放更有利”的分支，默认搜索深度为 2、候选上限为 6、rollout horizon 为 96；只有当前驻留量已经接近基准策略峰值上界时，大实例才进行前瞻。
+
+对每个候选 ALLOC，rollout 首先贪心排空 FREE、普通节点和安全的 L0 操作，再有限展开后续正内存 ALLOC。终止状态按
+\[
+\bigl(\widehat R_{\max},\;R,\;\mathbb I_{\mathrm{truncated}},\;N_{\mathrm{step}}\bigr)
+\]
+进行字典序比较，其中 $\widehat R_{\max}$ 还额外考虑下一次最小正分配可能产生的峰值。该前瞻只用于候选选择，完整序列结束后仍由独立 evaluator 重新计算 $R_{\max}$。
+
+\begin{algorithm}[H]
+\caption{问题一四策略组合与结果晋升}
+\label{alg:q1-portfolio}
+\begin{algorithmic}[1]
+\Require 计算图 $G=(V,E)$
+\Ensure 合法调度序列 $S^*$
+\State $\mathcal P\gets\{\text{baseline, pressure, frontier, lookahead}\}$
+\State $\mathcal C\gets\varnothing$
+\ForAll{$p\in\mathcal P$}
+    \State $S_p\gets\textsc{Schedule}(G,p)$
+    \State $(\text{valid}_p,R_p)\gets\textsc{EvaluateQ1}(G,S_p)$
+    \If{$\text{valid}_p$}
+        \State $\mathcal C\gets\mathcal C\cup\{(S_p,R_p)\}$
+    \EndIf
+\EndFor
+\State \Return $S^*=\arg\min_{(S,R)\in\mathcal C}R$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{六组实例结果}
+
+四个策略在附录 E 的六组真实计算图上统一运行。表~\ref{tab:q1-summary} 给出基准结果与 promoted 结果。这里的 promoted 表示“当前四策略组合中经过同一 evaluator 验证的最小值”，不表示全局最优拓扑序。
+
+\begin{table}[H]
+    \centering
+    \caption{问题一六组实例的基准与 promoted 峰值驻留量}
+    \label{tab:q1-summary}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q1_summary.tex}}
+\end{table}
+
+五组实例中，基准策略已经是当前 portfolio 的最优点；仅在规模最大的 Conv\_Case1 上，有界前瞻得到严格改善：峰值驻留量由 $310\,408$ 降至 $310\,344$，减少 64，约为 $0.020618\%$。该相对幅度很小，因此本文不将其描述为“显著提升”；其价值在于证明同一合法性约束下仍存在可复现的顺序改进空间。
+
+为避免把内部基准误认为最优答案，我们还使用同一 evaluator 对一套公开 Problem1 六组调度结果进行了独立重放。六组调度均合法，其峰值恰好与本文基准策略一致。该横向结果说明基准策略具有较强参照价值，但由于缺乏全局最优性证明，不能据此断言五个持平实例已经达到理论最优。
+
+\subsection{验证与本问小结}
+
+问题一的候选生成与评价严格分离：调度器只负责产生合法拓扑序，最终峰值由独立 evaluator 根据 ALLOC/FREE 生命周期重新累计；小规模 exact oracle 用于检验 evaluator 与启发式语义，六组大实例则通过 fresh policy comparison 与 published-result verifier 进行回归。相关调度问题可视为具有特殊内存状态约束的 precedence-constrained list scheduling，其经典理论背景可参见文献\cite{graham1969multiprocessing,hu1961parallel}，但本文没有据此声称本策略满足这些经典模型下的最优性界。
+
+综上，问题一得到了一组可复现的合法低峰值调度：五组实例维持稳定基准，Conv\_Case1 通过有界前瞻取得 64 个驻留单位的严格下降。该调度顺序为问题二进一步加入真实缓存容量、连续地址分配与 SPILL 提供逻辑生命周期基础。

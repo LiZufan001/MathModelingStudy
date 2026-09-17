@@ -1,0 +1,60 @@
+name: Build CPMCM 2025 A Paper Draft
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "problems/CPMCM/2025/A/paper/manuscript/**"
+      - "problems/CPMCM/2025/A/paper/references/**"
+      - "problems/CPMCM/2025/A/paper/figures/**"
+      - "problems/CPMCM/2025/A/paper/tables/**"
+      - "problems/CPMCM/2025/A/paper/diagrams/**"
+      - "problems/CPMCM/2025/A/paper/Makefile"
+      - "problems/CPMCM/2025/A/results/q1_promoted/q1_promoted_summary.csv"
+      - ".github/workflows/build-cpmcm-2025-a-paper-draft.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Sparse checkout 2025 A only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            problems/CPMCM/2025/A
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate reproducible paper assets
+        run: |
+          python -m pip install --disable-pip-version-check matplotlib
+          make -C problems/CPMCM/2025/A/paper assets
+
+      - name: Compile XeLaTeX draft
+        uses: xu-cheng/latex-action@v4
+        with:
+          root_file: draft.tex
+          working_directory: problems/CPMCM/2025/A/paper/manuscript
+          latexmk_use_xelatex: true
+          texlive_version: 2026
+          os: debian
+
+      - name: Verify draft PDF
+        run: test -s problems/CPMCM/2025/A/paper/manuscript/draft.pdf
+
+      - name: Upload draft PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpmcm-2025-a-paper-draft
+          path: problems/CPMCM/2025/A/paper/manuscript/draft.pdf
+          if-no-files-found: error
+          retention-days: 14
