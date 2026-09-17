@@ -88,6 +88,6 @@ fixed-traffic 主链还逐项核对：
 
 所有正式数据均保存在仓库的结构化 CSV/JSON 中；论文图、表和方法图由脚本从这些正式结果自动生成，不在绘图脚本中重新求解模型，也不手抄指标。代码库设置独立的 Q1、Q2、Q3 regression workflow、published-result verifier、论文资产构建和 XeLaTeX 编译流程。
 
-论文表格与图形采用“single source of truth”方式：例如 Q2 正文中的 promoted traffic、消融表和归一化图都读取同一个 `q2_optimized_summary.json`；Q3 的六组结果表、阶段贡献图和 safe/official 附录表都读取同一份 formal summary。这样若正式结果将来被新的 accepted candidate 替换，重新运行 paper-assets workflow 即可同步更新所有引用位置，减少人工改数字时出现前后不一致的风险。
+论文表格与图形采用“single source of truth”方式：例如 Q2 正文中的 promoted traffic、消融表和归一化图都读取同一个 \texttt{q2\_optimized\_summary.json}；Q3 的六组结果表、阶段贡献图和 safe/official 附录表都读取同一份 formal summary。这样若正式结果将来被新的 accepted candidate 替换，重新运行 paper-assets workflow 即可同步更新所有引用位置，减少人工改数字时出现前后不一致的风险。
 
 因此，从原始 Appendix-E 数据到正式结果，再到论文图表和当前 PDF 工作稿均存在可重复执行的链路。具体 workflow run、artifact digest 和输出 SHA-256 属于工程 provenance，集中放入附录，正文只保留足以说明验证方法的层级和结论。

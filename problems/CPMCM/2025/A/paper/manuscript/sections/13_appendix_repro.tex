@@ -22,18 +22,18 @@ First full manuscript PDF & 35183338711 & 10481386642 & XeLaTeX + BibTeX 完整�
 
 其中 Q1 fresh artifact digest 为
 \begin{center}
-\small\texttt{sha256:40b9d9834dae2660c88d56a0f18cea95b2a5640fad0905a19cfe27d7cd81c45e}
+\small\texttt{\seqsplit{sha256:40b9d9834dae2660c88d56a0f18cea95b2a5640fad0905a19cfe27d7cd81c45e}}
 \end{center}
 Conv1 cycle-filtered formal acceptance digest 为
 \begin{center}
-\small\texttt{sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10}
+\small\texttt{\seqsplit{sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10}}
 \end{center}
 
 Conv1 最终 Problem3 三份输出还永久记录了文件 SHA-256：
 \begin{itemize}
-    \item schedule: \texttt{54afb1046cd578bbee0597deafd8b3856202f039509fcb522ec5c9ffeeda302e};
-    \item memory: \texttt{73272121bc6889751d466c263493a7650981c83c898fef4fee77eb2dce4bf1e5};
-    \item spill: \texttt{cf705111ba94928b129d0a6c0c31fdc125415bd485c30abba65a96647cbf473c}.
+    \item schedule: \texttt{\seqsplit{54afb1046cd578bbee0597deafd8b3856202f039509fcb522ec5c9ffeeda302e}};
+    \item memory: \texttt{\seqsplit{73272121bc6889751d466c263493a7650981c83c898fef4fee77eb2dce4bf1e5}};
+    \item spill: \texttt{\seqsplit{cf705111ba94928b129d0a6c0c31fdc125415bd485c30abba65a96647cbf473c}}.
 \end{itemize}
 
 正文不依赖这些 run ID 才能理解模型；它们的作用是在需要审计或复现实验时，能够从“论文中的数字”追溯到“生成这些数字的正式 workflow 与 artifact”。
