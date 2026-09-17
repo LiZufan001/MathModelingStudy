@@ -1,0 +1,171 @@
+\section{问题三：固定搬运方案下的流水周期优化}
+
+\subsection{时间模型与双评价口径}
+
+问题三在问题二已经得到的合法 schedule、连续地址和 SPILL 方案基础上进一步考虑执行单元的时间并行性。对任意节点 $v$，记其开始、结束时刻分别为 $s_v$ 和 $f_v$，执行周期为 $c_v$，则
+\[
+f_v=s_v+c_v.
+\]
+若 $u$ 必须先于 $v$ 完成，则有
+\[
+s_v\ge f_u.
+\]
+在题目三中，时序依赖不仅来自原始 DAG，还包括 SPILL 依赖、地址复用引入的依赖以及同一 Pipe 上的串行顺序。因此可以将时序边统一写为
+\[
+E_{\mathrm{timing}}=E_{\mathrm{DAG}}\cup E_{\mathrm{spill}}\cup E_{\mathrm{reuse}}\cup E_{\mathrm{pipe}}.
+\]
+给定全局 schedule 后，同一 Pipe 内的指令顺序固定，不同 Pipe 可以并行。本文按 schedule 顺序执行 ASAP 重放，即
+\[
+s_v=\max_{u\in\operatorname{Pred}(v)}f_u,
+\qquad
+T=\max_{v\in V'} f_v,
+\]
+其中 $V'$ 包含原图节点以及插入的 SPILL 节点。关键路径理论说明，在带持续时间与 precedence 的网络中，最长依赖链决定最早完工时间瓶颈\cite{kelley1961critical}；异构计算场景下则还需要同时处理不同资源的串行约束\cite{topcuoglu2002heft}。
+
+为了严格区分题面评分口径与物理安全性，本文同时维护两个 evaluator：
+\begin{itemize}
+    \item \textbf{official\_literal}：严格按题面 Appendix-C 的地址复用依赖计算总周期，作为问题三的正式优化目标；
+    \item \textbf{residency\_safe}：在 official 依赖之外补充物理 residency epoch 约束，并检查同一物理地址在真实时间轴上是否发生非法重叠，仅作为硬可行性门禁。
+\end{itemize}
+因此候选方案的排序始终依据 official cycles；safe cycles 本身不是第二优化目标。某个候选即使 safe cycles 略有增加，只要 residency-safe replay 仍然合法且无物理重叠，就不会因为辅助指标上升而否决 official 的严格改善。
+
+\subsection{固定问题二搬运方案}
+
+为了把“流水优化带来的收益”与“增加数据搬运换时间”严格区分，正式 Q3 主链固定问题二的以下不变量：
+\begin{align}
+&\text{SPILL victim identity/order 不变},\\
+&N_{\mathrm{spill}}\text{ 不变},\\
+&T_{\mathrm{extra}}\text{ 不变}.
+\end{align}
+也就是说，问题三允许调整的是地址布局、全局 schedule 中满足依赖的相对次序以及同 Pipe 的局部序列，而不是重新决定哪些 buffer 被 SPILL。每次候选变换后，都重新执行 strict Q2 validator；若 spill count、extra traffic 或 SPILL record 发生变化，则候选立即拒绝。
+
+这一约束使问题三的因果解释更加直接：正式结果中的周期下降来源于更好的地址复用依赖结构和 Pipe 并行关系，而非额外 DDR traffic。
+
+\subsection{formal zero-traffic core}
+
+第一阶段采用通用 formal zero-traffic optimizer，主要包含三类操作。
+
+\subsubsection{地址组合搜索}
+
+同一组生命周期可以对应不同合法物理地址布局，而地址复用位置会反过来改变 reuse dependency。本文对若干通用地址重排策略形成 portfolio，每个候选先通过 residency-safe evaluator，再以 official cycles 排序。若 official 完全相同，则保留原问题二地址，避免无收益的重排。
+
+\subsubsection{关键流水重调度}
+
+在当前 official evaluator 得到的关键路径上，识别限制总周期的 Pipe 顺序，并在不违反原始 DAG、SPILL 和物理安全依赖的前提下重新生成合法拓扑序。每次接受新的 schedule 后重新计算关键路径，因此后续搜索始终针对当前瓶颈，而不是沿用初始关键路径。
+
+\subsubsection{关键地址复用重着色}
+
+对于部分实例，还允许仅移动初始 buffer offset、保持 schedule 和 SPILL 决策固定，对关键 reuse 关系做贪心 recolor。每接受一次地址移动都重新执行 official/safe 双 evaluator；首个无改善 round 即停止。这里的 recolor 只是连续地址布局上的局部搜索，不等同于经典寄存器图着色算法。
+
+整个 core 采用单调接受规则：只有 official cycles 严格下降且 safe replay 合法的候选才能替换当前解。
+
+\subsection{critical-SPILL fixed-traffic 后处理}
+
+formal core 之后，本文进一步观察 official critical path 上由 \texttt{SPILL\_OUT(MTE3)} 与其匹配的 \texttt{SPILL\_IN(MTE2)} 形成的串行边界。若这些 SPILL 端点恰好落在关键路径上，则其两侧 MTE3/MTE2 连续运行段可能成为局部瓶颈。
+
+对每一轮当前解，先按照关键 SPILL 两侧串行 run 的总周期排序候选，然后尝试翻转一小批可变的同 Pipe predecessor 边，并重新拓扑排序。原始 DAG、SPILL 依赖和 residency-safe reuse 依赖全部保持固定；候选只有同时满足下列条件才可接受：
+\begin{enumerate}[label=(\arabic*)]
+    \item strict Q2 replay 合法；
+    \item exact SPILL records、spill count 与 extra traffic 不变；
+    \item official cycles 严格下降；
+    \item residency-safe replay 合法且物理 overlap error 为 0。
+\end{enumerate}
+每接受一轮后重新计算 official critical path 并重新排序候选，直到首个 no-improvement round。
+
+\begin{algorithm}[H]
+\caption{问题三 fixed-traffic 单调优化框架}
+\label{alg:q3-fixed-traffic}
+\begin{algorithmic}[1]
+\Require 问题二 promoted 解 $X_0$
+\Ensure fixed-traffic 条件下的最终解 $X^*$
+\State $X\gets X_0$
+\State $X\gets\textsc{FormalZeroTrafficCore}(X)$
+\Repeat
+    \State 计算 $X$ 的 official critical path
+    \State 构造并排序 critical-SPILL 邻域候选
+    \State 对每个候选执行 strict Q2、official、safe 三重重放
+    \State 选取 official cycles 严格最小的合法候选 $X'$ 
+    \If{$T_{\mathrm{official}}(X')<T_{\mathrm{official}}(X)$}
+        \State $X\gets X'$
+    \Else
+        \State \textbf{break}
+    \EndIf
+\Until{无严格改善}
+\State \Return $X^*\gets X$
+\end{algorithmic}
+\end{algorithm}
+
+Conv\_Case0 与 Conv\_Case1 在通用 batch 之后还分别使用了两个已经独立验收的 fixed-traffic 邻域：前者为 critical-SPILL single-switch bubble，后者为 cycle-filtered critical-SPILL batch。它们的候选仍由当前关键路径和 Pipe/precedence 关系产生，而不是按 Conv 模板或 NodeId 硬编码。
+
+\subsection{六组 fixed-traffic 正式结果}
+
+表~\ref{tab:q3-summary} 给出六组实例的 promoted-Q2 raw cycles 与最终 official cycles。所有实例的 spill count、extra traffic 均与问题二完全一致，safe overlap error 均为 0。
+
+\begin{table}[H]
+    \centering
+    \caption{问题三六组实例的 fixed-traffic 正式结果}
+    \label{tab:q3-summary}
+    \resizebox{0.95\textwidth}{!}{\input{../tables/generated/q3_summary.tex}}
+\end{table}
+
+六组 official cycles 分别由
+\[
+135\,082,\;1\,534\,618,\;194\,265,\;962\,746,\;636\,114,\;3\,852\,543
+\]
+降至
+\[
+133\,682,\;1\,531\,946,\;187\,945,\;962\,022,\;595\,302,\;3\,749\,777.
+\]
+对应降幅依次为 $1.036408\%$、$0.174115\%$、$3.253288\%$、$0.075202\%$、$6.415831\%$ 和 $2.667485\%$。其中 Conv0 的绝对周期减少 $40\,812$，Conv1 减少 $102\,766$，说明大规模且 Pipe/搬运关系复杂的计算图仍存在较大的 fixed-traffic 时序优化空间。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{q3_official_improvement_pct.pdf}
+    \caption{六组实例在固定问题二 traffic 下的 official-cycle 改善}
+    \label{fig:q3-improvement}
+\end{figure}
+
+为了进一步解释最终改善来源，图~\ref{fig:q3-stage} 将总降幅拆成 formal zero-traffic core 与 critical-SPILL post-pass 两部分。Matmul0、Matmul1 和 FA1 的后处理未继续接受候选；FA0、Conv0 和 Conv1 则分别在 core 之后继续降低 617、8103 和 31887 cycles。由此可以看出，通用 core 负责稳定的第一阶段优化，而 critical-SPILL 后处理主要在关键搬运链较重的实例中继续发挥作用。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.84\textwidth]{q3_stage_contribution.pdf}
+    \caption{问题三 fixed-traffic 优化阶段贡献分解}
+    \label{fig:q3-stage}
+\end{figure}
+
+需要强调的是，\texttt{saturated} 仅表示相应局部邻域在当前搜索宽度下到达首个 no-improvement round。Conv0 的 single-switch 邻域和 Conv1 的 cycle-filtered 邻域都经过独立重放确认 no-improvement，但这不构成问题三的全局最优性证明。
+
+\subsection{Traffic--Cycles 权衡扩展：FlashAttention\_Case1}
+
+fixed-traffic 主线回答的是“完全不增加问题二额外搬运量时，能把周期降到多少”。进一步地，若允许极少量 traffic 增长，则可以把问题写成二目标优化：
+\[
+\min\bigl(T_{\mathrm{extra}},\;T_{\mathrm{official}}\bigr).
+\]
+当两个目标存在冲突时，使用 Pareto 非支配解描述权衡关系\cite{ehrgott2005multicriteria}，而不人为指定统一加权系数。
+
+在六组实例中，当前经过 strict-valid reconciliation 后只有 FlashAttention\_Case1 保留了 fixed-traffic 之外的两个非支配 refined 点。其精确结果见表~\ref{tab:fa1-tradeoff}。
+
+\begin{table}[H]
+    \centering
+    \caption{FlashAttention\_Case1 的 Traffic--Cycles refined 权衡点}
+    \label{tab:fa1-tradeoff}
+    \resizebox{0.86\textwidth}{!}{\input{../tables/generated/q3_fa1_tradeoff.tex}}
+\end{table}
+
+fixed-traffic 点保持 extra traffic $242\,552$，official cycles 为 $962\,022$；当 traffic 增加 $0.616775\%$ 时，cycles 降至 $947\,002$；当 traffic 增加 $1.034005\%$ 时，cycles 可进一步降至 $912\,556$，相对 promoted Q2 raw 降低 $5.213213\%$。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{q3_fa1_tradeoff.pdf}
+    \caption{FlashAttention\_Case1 的 refined Traffic--Cycles 权衡}
+    \label{fig:fa1-tradeoff}
+\end{figure}
+
+这些 higher-traffic 点只作为问题三的扩展分析，不能替换六组 fixed-Q2-traffic 正式主结果；当前仅得到三个离散的 strict-valid 非支配点，也不能将其描述为完整连续 Pareto 前沿。
+
+\subsection{验证与本问小结}
+
+问题三的每个正式候选都要经过三层独立检查：首先由 Q2 validator 重新验证 schedule、memory 与 SPILL 语义；随后分别执行 official-literal 与 residency-safe evaluator；最后检查 fixed-Q2 invariants 与 physical overlap。对于 Conv0/Conv1 的最终 post-pass，还使用独立 formal acceptance 从正式输入重新构建问题二解、重放双 evaluator，并再次执行对应局部邻域确认 no-improvement。
+
+结果表明，在不改变六组问题二 extra traffic 和 SPILL 决策的前提下，六组 official cycles 均得到严格下降，且所有最终方案的 safe overlap error 均为 0。本文因此将这些结果称为 fixed-traffic promoted / locally saturated 结果，而不声称获得全局最优。至此，“逻辑调度—物理内存—时间流水”的三层优化链完成闭环。
