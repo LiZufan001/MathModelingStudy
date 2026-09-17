@@ -1,0 +1,11 @@
+\section{结论}
+
+本文围绕通用神经网络处理器的核内调度问题，建立了“逻辑调度—物理内存—时间流水”的三层统一优化框架。
+
+对于问题一，在满足 DAG、buffer 生命周期和 L0 硬约束的前提下，以 L1+UB 峰值逻辑驻留量为目标，构造 baseline、pressure、frontier 与 bounded lookahead 四个确定性策略，并由独立 evaluator 统一择优。五组实例保持强基准，Conv\_Case1 的峰值由 $310\,408$ 降至 $310\,344$。
+
+对于问题二，在合法拓扑调度空间内加入真实缓存容量与连续地址约束，通过 footprint-aware 调度、best-fit 连续区间分配、最小 traffic 窗口 SPILL 与小窗口 polish，直接最小化额外 DDR traffic。六组总 traffic 相对原始 baseline 由 $1\,696\,198$ 降至 $1\,654\,944$；其中 Matmul 两组总 traffic 降低 $7.386\%$。实验同时表明，SPILL 次数与字节级 traffic 并不等价，因此不能用前者替代题面目标。
+
+对于问题三，在固定问题二 SPILL 身份/顺序、spill count 与 extra traffic 的条件下，使用 official-literal 作为优化目标、residency-safe 作为硬门禁，通过地址组合、关键流水重调度与 critical-SPILL 局部搜索降低执行周期。六组 official cycles 均严格下降，其中 Conv0 降低 $6.415831\%$，Conv1 降低 $2.667485\%$；所有最终方案的 safe overlap error 均为 0。进一步地，FA1 的三个 strict-valid 非支配点展示了少量额外 traffic 与更低执行周期之间的离散 Pareto 权衡。
+
+全文的正式结果均经过独立 validator/evaluator、六组真实数据 replay 与自动化回归门禁。本文没有将 promoted、best-known 或局部 no-improvement 扩张为全局最优结论；相反，通过明确搜索边界与评价口径，使各阶段结果能够被复算、比较和继续改进。

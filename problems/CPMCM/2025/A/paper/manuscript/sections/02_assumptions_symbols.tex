@@ -1,0 +1,42 @@
+\section{模型假设与符号说明}
+
+\subsection{模型假设}
+
+本文尽量直接使用题面给出的硬件与评价语义，只作以下必要假设：
+\begin{enumerate}[label=(\arabic*)]
+    \item 输入计算图为有向无环图，节点属性、buffer 大小、缓存类型、Pipe 类型与执行周期均真实有效；
+    \item 节点的 \texttt{Cycles}、buffer 的 \texttt{Size} 以及缓存容量在优化过程中保持不变，不通过修改硬件参数获得指标改善；
+    \item \texttt{ALLOC}/\texttt{FREE} 与 SPILL 的语义严格按题面定义，所有候选方案均由独立 validator/evaluator 重新重放；
+    \item 不额外引入题面之外的总线争用、随机时延或系统级任务干扰；问题三只评价给定计算图在题面核内执行模型下的周期；
+    \item 当某个局部搜索达到首个 no-improvement round 时，只称为该指定邻域的局部饱和，不据此推断全局最优。
+\end{enumerate}
+
+\subsection{主要符号}
+
+\begin{table}[H]
+\centering
+\caption{主要符号及含义}
+\label{tab:symbols}
+\begin{tabular}{cl}
+\toprule
+符号 & 含义 \\
+\midrule
+$G=(V,E)$ & 原始计算图及其前驱边集合 \\
+$S=(s_1,\ldots,s_n)$ & 一条合法节点调度序列 \\
+$m(v)$ & Q1 中节点 $v$ 对 L1+UB 逻辑驻留量的增量 \\
+$R_k$ & 调度到位置 $k$ 后的 L1+UB 逻辑驻留量 \\
+$R_{\max}$ & Q1 峰值驻留量 \\
+$z_b$ & buffer $b$ 的大小 \\
+$o_b$ & buffer $b$ 的物理地址起始偏移 \\
+$I_b=[o_b,o_b+z_b)$ & buffer $b$ 的连续物理地址区间 \\
+$C_t$ & 缓存类型 $t$ 的容量 \\
+$T_{\mathrm{extra}}$ & 由 SPILL 引入的额外 DDR 数据搬运量 \\
+$s_v,f_v$ & 节点 $v$ 的开始、结束周期 \\
+$c_v$ & 节点 $v$ 的执行周期 \\
+$T_{\mathrm{official}}$ & 题面 official-literal 口径下的总执行周期 \\
+$T_{\mathrm{safe}}$ & residency-safe 辅助 evaluator 的总周期 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+其中 Q1 的 $R_k$ 是由节点在拓扑序中的位置定义的\emph{逻辑生命周期}指标；Q2 的地址区间描述 buffer 是否真实占用片上物理空间；Q3 的 $s_v,f_v$ 则位于真实执行时间轴上。本文在实现和论述中始终区分这三个层次，避免把 schedule position、physical residency 与 wall-clock cycle 混为同一概念。

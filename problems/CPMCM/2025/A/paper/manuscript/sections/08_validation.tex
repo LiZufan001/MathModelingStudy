@@ -1,0 +1,49 @@
+\section{模型验证与可复现性}
+
+本文的候选生成算法包含多种启发式和局部搜索。为了避免“算法自己给自己打分”，所有正式结果均采用独立 validator/evaluator 重放，并将六组真实实例作为统一回归门禁。表~\ref{tab:key-results} 汇总三问当前正式结果。
+
+\begin{table}[H]
+    \centering
+    \caption{六组实例的三问核心结果汇总}
+    \label{tab:key-results}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/key_results.tex}}
+\end{table}
+
+\subsection{问题一验证}
+
+问题一首先检查完整拓扑序、buffer 的 ALLOC--USE--FREE 生命周期以及 L0A/L0B/L0C 的同类单驻留约束，再由独立 evaluator 仅根据输出 schedule 重新累计 $R_k$ 与 $R_{\max}$。小规模随机图使用 exact solver/oracle 对照，用于发现 ready-set 处理、生命周期边界和 L0 prerequisite 等实现错误；六组 Appendix-E 大实例则统一运行四个确定性策略并重新比较正式峰值。
+
+此外，本文还对一套公开 Problem1 六组 schedule 进行独立重放。其六组结果均通过本地合法性检查，峰值与本文 baseline 恰好一致。该实验只作为评价口径和基准强度的外部参照，不用于证明全局最优。
+
+\subsection{问题二验证}
+
+问题二的 validator 不信任 allocator 的内部状态，而是从最终 schedule、memory 和 spill records 重新模拟：
+\begin{itemize}
+    \item 检查每个 buffer 的地址是否落在指定缓存容量内；
+    \item 检查任意同时 resident 的同池 buffer 地址区间是否冲突；
+    \item 检查 SPILL\_OUT / SPILL\_IN 的身份、顺序和 reload offset；
+    \item 按题面规则重新计算 spill count 与 extra DDR traffic。
+\end{itemize}
+
+对 Matmul 的等大小 page 特例，另构造基于离线未来访问信息的 exact replacement oracle，与严格 allocator 的换出行为对账；这一测试用于验证特殊受限模型下的正确性，并不将经典 replacement 最优性外推到可变 size、连续地址和不同 traffic 代价的一般 Q2。
+
+\subsection{问题三验证}
+
+问题三对每个候选执行 official-literal 与 residency-safe 两套独立 timing replay。official evaluator 构造原始 DAG、SPILL、题面地址复用和同 Pipe serialization 边；safe evaluator 进一步加入 physical residency epoch 约束，并在最终时间轴上审计地址重叠。
+
+fixed-traffic 主链还逐项核对：
+\begin{itemize}
+    \item SPILL buffer 身份及顺序完全一致；
+    \item spill count 不变；
+    \item extra traffic 不变；
+    \item official cycles 必须严格改善才接受；
+    \item residency-safe 结果合法且 physical overlap error 为 0。
+\end{itemize}
+
+对于 Conv0 与 Conv1 的最终 post-pass，正式验收不直接信任搜索 summary，而是从已验收的问题二输入重新构造候选，完整重放 Q2/official/safe evaluator，再独立执行一次同邻域 no-improvement 检查。这使“搜索得到一个数字”和“该数字被独立接受”为两个分开的步骤。
+
+\subsection{自动化复现}
+
+所有正式数据均保存在仓库的结构化 CSV/JSON 中；论文图、表和方法图由脚本从这些正式结果自动生成，不在绘图脚本中重新求解模型，也不手抄指标。代码库设置独立的 Q1、Q2、Q3 regression workflow、published-result verifier、论文资产构建和 XeLaTeX 编译流程。
+
+因此，从原始 Appendix-E 数据到正式结果，再到论文图表和当前 PDF 工作稿均存在可重复执行的链路。具体 workflow run、artifact digest 和输出 SHA-256 属于工程 provenance，最终可放入附录或公开仓库说明，不在正文中堆叠。

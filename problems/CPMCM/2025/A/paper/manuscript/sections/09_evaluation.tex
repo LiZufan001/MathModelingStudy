@@ -1,0 +1,38 @@
+\section{模型评价与改进方向}
+
+\subsection{模型优点}
+
+\textbf{1. 三问采用统一状态语义。}
+问题一的逻辑生命周期、问题二的物理 residency 与问题三的时间轴被明确区分，同时共享同一 DAG / buffer 数据模型。三问因此形成递进关系，而不是三套互不兼容的独立程序。
+
+\textbf{2. 目标函数与题面指标保持一致。}
+问题一直接优化峰值驻留量，问题二直接优化 extra DDR traffic，问题三直接优化 official cycles。SPILL 次数、safe cycles 等辅助统计不替代正式目标，减少了代理指标造成的偏差。
+
+\textbf{3. 连续地址与碎片被显式建模。}
+问题二不是只限制 resident size 总和，而是维护真实连续区间、空闲块合并与窗口级 SPILL 决策，能处理 external fragmentation 以及同一操作多个 required buffer 的同时驻留需求。
+
+\textbf{4. 候选生成与独立评价分离。}
+启发式、前瞻和局部搜索仅负责产生候选；正式结论均由独立 evaluator/validator 重放。Q3 进一步采用 official/safe 双评价口径和 fixed-traffic invariants，使性能改善的来源可以被清晰解释。
+
+\textbf{5. 面向大规模实例仍可实际运行。}
+最大实例包含三万余节点和八万余依赖边。本文没有在全排列上运行不可控的群智能搜索，而是利用 ready set、事件扫描、关键路径和受限邻域，把主要计算集中在可能真正改变目标函数的位置。
+
+\subsection{模型局限}
+
+\textbf{1. 大实例缺乏全局最优性证明。}
+Q1 的四策略 portfolio、Q2 的 footprint + polish 以及 Q3 的 critical-SPILL 搜索均属于结构化启发式或局部搜索。小规模 exact oracle 可以验证语义和局部质量，但不能证明六组大实例已达到理论最优。
+
+\textbf{2. Q1 的进一步改善空间有限且不均衡。}
+当前 portfolio 仅在 Conv1 上获得 64 个驻留单位的严格下降，其余五组与强 baseline 持平。这说明现有基准已经较强，同时也意味着若希望继续提升 Q1，需要新的邻域或更强的受限搜索，而不是简单叠加优先级权重。
+
+\textbf{3. Q2/Q3 的搜索仍依赖邻域设计。}
+连续窗口 SPILL 和 critical-SPILL 操作都只探索可解释的有限邻域。局部 no-improvement 只能说明当前邻域饱和，无法排除跨更大结构的联合调整。
+
+\textbf{4. 当前 Pareto 证据是离散的。}
+FA1 仅保留三个 strict-valid 非支配点，能够展示 traffic--cycles 冲突，但并不构成完整连续前沿；其他五组目前只有 fixed-traffic 正式点。
+
+\subsection{改进方向}
+
+后续可以从三个方向扩展。第一，在 Q1/Q2 中对高压力局部子图使用 beam search、large neighborhood search 或 CP-SAT/MILP 精确求解小窗口，同时继续让独立 evaluator 负责最终接受。第二，在 Q2 中将连续地址窗口、future use 与关键流水信息做更紧密的联合评分，但必须保持 extra traffic 的主目标地位。第三，在 Q3 中可以扩大新的 fixed-traffic schedule operator，并对少量代表实例开展更系统的双目标采样，从而获得更丰富的 Pareto 结构。
+
+无论采用哪种新算法，后续候选都应继续遵守同一原则：先明确允许改变的变量和必须保持的不变量，再由统一 validator/evaluator 判定是否可以替换当前正式结果。
