@@ -1,0 +1,94 @@
+\section{核心算法补充说明}
+
+正文只保留最关键的算法流程。本附录进一步展开三个实现中最容易影响正确性、但又不适合在正文中占用过多篇幅的局部机制。
+
+\subsection{Q1：L0 前置关系与有界前瞻}
+
+对于一个 L0 allocation $a$，仅检查“当前同类 L0 是否空闲”仍可能不足。若 $a$ 的匹配 FREE 之前存在另一个同类型 L0 allocation $b$，而 $b$ 又必须先执行才能使 FREE$(a)$ 可达，则过早执行 $a$ 会占住唯一槽位，使 $b$ 永远无法分配。本文从 FREE$(a)$ 反向沿 predecessor 图搜索，在每条路径上遇到最近的同类型 L0 allocation 后停止，将这些 allocation 记为 $P(a)$。只有
+\[
+P(a)\subseteq C_{\ell}
+\]
+时，$a$ 才进入同类型 L0 ready heap，其中 $C_{\ell}$ 是已经完成的该类 L0 allocation 集合。
+
+有界前瞻只在正内存 ALLOC 分叉处触发。对候选 $a$，构造局部 rollout state，先排空当前可执行的 FREE、普通节点和安全 L0 节点，再展开少量后续正 ALLOC。该机制保留了 baseline 的确定性，同时只在最可能改变峰值的位置增加搜索。
+
+\begin{algorithm}[H]
+\caption{Q1 正内存分叉的 bounded rollout}
+\begin{algorithmic}[1]
+\Require 当前 ready set $\mathcal R$，resident $R$，baseline 上界 $U$
+\State $A\gets$ 当前 ready 的正内存 L1/UB ALLOC
+\If{$|A|<2$ 或当前压力远低于 $U$}
+    \State \Return baseline 最小分配规则
+\EndIf
+\State 从“小 allocation”和“下游释放有利”两类候选构造大小不超过 6 的候选池 $C$
+\ForAll{$a\in C$}
+    \State 克隆局部状态并执行 $a$
+    \State 贪心排空非正内存节点
+    \State 最多向下搜索 2 层，且 rollout 步数不超过 96
+    \State 记录 $(\widehat R_{\max},R,\text{truncated},N_{\text{step}})$
+\EndFor
+\State \Return 字典序评分最小的候选
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Q2：required-set repack}
+
+顺序 reload 的一个特殊失败模式是：某个操作需要同一缓存池中的多个 buffer，这些 required buffers 虽然总大小不超过容量，但现有地址布局过于碎片化，使“保护已 resident required buffers”的顺序装入无法完成。此时若简单取消保护，可能刚装入一个 required buffer 又把另一个 required buffer 换出，形成振荡。
+
+本文采用 required-set repack 作为严格可行性的兜底：先记录该 required set 中当前 resident 成员的物理顺序，将其依次 SPILL\_OUT；随后为整个 required set 请求大小为总和的连续 super-window，并按固定顺序紧凑 reload。只有当
+\[
+\sum_{b\in Q} z_b\le C_t
+\]
+时这一操作才可能成功，否则直接判定该节点在当前缓存容量下不可同时满足。
+
+\begin{algorithm}[H]
+\caption{Q2 同池 required-set repack}
+\begin{algorithmic}[1]
+\Require 缓存池 $P_t$，操作所需同池集合 $Q$
+\If{$\sum_{b\in Q}z_b>C_t$}
+    \State \Return infeasible
+\EndIf
+\State 保存 $Q$ 中 resident 成员的当前物理顺序
+\ForAll{resident $b\in Q$}
+    \State 插入 SPILL\_OUT$(b)$ 并释放地址
+\EndFor
+\State 为总大小 $\sum_{b\in Q}z_b$ 创建连续 super-window
+\ForAll{$b\in Q$ 按确定顺序}
+    \State 在 super-window 内紧凑放置并插入 SPILL\_IN$(b)$
+\EndFor
+\State 由独立 Q2 validator 重放完整结果
+\end{algorithmic}
+\end{algorithm}
+
+该 fallback 以正确性为目的，可能增加 extra traffic，因此只有普通 protected reload 实际失败时才使用。
+
+\subsection{Q3：双 evaluator 与 fixed-traffic 接受规则}
+
+Q3 的候选接受并不直接信任局部搜索器返回的 makespan。对任意候选 $X'$，依次执行：strict Q2 replay、SPILL 不变量检查、official timing、safe timing、physical overlap audit。只有所有检查通过且
+\[
+T_{\mathrm{official}}(X')<T_{\mathrm{official}}(X)
+\]
+时才接受。
+
+\begin{algorithm}[H]
+\caption{Q3 fixed-traffic 候选的严格接受门禁}
+\begin{algorithmic}[1]
+\Require 当前正式解 $X$，候选 $X'$
+\State $Q\gets\textsc{ValidateQ2}(X')$
+\If{$Q$ 非法} \State \Return reject \EndIf
+\If{SPILL identity/order、count 或 traffic 与 $X$ 不一致}
+    \State \Return reject
+\EndIf
+\State $O\gets\textsc{EvaluateOfficial}(X')$
+\If{$O$ 非法或 $T_O\ge T_{\mathrm{official}}(X)$}
+    \State \Return reject
+\EndIf
+\State $S\gets\textsc{EvaluateSafe}(X')$
+\If{$S$ 非法或 physical overlap error $>0$}
+    \State \Return reject
+\EndIf
+\State \Return accept
+\end{algorithmic}
+\end{algorithm}
+
+这一门禁保证了正文中“fixed traffic 下周期下降”的字面含义：改进不能通过改变 SPILL 决策或增加额外搬运获得。

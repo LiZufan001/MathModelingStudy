@@ -1,0 +1,51 @@
+\section{复现与验收信息}
+
+本附录记录正式结果对应的主要自动化验收入口。它们用于证明正文数字可以从代码和结构化结果中重新生成，不参与算法排名。
+
+\begin{table}[H]
+\centering
+\caption{主要正式验收与论文构建记录}
+\label{tab:app-provenance}
+\begin{tabular}{p{3.5cm}p{2.3cm}p{2.5cm}p{5.0cm}}
+\toprule
+对象 & Run ID & Artifact ID & 主要验证内容 \\
+\midrule
+Q1 fresh promotion & 35077306473 & 10439355947 & 76 tests、六组四策略 fresh comparison、published-result verifier、公开 schedule replay \\
+Q2 production acceptance & 34588951162 & 10194890328 & 六组 strict allocator/validator、Matmul exact oracle、footprint/polish promoted 结果 \\
+Conv0 Q3 formal acceptance & 34748384017 & 10315385596 & single-switch fixed-traffic post-pass 独立重放与晋升 \\
+Conv1 Q3 formal acceptance & 35064897835 & 10434077125 & promoted Q2 重建、双 evaluator、exact SPILL records、no-improvement recheck \\
+Paper assets & 35183338734 & -- & BibTeX gate、图表脚本、所有正文/附录资产生成与非空检查 \\
+First full manuscript PDF & 35183338711 & 10481386642 & XeLaTeX + BibTeX 完整编译、PDF 非空检查与 artifact 上传 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+其中 Q1 fresh artifact digest 为
+\begin{center}
+\small\texttt{sha256:40b9d9834dae2660c88d56a0f18cea95b2a5640fad0905a19cfe27d7cd81c45e}
+\end{center}
+Conv1 cycle-filtered formal acceptance digest 为
+\begin{center}
+\small\texttt{sha256:3d4145d8fb223dbf1cb58f22268253f419ddcb8113cf670bebd602cb2075cf10}
+\end{center}
+
+Conv1 最终 Problem3 三份输出还永久记录了文件 SHA-256：
+\begin{itemize}
+    \item schedule: \texttt{54afb1046cd578bbee0597deafd8b3856202f039509fcb522ec5c9ffeeda302e};
+    \item memory: \texttt{73272121bc6889751d466c263493a7650981c83c898fef4fee77eb2dce4bf1e5};
+    \item spill: \texttt{cf705111ba94928b129d0a6c0c31fdc125415bd485c30abba65a96647cbf473c}.
+\end{itemize}
+
+正文不依赖这些 run ID 才能理解模型；它们的作用是在需要审计或复现实验时，能够从“论文中的数字”追溯到“生成这些数字的正式 workflow 与 artifact”。
+
+\subsection{论文资产复现入口}
+
+从仓库根目录可执行：
+\begin{verbatim}
+make -C problems/CPMCM/2025/A/paper assets
+\end{verbatim}
+重新生成论文图、表和方法图；若本机安装 XeLaTeX、latexmk 与 BibTeX，则可进一步执行：
+\begin{verbatim}
+make -C problems/CPMCM/2025/A/paper manuscript
+\end{verbatim}
+生成当前工作稿 PDF。完整源码、测试与自动化工作流保存在公开仓库，论文附录因此只保留关键算法与验收信息，不打印大段 Python 源码。

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,6 +15,10 @@ OUT.mkdir(parents=True, exist_ok=True)
 def read_csv(path: Path):
     with path.open("r", encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))
+
+
+def read_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def save(fig, stem: str):
@@ -59,6 +64,28 @@ def q1_peak_residency():
     save(fig, "q1_peak_residency")
 
 
+def q1_policy_ablation():
+    rows = read_csv(RESULTS / "q1_promoted" / "q1_policy_comparison.csv")
+    labels = [short_case(r["case"]) for r in rows]
+    strategies = [
+        ("Baseline", "baseline_peak"),
+        ("Pressure", "pressure_peak"),
+        ("Frontier", "frontier_peak"),
+        ("Lookahead", "lookahead_peak"),
+    ]
+    fig, ax = plt.subplots(figsize=(7.6, 4.6))
+    for label, key in strategies:
+        ratios = [int(r[key]) / int(r["baseline_peak"]) for r in rows]
+        ax.plot(labels, ratios, marker="o", label=label)
+    ax.axhline(1.0, linewidth=1.0, linestyle="--")
+    ax.set_ylabel("Peak residency / baseline")
+    ax.set_title("Q1 policy ablation: no single heuristic dominates all cases")
+    ax.tick_params(axis="x", rotation=25)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8)
+    save(fig, "q1_policy_ablation")
+
+
 def q2_spill_and_traffic():
     rows = read_csv(RESULTS / "q2_optimized" / "q2_optimized_summary.csv")
     labels = [short_case(r["case"]) for r in rows]
@@ -82,6 +109,27 @@ def q2_spill_and_traffic():
     ax.grid(axis="y", alpha=0.25)
     annotate_bars(ax, bars, traffic, fmt="{:,.0f}")
     save(fig, "q2_extra_traffic")
+
+
+def q2_stage_ablation():
+    meta = read_json(RESULTS / "q2_optimized" / "q2_optimized_summary.json")
+    rows = meta["cases"]
+    labels = [short_case(r["case"]) for r in rows]
+    raw = [float(r["raw_baseline_extra_traffic"]) for r in rows]
+    footprint = [100.0 * (base - float(r["footprint_only_extra_traffic"])) / base for r, base in zip(rows, raw)]
+    promoted = [100.0 * (base - float(r["extra_traffic"])) / base for r, base in zip(rows, raw)]
+
+    x = list(range(len(labels)))
+    width = 0.34
+    fig, ax = plt.subplots(figsize=(8.0, 4.7))
+    ax.bar([i - width / 2 for i in x], footprint, width, label="Footprint only")
+    ax.bar([i + width / 2 for i in x], promoted, width, label="Promoted")
+    ax.set_ylabel("Extra-traffic reduction vs raw baseline (%)")
+    ax.set_title("Q2 stage ablation across Appendix-E cases")
+    ax.set_xticks(x, labels, rotation=25)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8)
+    save(fig, "q2_stage_ablation")
 
 
 def q3_improvement():
@@ -181,7 +229,7 @@ def q3_pareto_overview():
         ax.plot(xs, ys, marker="o", label=short_case(case))
     ax.set_xlabel("Extra traffic")
     ax.set_ylabel("Official cycles")
-    ax.set_title("Q3 refined Traffic–Cycles frontier (diagnostic overview)")
+    ax.set_title("Q3 refined Traffic-Cycles frontier (diagnostic overview)")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
     save(fig, "q3_refined_pareto")
@@ -198,10 +246,10 @@ def q3_fa1_tradeoff():
     ax.plot(xs, ys, marker="o")
     ax.set_xlabel("Extra traffic increase vs promoted Q2 (%)")
     ax.set_ylabel("Official-cycle reduction vs promoted Q2 (%)")
-    ax.set_title("FA1 refined Traffic–Cycles trade-off")
+    ax.set_title("FA1 refined Traffic-Cycles trade-off")
     ax.grid(alpha=0.25)
     for r, x, y in zip(pts, xs, ys):
-        label = "fixed traffic" if r["variant"] == "zero_traffic" else r["sequence"].replace(">", "→")
+        label = "fixed traffic" if r["variant"] == "zero_traffic" else r["sequence"].replace(">", "->")
         ax.annotate(
             label,
             xy=(x, y),
@@ -214,7 +262,9 @@ def q3_fa1_tradeoff():
 
 def main():
     q1_peak_residency()
+    q1_policy_ablation()
     q2_spill_and_traffic()
+    q2_stage_ablation()
     q3_improvement()
     q3_stage_contribution()
     q3_raw_vs_final()

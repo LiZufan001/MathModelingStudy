@@ -25,6 +25,25 @@ I_b\cap I_c=\varnothing.
     \label{fig:q2-buffer-lifecycle}
 \end{figure}
 
+\subsection{连续地址约束与碎片判定}
+
+设某缓存池当前空闲区间集合为
+\[
+\mathcal F_t=\{[l_1,r_1),\ldots,[l_m,r_m)\}.
+\]
+定义总空闲量和最大连续空闲跨度分别为
+\[
+F_t=\sum_{i=1}^{m}(r_i-l_i),\qquad
+L_t=\max_i(r_i-l_i).
+\]
+对一个大小为 $q$ 的新 buffer，仅有 $F_t\ge q$ 并不足以保证可放置，真正的连续地址可行条件是
+\[
+L_t\ge q.
+\]
+例如容量为 16 的缓存中若两个 resident buffer 把空闲空间分成长度 5 与 5 的两个洞，则总空闲量为 10，但一个大小为 8 的新 buffer 仍无法直接放入。这个差异解释了为什么问题二不能只沿用 Q1 的 resident-size 累计，也不能只对总容量做线性约束。
+
+因此 allocator 必须同时维护：已占用区间、排序后的空闲区间、FREE 后的相邻区间合并，以及当 $L_t<q$ 时需要主动清空哪一段连续窗口。本文将“碎片导致不可放置”视为一个显式决策点，而不是等到 validator 失败后再事后修补。
+
 \subsection{严格连续地址分配与 SPILL}
 
 对固定的合法拓扑序，本文首先为每个缓存池独立维护空闲区间集合，并采用 best-fit 将新 buffer 放入最小可容纳空闲区间。FREE 发生时释放对应区间，并立即合并相邻空洞。当不存在可直接放置的区间时，不采用“换出最大 buffer”或“换出最远使用 buffer”这样的单一 victim 规则，而是直接搜索一个长度为 $q$ 的目标窗口 $W=[x,x+q)$。
@@ -72,7 +91,25 @@ J(W)=\sum_{b\in B(W)}c_b.
 
 仅优化固定顺序上的地址分配仍会受到生命周期重叠方式的限制。因此本文在问题一合法性约束不变的条件下，进一步构造 Q2-aware 拓扑调度器。其核心思想不是识别特定算子模板，而是由计算图自身提取 buffer 共现关系。
 
-对于每个 L0 allocation，以操作节点 \texttt{Bufs} 中的共现关系构造无向 buffer 邻接，并向外扩展两跳，得到与该 L0 buffer 相关联的 L1/UB footprint。若一个 L0C allocation 的 footprint 足够大，则将其作为当前 task anchor；在该 anchor 存活期间，后续 L0A/L0B allocation 及 L1/UB counted allocation 优先选择与 anchor footprint 重叠更大的候选。L0C 释放后，再根据与刚完成 footprint 的重叠程度选择下一任务。这样可以在不硬编码 Matmul、Conv 或 FlashAttention 名称的情况下，让相互关联的数据块尽量聚集执行，从而减少重复载入与 SPILL 压力。
+\subsubsection{Buffer 共现图与两跳 footprint}
+
+构造无向 buffer 共现图
+\[
+H=(\mathcal B,F),
+\]
+其中 $\mathcal B$ 为所有 buffer，若某个普通操作节点的 \texttt{Bufs} 同时包含 $b_i,b_j$，则在二者之间连边。对一个 L0 allocation $a$ 对应的 buffer $b_a$，定义两跳 counted footprint
+\[
+\Phi(a)=\{b\in \mathrm{L1}\cup\mathrm{UB}:\operatorname{dist}_{H}(b_a,b)\le 2\}.
+\]
+两跳距离能够表达诸如“L0C--L0A/L0B--L1”这样的间接数据关联，而不需要知道当前图究竟来自 Matmul、Conv 还是 FlashAttention。
+
+当一个 L0C allocation 的 $\Phi(a)$ 足够大时，将其作为当前 task anchor。对另一个候选 L0 allocation $a'$，使用 weighted overlap
+\[
+\operatorname{score}(a'|a)=\sum_{b\in \Phi(a')\cap\Phi(a)} z_b
+\]
+衡量它与当前任务的数据关联程度；对 L1/UB allocation 也优先选择属于 anchor footprint 的 buffer。这样可以在图结构层面聚集同一任务附近的数据访问，缩短复用间隔并减轻后续 SPILL 压力。
+
+L0C 释放后，再根据与刚完成 footprint 的重叠程度选择下一任务。限制 anchor 由 L0C 承担，是因为其在题面计算流程中更接近结果/任务级锚点；L0A/L0B 仍参与 footprint 路由，但不直接拥有跨任务锚点，避免输入侧 buffer 错误吸附无关任务。
 
 正式 promoted 配置中，直接热度 affinity 和 release 权重被关闭，主要保留 footprint 路由，避免多个启发式同时作用导致不可解释的偏置。所有候选顺序仍需通过问题一 evaluator；因此 Q2-aware 调度改变的是合法拓扑序中的选择偏好，而不是放宽问题一约束。
 
@@ -112,8 +149,6 @@ w\in\{0,1,2,3\}.
 \]
 相对原始六组 baseline，traffic 总量由 $1\,696\,198$ 降至 $1\,654\,944$，减少 $41\,254$，即 $2.432145\%$。其中 Matmul 两组总 traffic 由 $495\,616$ 降至 $459\,008$，减少 $36\,608$（$7.386\%$），说明 footprint 路由对具有明显块复用结构的算子最有效。
 
-在 footprint-only 基础顺序之上，小窗口 polish 又将六组总 traffic 从 $1\,659\,590$ 降至 $1\,654\,944$，额外减少 $4\,646$（$0.279949\%$）。FA0、Conv0、Conv1 分别选择 $w=1,2,3$，而 Matmul0、Matmul1 和 FA1 自动保留 $w=0$，说明 portfolio 并不会为了“所有实例都要改动”而接受退化候选。
-
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{q2_extra_traffic.pdf}
@@ -121,10 +156,52 @@ w\in\{0,1,2,3\}.
     \label{fig:q2-traffic}
 \end{figure}
 
-一个值得单独强调的现象是，SPILL 次数与官方 traffic 并不等价。例如 FA0 的 spill count 从 301 增至 316，但 traffic 从 $55\,188$ 降至 $54\,016$；Conv1 的 spill count 从 9550 增至 9646，但 traffic 从 $724\,630$ 降至 $721\,464$。由于不同 buffer 的大小与 COPY\_IN 可重载属性不同，“次数更少”并不保证“搬运字节更少”。因此本文始终直接优化 extra traffic，不使用 spill count 替代题面目标。
+\subsection{分阶段消融：raw baseline、footprint 与 polish}
+
+仅给出最终 traffic 无法回答“改善究竟来自拓扑复用还是最后的小窗口局部搜索”。因此本文将 Q2 拆成 raw baseline、footprint-only 和 promoted 三个阶段统一比较。表~\ref{tab:q2-stage-ablation} 给出六组实例的精确 traffic、SPILL 以及最终选择的 polish window。
+
+\begin{table}[H]
+    \centering
+    \caption{问题二三阶段消融结果}
+    \label{tab:q2-stage-ablation}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q2_stage_ablation.tex}}
+\end{table}
+
+为避免 Matmul1 和 Conv1 的绝对量级掩盖小实例，图~\ref{fig:q2-stage-ablation} 直接展示 footprint-only 与 promoted 相对各自 raw baseline 的 traffic 降幅。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{q2_stage_ablation.pdf}
+    \caption{问题二不同优化阶段相对 raw baseline 的 extra traffic}
+    \label{fig:q2-stage-ablation}
+\end{figure}
+
+消融结果呈现出三种不同机制。
+
+\textbf{第一类：footprint 主导。} Matmul0/1 在 footprint 阶段就分别从 $34\,816/460\,800$ 降到 $28\,800/430\,208$，最终自动选择 $w=0$，说明其主要收益来自合法拓扑顺序中的数据聚集，而不是后续局部重排。
+
+\textbf{第二类：polish 补偿。} FA0 的 footprint-only 与 raw baseline 都为 $55\,188$，但 $w=1$ 后降到 $54\,016$；Conv0/1 也主要通过 $w=2,3$ 分别额外降低 308 和 3166 traffic。这说明小窗口重排能够修正 footprint 规则无法直接捕获的局部生命周期重叠。
+
+\textbf{第三类：无需改变。} FA1 三个阶段均保持 $242\,552$，promotion gate 因此保留 $w=0$。这类结果同样重要：算法没有为了“每个实例都必须出现改善”而接受无收益甚至退化的修改。
+
+相对 footprint-only 基线，polish 将六组总 traffic 从 $1\,659\,590$ 降至 $1\,654\,944$，额外减少 $4\,646$（$0.279949\%$）。幅度虽不大，但它来自统一、可复现的小邻域，而不是针对某个 case 手工改 schedule。
+
+\subsection{SPILL 次数与 traffic 的非等价性}
+
+一个值得单独强调的现象是，SPILL 次数与官方 traffic 并不等价。例如 FA0 的 spill count 从 301 增至 316，但 traffic 从 $55\,188$ 降至 $54\,016$；Conv0 的 spill count 从 493 增至 522，但 traffic 从 $178\,212$ 降至 $177\,904$；Conv1 的 spill count 从 9550 增至 9646，但 traffic 从 $724\,630$ 降至 $721\,464$。
+
+这是因为不同 buffer 的 $z_b$ 和 COPY\_IN 可重载属性不同。若多次换出的是小而便宜的 buffer，总搬运字节仍可能低于少量但昂贵的 SPILL。因此“最少 SPILL 次数”不是题目二的正确代理目标。本文始终直接优化 extra traffic，spill count 只作为解释性统计量。
+
+\subsection{复杂度与严格可行性兜底}
+
+地址池按缓存类型分别维护排序空闲区间。best-fit 和 FREE 合并的实际开销与空闲块数量有关；当直接放置失败时，窗口 victim 选择通过 overlap event sweep 在约 $O(R\log R)$ 内完成，其中 $R$ 是当前 resident buffer 数。相比枚举每个整数 offset 并重新扫描所有 resident buffer，这一做法更适合大图中反复发生的分配请求。
+
+对一个操作同时需要的多个同池 buffer，算法先保护已经 resident 的 required buffers，再按大小优先 reload 缺失项。如果因为碎片导致顺序 reload 无法完成，则触发 required-set repack：先把该操作要求的同池 resident 成员暂时 spill，随后为 required set 创建一个连续 super-window，再紧凑 reload。这个步骤可能增加 traffic，因此只作为正确性 fallback，不作为常规优化手段。
+
+更重要的是，任何内部 fallback 都不能放宽题面约束。最终解必须重新通过独立 validator；如果 required set 的总大小本身超过容量、出现地址重叠或 SPILL 记录不完整，则直接判为不可行，而不是通过隐式超配获得结果。
 
 \subsection{验证与本问小结}
 
 问题二使用独立 validator 对最终输出进行完整 replay，逐步检查地址区间、resident 状态、SPILL\_OUT / SPILL\_IN 顺序和额外 traffic。对于 Matmul 等大小 page 的特殊简化场景，还使用 Belady 的离线最优 replacement 思想构造 exact oracle\cite{belady1966replacement}，用于核对 allocator 在该受限模型下的换出逻辑；该 oracle 只验证特殊场景，不构成一般 Q2 全局最优证明。除此之外，已有比赛 Problem2 输出也使用同一 validator 做独立重放，以检查评价口径是否一致。
 
-综上，问题二通过“Q2-aware 合法拓扑顺序 + 连续地址 best-fit + 最小 traffic 窗口 SPILL + 小窗口 polish”形成可复现的 promoted 解。六组实例均保持严格有效，且正式选择始终以题面 extra traffic 为第一目标。该地址与 SPILL 方案随后作为问题三时间优化的物理基础。
+综上，问题二通过“Q2-aware 合法拓扑顺序 + 连续地址 best-fit + 最小 traffic 窗口 SPILL + 小窗口 polish”形成可复现的 promoted 解。分阶段消融进一步说明：Matmul 的主要收益来自 footprint 数据聚集，FA0/Conv 的部分收益来自小窗口顺序修正，而 FA1 自动保持原方案。六组实例均保持严格有效，且正式选择始终以题面 extra traffic 为第一目标。该地址与 SPILL 方案随后作为问题三时间优化的物理基础。

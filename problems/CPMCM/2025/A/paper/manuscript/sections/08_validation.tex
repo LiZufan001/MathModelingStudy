@@ -1,4 +1,4 @@
-\section{模型验证与可复现性}
+\section{模型验证、稳健性与可复现性}
 
 本文的候选生成算法包含多种启发式和局部搜索。为了避免“算法自己给自己打分”，所有正式结果均采用独立 validator/evaluator 重放，并将六组真实实例作为统一回归门禁。表~\ref{tab:key-results} 汇总三问当前正式结果。
 
@@ -9,9 +9,32 @@
     \resizebox{\textwidth}{!}{\input{../tables/generated/key_results.tex}}
 \end{table}
 
+\subsection{分层验证矩阵}
+
+本文把验证分成“语义合法性—正式指标—独立复现—发布门禁”四层。表~\ref{tab:validation-matrix} 给出三问的主要验证对象。
+
+\begin{table}[H]
+\centering
+\caption{三问验证层次与典型检查项}
+\label{tab:validation-matrix}
+\begin{tabular}{p{1.4cm}p{4.0cm}p{5.2cm}p{3.0cm}}
+\toprule
+问题 & 语义合法性 & 独立指标重算 & 额外门禁 \\
+\midrule
+Q1 & DAG 拓扑、ALLOC--USE--FREE、L0 单驻留 & 从完整 schedule 重算 $R_k,R_{\max}$ & 小图 exact oracle、六策略 fresh comparison、公开 schedule replay \\
+Q2 & 连续地址、容量、resident 状态、SPILL 对偶 & 从 schedule/memory/spill records 重算 traffic & Matmul 等大小 page exact oracle、published metrics regression \\
+Q3 & Q2 全部语义 + timing edge 一致性 & official/safe 双 replay、critical path、overlap audit & fixed-Q2 invariants、formal acceptance、no-improvement recheck \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+这种分层有两个作用。第一，尽量让验证器比求解器简单：求解器可以包含优先级、前瞻和局部搜索，但 validator 只按题面定义重放结果；第二，把“数值变好”和“输出仍然合法”分成两个独立命题。任何候选即使目标函数更小，只要合法性或固定不变量检查失败，都不能进入正式结果。
+
 \subsection{问题一验证}
 
 问题一首先检查完整拓扑序和 buffer 生命周期，即 \texttt{ALLOC}、\texttt{USE}、\texttt{FREE} 的先后关系；随后分别检查 L0A、L0B、L0C 的同类单驻留约束。独立 evaluator 仅根据输出 schedule 重新累计 $R_k$ 与 $R_{\max}$。小规模随机图使用 exact solver/oracle 对照，用于发现 ready-set 处理、生命周期边界和 L0 prerequisite 等实现错误；六组 Appendix-E 大实例则统一运行四个确定性策略并重新比较正式峰值。
+
+Q1 的 fresh policy comparison 还有一个重要用途：它能发现“复杂策略实现合法但质量退化”的情况。比如 bounded lookahead 在 Matmul0/1 等实例上虽然完全合法，但峰值明显高于 baseline。若只检查 valid=true 而不重新比较 $R_{\max}$，这些候选仍可能被误晋升。当前 published-result verifier 因此同时要求：六组正式 winner 的 method 和 peak 必须与 fresh comparison 一致。
 
 此外，本文还对一套公开 Problem1 六组 schedule 进行独立重放。其六组结果均通过本地合法性检查，峰值与本文 baseline 恰好一致。该实验只作为评价口径和基准强度的外部参照，不用于证明全局最优。
 
@@ -24,6 +47,8 @@
     \item 检查 SPILL\_OUT / SPILL\_IN 的身份、顺序和 reload offset；
     \item 按题面规则重新计算 spill count 与 extra DDR traffic。
 \end{itemize}
+
+这一重放可以覆盖若干容易被内部状态掩盖的错误。例如 allocator 若在 FREE 后忘记合并空闲区间，可能导致不必要的 SPILL；若 reload 时使用了一个与当前 resident buffer 重叠的 offset，内部数据结构若同步出错仍可能继续运行，而独立 validator 会直接发现物理地址冲突；若 SPILL\_OUT 后没有匹配 SPILL\_IN，或 COPY\_IN 可重载 buffer 的 traffic 计价错误，也会在最终重算中暴露。
 
 对 Matmul 的等大小 page 特例，另构造基于离线未来访问信息的 exact replacement oracle，与严格 allocator 的换出行为对账；这一测试用于验证特殊受限模型下的正确性，并不将经典 replacement 最优性外推到可变 size、连续地址和不同 traffic 代价的一般 Q2。
 
@@ -40,10 +65,29 @@ fixed-traffic 主链还逐项核对：
     \item residency-safe 结果合法且 physical overlap error 为 0。
 \end{itemize}
 
+这套门禁能排除几类“看起来更快”的伪改善。若某次重排改变了 SPILL victim，即使 cycles 更低，也不属于 fixed-traffic 主线；若 official timing 变短但 safe overlap 出错，则候选在更保守物理语义下不可接受；若对同 Pipe edge 的翻转形成 precedence cycle，则在拓扑重建阶段直接失败，不进入 evaluator 排名。
+
 对于 Conv0 与 Conv1 的最终 post-pass，正式验收不直接信任搜索 summary，而是从已验收的问题二输入重新构造候选，完整重放 Q2/official/safe evaluator，再独立执行一次同邻域 no-improvement 检查。这使“搜索得到一个数字”和“该数字被独立接受”为两个分开的步骤。
 
-\subsection{自动化复现}
+\subsection{典型失败模式与防护}
+
+综合三问，本文重点覆盖以下失败模式：
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{拓扑合法但生命周期非法}：普通 DAG 顺序满足前驱关系，却在 ALLOC 前使用 buffer 或在 FREE 后再次引用；
+    \item \textbf{L0 局部死锁}：同类型 L0 allocation 过早占用唯一槽位，使匹配 FREE 的前置链无法完成；
+    \item \textbf{总容量看似足够但连续地址不可放置}：由 external fragmentation 造成；
+    \item \textbf{SPILL 指标漂移}：候选重排后 spill count 或 extra traffic 与声称值不一致；
+    \item \textbf{题面 timing 边与 schedule 相矛盾}：某依赖边在输出 schedule 中出现反向位置；
+    \item \textbf{official 合法但物理 residency 重叠}：由 safe evaluator 的 epoch 边和 overlap audit 检出；
+    \item \textbf{实验 summary 与正式输出不同步}：由 published-result verifier、文件 SHA 和 CI artifact 对账。
+\end{enumerate}
+
+这些测试并不能证明启发式得到全局最优，但能显著缩小“结果数值来自实现 bug 或评价口径错误”的可能性。对于竞赛论文而言，这类正确性保障与单纯增加更多启发式同样重要。
+
+\subsection{自动化复现与论文数字防漂移}
 
 所有正式数据均保存在仓库的结构化 CSV/JSON 中；论文图、表和方法图由脚本从这些正式结果自动生成，不在绘图脚本中重新求解模型，也不手抄指标。代码库设置独立的 Q1、Q2、Q3 regression workflow、published-result verifier、论文资产构建和 XeLaTeX 编译流程。
 
-因此，从原始 Appendix-E 数据到正式结果，再到论文图表和当前 PDF 工作稿均存在可重复执行的链路。具体 workflow run、artifact digest 和输出 SHA-256 属于工程 provenance，最终可放入附录或公开仓库说明，不在正文中堆叠。
+论文表格与图形采用“single source of truth”方式：例如 Q2 正文中的 promoted traffic、消融表和归一化图都读取同一个 `q2_optimized_summary.json`；Q3 的六组结果表、阶段贡献图和 safe/official 附录表都读取同一份 formal summary。这样若正式结果将来被新的 accepted candidate 替换，重新运行 paper-assets workflow 即可同步更新所有引用位置，减少人工改数字时出现前后不一致的风险。
+
+因此，从原始 Appendix-E 数据到正式结果，再到论文图表和当前 PDF 工作稿均存在可重复执行的链路。具体 workflow run、artifact digest 和输出 SHA-256 属于工程 provenance，集中放入附录，正文只保留足以说明验证方法的层级和结论。

@@ -29,6 +29,29 @@ T=\max_{v\in V'} f_v,
 \end{itemize}
 因此候选方案的排序始终依据 official cycles；safe cycles 本身不是第二优化目标。某个候选即使 safe cycles 略有增加，只要 residency-safe replay 仍然合法且无物理重叠，就不会因为辅助指标上升而否决 official 的严格改善。
 
+\subsection{时序依赖边的分解}
+
+为了避免“全局 schedule 中相邻节点”与“真实时间轴依赖”混为一谈，本文把 evaluator 中的边显式分成五类，如表~\ref{tab:q3-edge-types} 所示。
+
+\begin{table}[H]
+\centering
+\caption{问题三时序依赖边及其作用}
+\label{tab:q3-edge-types}
+\begin{tabular}{p{2.6cm}p{7.2cm}cc}
+\toprule
+边类型 & 含义 & official & safe \\
+\midrule
+原始 DAG 边 & 保持题目给出的计算/数据前驱关系 & 是 & 是 \\
+SPILL 边 & 连接 SPILL\_OUT、SPILL\_IN 与原 buffer 使用关系 & 是 & 是 \\
+地址复用边 & 同一物理区间被不同 buffer 先后复用时的题面依赖 & 是 & 是 \\
+Pipe 串行边 & 同一 CUBE/VECTOR/MTE/FIXP Pipe 内按 schedule 顺序串行 & 是 & 是 \\
+Residency epoch 边 & 保证物理 acquire--release 生命周期不发生非法覆盖 & 否 & 是 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+这一区分非常关键。Official evaluator 完全遵循题面字面计分规则，因此用于结果排序；safe evaluator 则主动增加物理生命周期约束，以排除“字面依赖看似合法、但真实时间轴上同一物理地址仍重叠”的候选。两套 evaluator 共用相同节点周期和 Pipe serialization，只在物理安全依赖上存在差异。
+
 \subsection{固定问题二搬运方案}
 
 为了把“流水优化带来的收益”与“增加数据搬运换时间”严格区分，正式 Q3 主链固定问题二的以下不变量：
@@ -97,6 +120,16 @@ formal core 之后，本文进一步观察 official critical path 上由 \texttt
 
 Conv\_Case0 与 Conv\_Case1 在通用 batch 之后还分别使用了两个已经独立验收的 fixed-traffic 邻域：前者为 critical-SPILL single-switch bubble，后者为 cycle-filtered critical-SPILL batch。它们的候选仍由当前关键路径和 Pipe/precedence 关系产生，而不是按 Conv 模板或 NodeId 硬编码。
 
+\subsection{单调接受与局部终止性}
+
+设第 $k$ 轮被正式接受的 official cycles 为 $T_k$。由于 promotion gate 要求
+\[
+T_{k+1}<T_k,
+\]
+而 $T_k$ 是非负整数，因此不存在“接受后又回到同一目标值”的循环。对每一轮，候选前缀规模和允许翻转的 Pipe 边集合又是有限的；当本轮所有候选都不能产生严格下降时，算法停止。因此 fixed-traffic 后处理在给定邻域和最大搜索宽度下必然结束。
+
+这里的“终止”与“全局最优”必须区分。它只能说明当前 neighborhood 已经没有被本算子发现的严格改善；若更换更大的重排结构、联合改变多个 Pipe 或进入新的地址布局，仍可能存在更优解。因此本文后续使用“locally saturated / no-improvement”描述该状态，而不使用“全局最优”。
+
 \subsection{六组 fixed-traffic 正式结果}
 
 表~\ref{tab:q3-summary} 给出六组实例的 promoted-Q2 raw cycles 与最终 official cycles。所有实例的 spill count、extra traffic 均与问题二完全一致，safe overlap error 均为 0。
@@ -125,7 +158,9 @@ Conv\_Case0 与 Conv\_Case1 在通用 batch 之后还分别使用了两个已经
     \label{fig:q3-improvement}
 \end{figure}
 
-为了进一步解释最终改善来源，图~\ref{fig:q3-stage} 将总降幅拆成 formal zero-traffic core 与 critical-SPILL post-pass 两部分。Matmul0、Matmul1 和 FA1 的后处理未继续接受候选；FA0、Conv0 和 Conv1 则分别在 core 之后继续降低 617、8103 和 31887 cycles。由此可以看出，通用 core 负责稳定的第一阶段优化，而 critical-SPILL 后处理主要在关键搬运链较重的实例中继续发挥作用。
+\subsection{阶段贡献与分实例机制解释}
+
+为了进一步解释最终改善来源，图~\ref{fig:q3-stage} 将总降幅拆成 formal zero-traffic core 与 critical-SPILL post-pass 两部分，附录表~\ref{tab:app-q3-stage} 则给出精确 raw/core/final 数值。
 
 \begin{figure}[H]
     \centering
@@ -134,7 +169,21 @@ Conv\_Case0 与 Conv\_Case1 在通用 batch 之后还分别使用了两个已经
     \label{fig:q3-stage}
 \end{figure}
 
+\textbf{Matmul0/1 与 FA1：core 即主要收益。} 三组实例在 formal core 后已经到达当前 critical-SPILL batch 的首个 no-improvement round，post-pass 没有继续接受候选。说明其当前瓶颈更多来自地址 reuse 和一般 Pipe 次序，而不是关键路径上的可翻转 SPILL serialization。
+
+\textbf{FA0：小幅但稳定的 post-pass。} Formal core 将 cycles 从 $194\,265$ 降到 $188\,562$，critical-SPILL 后处理再减少 617，最终达到 $187\,945$。这类实例说明即便总降幅不大，重新计算 critical path 后仍能从搬运边界中提取少量额外并行度。
+
+\textbf{Conv0：两类 fixed-traffic 邻域叠加。} Formal core 已把 $636\,114$ 降到 $603\,405$，后续通用 critical-SPILL batch 与 single-switch bubble 继续将其压到 $595\,302$。由于 spill count 和 traffic 始终固定，这部分收益可以明确归因于同 Pipe 顺序和关键搬运边界的调整，而不是“多搬一点数据换时间”。
+
+\textbf{Conv1：大图中的持续关键路径重构。} Formal core 将 $3\,852\,543$ 降到 $3\,781\,664$，之后多轮 critical-SPILL 搜索以及 cycle-filtered post-pass 继续降至 $3\,749\,777$。最终 safe cycles 为 $4\,114\,811$，physical overlap error 为 0。该结果表明大图的关键路径会在每次接受后发生明显迁移，因此 fresh-rerank 比固定使用初始关键路径更合理。
+
 需要强调的是，\texttt{saturated} 仅表示相应局部邻域在当前搜索宽度下到达首个 no-improvement round。Conv0 的 single-switch 邻域和 Conv1 的 cycle-filtered 邻域都经过独立重放确认 no-improvement，但这不构成问题三的全局最优性证明。
+
+\subsection{Official 与 safe 两种周期的关系}
+
+附录表~\ref{tab:app-q3-dual} 同时列出六组最终 official cycles 和 safe cycles。Safe 值通常高于 official，是因为它额外加入了物理 residency epoch 约束；这种差异不表示 official evaluator “错误”，而是两者回答的问题不同：official 用于严格复现题面计分，safe 用于确认候选在更保守的物理时间语义下仍不会发生非法地址重叠。
+
+因此本文不最小化 $T_{\mathrm{safe}}$，也不使用 safe-official gap 作为性能排名。只要 safe replay 合法且 overlap error 为 0，正式比较仍由 $T_{\mathrm{official}}$ 决定。这一设计避免用自定义安全模型替代题面评分，同时又为地址复用提供额外正确性保障。
 
 \subsection{Traffic--Cycles 权衡扩展：FlashAttention\_Case1}
 
@@ -143,6 +192,13 @@ fixed-traffic 主线回答的是“完全不增加问题二额外搬运量时，
 \min\bigl(T_{\mathrm{extra}},\;T_{\mathrm{official}}\bigr).
 \]
 当两个目标存在冲突时，使用 Pareto 非支配解描述权衡关系\cite{ehrgott2005multicriteria}，而不人为指定统一加权系数。
+
+对两个严格有效解 $x,y$，若
+\[
+T_{\mathrm{extra}}(x)\le T_{\mathrm{extra}}(y),\qquad
+T_{\mathrm{official}}(x)\le T_{\mathrm{official}}(y)
+\]
+且至少一个不等式严格成立，则称 $x$ 支配 $y$。只有通过 strict Q2、official 和 safe replay 的候选才参与 dominance 判断，避免“一个非法但数值漂亮的点”进入 Pareto 前沿。
 
 在六组实例中，当前经过 strict-valid reconciliation 后只有 FlashAttention\_Case1 保留了 fixed-traffic 之外的两个非支配 refined 点。其精确结果见表~\ref{tab:fa1-tradeoff}。
 
@@ -164,8 +220,14 @@ fixed-traffic 点保持 extra traffic $242\,552$，official cycles 为 $962\,022
 
 这些 higher-traffic 点只作为问题三的扩展分析，不能替换六组 fixed-Q2-traffic 正式主结果；当前仅得到三个离散的 strict-valid 非支配点，也不能将其描述为完整连续 Pareto 前沿。
 
+\subsection{复杂度与搜索资源分配}
+
+一次 timing replay 本质上是在 augmented precedence graph 上按给定 schedule 做动态规划：对每个节点取所有 predecessor 的最大完成时刻，因此主要开销与节点数和时序边数近似线性相关。真正昂贵的是“需要重放多少个候选”。为此本文采用两级缩减：先由当前 critical path 筛出可能影响 makespan 的 SPILL 边界，再只对有限 prefix size 和有限 Pipe edge 进行局部变换。
+
+这种设计与在完整 schedule 空间上运行无边界随机搜索不同。它把计算预算集中在当前关键路径，并在每轮接受后 fresh-rerank；若一轮没有严格改善即停止。对于没有符合 single-switch 结构的实例，candidate count 可以直接为 0，而不继续机械扩大搜索宽度。
+
 \subsection{验证与本问小结}
 
 问题三的每个正式候选都要经过三层独立检查：首先由 Q2 validator 重新验证 schedule、memory 与 SPILL 语义；随后分别执行 official-literal 与 residency-safe evaluator；最后检查 fixed-Q2 invariants 与 physical overlap。对于 Conv0/Conv1 的最终 post-pass，还使用独立 formal acceptance 从正式输入重新构建问题二解、重放双 evaluator，并再次执行对应局部邻域确认 no-improvement。
 
-结果表明，在不改变六组问题二 extra traffic 和 SPILL 决策的前提下，六组 official cycles 均得到严格下降，且所有最终方案的 safe overlap error 均为 0。本文因此将这些结果称为 fixed-traffic promoted / locally saturated 结果，而不声称获得全局最优。至此，“逻辑调度—物理内存—时间流水”的三层优化链完成闭环。
+结果表明，在不改变六组问题二 extra traffic 和 SPILL 决策的前提下，六组 official cycles 均得到严格下降，且所有最终方案的 safe overlap error 均为 0。阶段贡献分析进一步说明，不同实例的收益来源并不相同：有些主要依赖通用地址/流水 core，有些还存在可利用的关键 SPILL 串行边界。本文因此将这些结果称为 fixed-traffic promoted / locally saturated 结果，而不声称获得全局最优。至此，“逻辑调度—物理内存—时间流水”的三层优化形成完整闭环。

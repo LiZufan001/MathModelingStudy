@@ -34,9 +34,19 @@ R_{\max}(S)=\max_{1\le k\le n}R_k .
 
 这一目标与普通“FREE 优先”的局部规则并不等价。某个普通计算节点虽然有 $m(v)=0$，却可能解锁一个大 buffer 的 FREE；反之，过早执行新的 ALLOC 会扩大多个生命周期的重叠。因此候选排序不仅要看当前内存增量，还要考虑其对后继可调度集合的影响。
 
+\subsection{Ready-set 视角与基本调度框架}
+
+对当前已完成节点集合 $U\subseteq V$，定义 ready set
+\[
+\mathcal R(U)=\{v\in V\setminus U:\operatorname{Pred}(v)\subseteq U\}.
+\]
+任意合法拓扑调度都可以看作从 $\mathcal R(U)$ 中反复选择一个节点并更新 indegree 的过程。因此问题一的搜索空间可以统一归结为：在每一步决定“当前哪个 ready 节点先执行”。本文所有 Q1 策略都建立在 Kahn 拓扑排序框架上，区别只在于 ready set 的优先级函数与少量前瞻。
+
+如果只考虑即时内存变化，则 FREE 节点具有负增量、普通节点为零、L1/UB ALLOC 为正增量，因此“FREE 优先、正分配靠后”是自然的基准。但由于普通节点会改变下一轮 ready set，一个看似无关的零增量选择可能决定大 buffer 能否更早释放。这正是 pressure、frontier 和 bounded lookahead 三个补充策略试图覆盖的结构差异。
+
 \subsection{确定性四策略组合}
 
-为兼顾计算规模与搜索质量，本文采用由四个确定性策略构成的 portfolio。各策略均在 Kahn 拓扑调度框架内维护 ready set，并显式检查 buffer 生命周期和 L0 可行性；最终结果统一交给独立 evaluator 重算，而不是使用启发式内部估计值作为正式指标。
+为兼顾计算规模与搜索质量，本文采用由四个确定性策略构成的 portfolio。各策略均显式检查 buffer 生命周期和 L0 可行性；最终结果统一交给独立 evaluator 重算，而不是使用启发式内部估计值作为正式指标。
 
 \subsubsection{基准策略}
 
@@ -81,6 +91,40 @@ R_{\max}(S)=\max_{1\le k\le n}R_k .
 \end{algorithmic}
 \end{algorithm}
 
+\subsection{策略消融与组合必要性}
+
+为了判断四种策略是否只是“名称不同但结果相同”，本文保留 fresh main run 的完整 policy comparison。表~\ref{tab:q1-policy-ablation} 给出六组实例上四个策略的独立 evaluator 峰值。
+
+\begin{table}[H]
+    \centering
+    \caption{问题一四策略的峰值驻留量消融}
+    \label{tab:q1-policy-ablation}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q1_policy_ablation.tex}}
+\end{table}
+
+结果显示，没有一个复杂策略在六组实例上统一支配基准策略。Pressure 与 frontier 在多数实例上与 baseline 持平，但 pressure 在 Conv\_Case0 上反而将峰值从 $80\,170$ 提高到 $83\,303$；bounded lookahead 在五组实例上也可能因为有限 horizon 内的局部判断过早打开生命周期，得到比 baseline 更大的峰值，却在 Conv\_Case1 上取得唯一的严格改善。图~\ref{fig:q1-policy-ablation} 将各策略峰值归一化到 baseline，可以更直观地看到这种结构差异。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{q1_policy_ablation.pdf}
+    \caption{问题一不同策略相对 baseline 的峰值驻留量}
+    \label{fig:q1-policy-ablation}
+\end{figure}
+
+这一消融结果说明，portfolio 的作用并不是把多个启发式简单叠加，而是保留不同搜索偏好并用独立 evaluator 最终择优。尤其是 lookahead：它的价值不是“必然更好”，而是在基准已经较强的大图分叉处偶尔发现基准规则看不到的更优顺序；若它退化，promotion gate 会自动保留 baseline。该“允许候选失败、但不允许正式结果退化”的机制比强行固定单一复杂启发式更稳健。
+
+\subsection{复杂度与大规模适用性}
+
+四个策略的主循环都基于 indegree 更新和 ready set 维护。若使用堆结构选择候选，baseline 主体复杂度约为
+\[
+O\bigl((|V|+|E|)\log |V|\bigr).
+\]
+Pressure 的 release hint 可以在一条反向拓扑序上计算，frontier 只增加 ready epoch 等少量状态；L0 prerequisite 分析对每个 allocation 做缓存后的反向可达性检查，其开销取决于实际图结构，但不会改变“只在合法 ready set 中选节点”的主框架。
+
+Bounded lookahead 的成本更高，因此本文明确限制 depth、candidate limit 和 rollout horizon，并只在多个正内存 ALLOC 同时 ready、且当前驻留量接近 baseline 上界时触发。这样把较重搜索集中到真正可能改变峰值的分叉点，而不是在每个节点上运行树搜索。该设计也解释了为何最大 Conv\_Case1 可以接受 lookahead 的额外计算开销，而多数简单实例最终仍由 baseline 胜出。
+
+需要指出，本文不把 wall-clock runtime 作为竞赛评价指标。运行时间会受到 GitHub runner、Python 版本和硬件负载影响，因此只用于工程 profiling；正式结论只比较相同 evaluator 下的 $R_{\max}$。
+
 \subsection{六组实例结果}
 
 四个策略在附录 E 的六组真实计算图上统一运行。表~\ref{tab:q1-summary} 给出基准结果与 promoted 结果。这里的 promoted 表示“当前四策略组合中经过同一 evaluator 验证的最小值”，不表示全局最优拓扑序。
@@ -100,4 +144,4 @@ R_{\max}(S)=\max_{1\le k\le n}R_k .
 
 问题一的候选生成与评价严格分离：调度器只负责产生合法拓扑序，最终峰值由独立 evaluator 根据 ALLOC/FREE 生命周期重新累计；小规模 exact oracle 用于检验 evaluator 与启发式语义，六组大实例则通过 fresh policy comparison 与 published-result verifier 进行回归。相关调度问题可视为具有特殊内存状态约束的 precedence-constrained list scheduling，其经典理论背景可参见文献\cite{graham1969multiprocessing,hu1961parallel}，但本文没有据此声称本策略满足这些经典模型下的最优性界。
 
-综上，问题一得到了一组可复现的合法低峰值调度：五组实例维持稳定基准，Conv\_Case1 通过有界前瞻取得 64 个驻留单位的严格下降。该调度顺序为问题二进一步加入真实缓存容量、连续地址分配与 SPILL 提供逻辑生命周期基础。
+综上，问题一得到了一组可复现的合法低峰值调度：五组实例维持稳定基准，Conv\_Case1 通过有界前瞻取得 64 个驻留单位的严格下降。更重要的是，四策略消融表明“复杂启发式并不天然占优”，因此保留简单 baseline、让独立 evaluator 决定是否接受更复杂候选，是当前问题结构下更稳健的求解方式。该合法调度空间为问题二进一步加入真实缓存容量、连续地址分配与 SPILL 提供基础。

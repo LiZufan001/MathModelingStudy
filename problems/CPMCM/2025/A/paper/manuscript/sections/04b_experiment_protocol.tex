@@ -1,0 +1,51 @@
+\section{评价指标与实验设计}
+
+在正式求解三问之前，需要先统一六组实例、评价指标和结果晋升规则。这样做的目的不是增加工程细节，而是确保后续每一节出现的“改善”“保持不变”“局部饱和”等结论都使用同一口径。
+
+\subsection{六组测试图规模}
+
+题目附录 E 提供 Matmul、FlashAttention 和 Conv 三类计算图，每类包含 Case0 与 Case1 两个规模。表~\ref{tab:case-scale} 给出统一解析器得到的节点、依赖边数量。可以看到，实例规模跨度较大：最小的 FlashAttention\_Case0 仅约 $1.7\times10^3$ 个节点，而最大的 Conv\_Case1 超过 $3.6\times10^4$ 个节点和 $8.5\times10^4$ 条依赖边。因此，能够在小图上穷举的算法不能直接作为六组统一求解器。
+
+\begin{table}[H]
+    \centering
+    \caption{六组 Appendix-E 计算图规模}
+    \label{tab:case-scale}
+    \resizebox{0.78\textwidth}{!}{\input{../tables/generated/case_scale.tex}}
+\end{table}
+
+三类算子虽然共享相同的数据结构和硬件语义，但其图结构并不相同。Matmul 中块级数据复用关系较强；FlashAttention 含有更明显的多阶段数据流；Conv 的大实例则同时具有更大的节点规模和更复杂的搬运/流水关系。本文不为三类算子分别编写模板化专用算法，而是要求所有正式策略只依赖图结构、buffer 元数据和 Pipe 属性。
+
+\subsection{三问评价指标}
+
+三问分别对应三个不同层次的正式目标：
+\begin{align}
+\text{Q1:}\quad &\min R_{\max},\\
+\text{Q2:}\quad &\min T_{\mathrm{extra}},\\
+\text{Q3:}\quad &\min T_{\mathrm{official}}.
+\end{align}
+其中 $R_{\max}$ 是逻辑调度位置上的 L1+UB 峰值驻留量，$T_{\mathrm{extra}}$ 是 SPILL 引入的额外 DDR 数据搬运量，$T_{\mathrm{official}}$ 是题面 Appendix-C 口径下的总执行周期。三个目标均直接来自题面，而不是由自定义代理指标替代。
+
+需要特别区分若干辅助量。SPILL 次数只用于解释 Q2 结果，不替代 extra traffic；Q3 的 residency-safe cycles 只用于物理安全门禁，不参与正式排序；算法运行时间只用于工程 profiling，不作为竞赛目标。这样可以避免出现“某个辅助统计变好，但正式题面指标实际变差”的目标漂移。
+
+\subsection{候选生成、独立评价与结果晋升}
+
+本文把每一问拆成三个角色：
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{候选生成器}：使用贪心、前瞻或局部搜索构造可行候选；
+    \item \textbf{独立 evaluator/validator}：只读取候选输出，按题面语义重新计算合法性与正式指标；
+    \item \textbf{promotion gate}：只有在六组真实实例上通过统一检查、且正式目标不退化的候选才允许进入论文正式结果。
+\end{enumerate}
+
+例如，Q1 的调度器内部虽然会维护 resident 估计和 release hint，但最终 $R_{\max}$ 仍由独立 evaluator 从完整输出序列重新累计；Q2 allocator 即使内部已经维护空闲区间和 SPILL 状态，正式结果仍由另一个 validator 从 schedule、memory 和 spill records 重放；Q3 的局部搜索即使计算出更短的 critical path，也必须重新通过 strict Q2、official timing 和 residency-safe timing 三层检查。
+
+这种设计与普通“运行一次算法、打印一个目标值”的流程不同。它允许候选生成器大胆使用启发式，同时把最终数值可信度交给更简单、可审计的独立评价器。对于数学建模论文而言，这种分离也使模型、算法和结果证据之间的关系更清晰。
+
+\subsection{对比与消融的基本原则}
+
+本文的消融实验遵循三个原则。
+
+第一，只比较\emph{同一题面口径}下的结果。例如 Q2 比较 raw baseline、footprint-only 和 promoted 时，三者都由同一严格 allocator/validator 计算 extra traffic；Q3 fixed-traffic 主线则要求 SPILL 身份、次数和 traffic 完全一致后才比较 cycles。
+
+第二，优先采用“每问一张六组总表 + 少量机制图”的形式，而不将六个 case 拆成六套重复叙述。只有当某个实例表现出明显不同的机制时，才单独分析，例如 Q1 的 Conv1 bounded lookahead、Q2 的 Matmul footprint 收益以及 Q3 的 Conv0/Conv1 critical-SPILL 后处理。
+
+第三，所有消融只用于解释当前方法为什么有效，不把有限策略集合中的 winner 描述成理论最优。本文所称 promoted 或 best-known，均限定在已经实际评估并通过门禁的候选集合中。

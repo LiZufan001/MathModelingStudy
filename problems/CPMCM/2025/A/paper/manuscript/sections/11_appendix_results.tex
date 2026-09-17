@@ -1,0 +1,60 @@
+\section{详细结果与消融表}
+
+本附录集中给出正文中为节省篇幅而未全部展开的六组细表。所有数值均由论文资产脚本直接读取正式 CSV/JSON 生成，不从正文反向抄录。
+
+\subsection{问题一四策略完整结果}
+
+表~\ref{tab:app-q1-policy} 给出 Q1 四个确定性策略在六组实例上的全部峰值。该表与正文图~\ref{fig:q1-policy-ablation} 使用同一 fresh main policy-comparison 数据源。
+
+\begin{table}[H]
+    \centering
+    \caption{问题一四策略完整消融结果}
+    \label{tab:app-q1-policy}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q1_policy_ablation.tex}}
+\end{table}
+
+从表中可以看到，Pressure 与 Frontier 并非“更复杂就一定更优”，Lookahead 也只在 Conv\_Case1 上胜出。正式 promotion 因而采用 best-of-policy，而不是固定某一策略。
+
+\subsection{问题二三阶段完整结果}
+
+\begin{table}[H]
+    \centering
+    \caption{问题二 raw baseline、footprint-only 与 promoted 的详细对比}
+    \label{tab:app-q2-stage}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q2_stage_ablation.tex}}
+\end{table}
+
+Matmul0/1 的 improvement 主要发生在 footprint 阶段，FA0 与 Conv0/1 则主要由 polish 补充；FA1 自动保留原顺序。该表同时展示 SPILL 次数变化，用于说明次数与 traffic 并非同一目标。
+
+\subsection{问题三 raw/core/final 阶段细分}
+
+\begin{table}[H]
+    \centering
+    \caption{问题三 fixed-traffic 优化阶段的绝对周期贡献}
+    \label{tab:app-q3-stage}
+    \resizebox{\textwidth}{!}{\input{../tables/generated/q3_stage_details.tex}}
+\end{table}
+
+其中 Core gain 为 promoted-Q2 raw 到 formal zero-traffic core 的绝对周期下降，Post gain 为 core 到最终 fixed-traffic 点的继续下降。Accepted rounds 仅统计正式 critical-SPILL batch 接受轮数；Conv0/Conv1 后续已正式验收的额外 post-pass 仍包含在 Final 中。
+
+\subsection{问题三 official/safe 双评价结果}
+
+\begin{table}[H]
+    \centering
+    \caption{问题三最终 official 与 residency-safe 周期}
+    \label{tab:app-q3-dual}
+    \resizebox{0.94\textwidth}{!}{\input{../tables/generated/q3_dual_summary.tex}}
+\end{table}
+
+Safe gap 仅用于解释更保守物理约束带来的附加等待，不作为正式性能指标。六组最终 safe overlap error 均为 0。
+
+\subsection{FlashAttention\_Case1 refined 非支配点}
+
+\begin{table}[H]
+    \centering
+    \caption{FA1 strict-valid Traffic--Cycles 非支配点}
+    \label{tab:app-fa1-frontier}
+    \resizebox{0.86\textwidth}{!}{\input{../tables/generated/q3_fa1_tradeoff.tex}}
+\end{table}
+
+当前只有三个离散 strict-valid 点，因此本表用于展示局部 trade-off，而不将其外推为连续 Pareto 曲线。

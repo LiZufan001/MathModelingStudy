@@ -8,7 +8,9 @@ on:
     paths:
       - "problems/CPMCM/2025/A/paper/**"
       - "problems/CPMCM/2025/A/results/q1_promoted/q1_promoted_summary.csv"
+      - "problems/CPMCM/2025/A/results/q1_promoted/q1_policy_comparison.csv"
       - "problems/CPMCM/2025/A/results/q2_optimized/q2_optimized_summary.csv"
+      - "problems/CPMCM/2025/A/results/q2_optimized/q2_optimized_summary.json"
       - "problems/CPMCM/2025/A/results/q3_formal_fixed_traffic/q3_formal_fixed_traffic_summary.csv"
       - "problems/CPMCM/2025/A/results/q3_pareto/q3_refined_official_frontier.csv"
       - ".github/workflows/build-cpmcm-2025-a-paper-assets.yml"
@@ -45,16 +47,23 @@ jobs:
       - name: Verify expected outputs
         run: |
           test -s problems/CPMCM/2025/A/paper/figures/generated/q1_peak_residency.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q1_policy_ablation.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_spill_count.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q2_extra_traffic.pdf
+          test -s problems/CPMCM/2025/A/paper/figures/generated/q2_stage_ablation.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_official_improvement_pct.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_stage_contribution.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_raw_vs_final_cycles.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_fa1_tradeoff.pdf
           test -s problems/CPMCM/2025/A/paper/figures/generated/q3_refined_pareto.pdf
+          test -s problems/CPMCM/2025/A/paper/tables/generated/case_scale.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q1_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q1_policy_ablation.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q2_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q2_stage_ablation.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q3_dual_summary.tex
+          test -s problems/CPMCM/2025/A/paper/tables/generated/q3_stage_details.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/key_results.tex
           test -s problems/CPMCM/2025/A/paper/tables/generated/q3_fa1_tradeoff.tex
           test -s problems/CPMCM/2025/A/paper/diagrams/generated/pipeline_overview.pdf
